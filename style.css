@@ -24,6 +24,38 @@ body {
   width: 100%;
   margin-bottom: 16px;
   align-items: center;
+gap: 12px;
+}
+
+#score-panel>span {
+    font-size: 1.1em;
+}
+
+#theme-toggle {
+    background: #bfa06a;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-size: 1rem;
+    cursor: pointer;
+    margin: 0;
+    margin-top: 8px;
+    transition: background 0.2s;
+    display: block;
+}
+
+#theme-toggle:hover {
+    background: #a88b5a;
+}
+
+#theme-row {
+    display: flex;
+    flex-direction: row;
+    gap: 12px;
+    justify-content: center;
+    align-items: center;
+    margin-top: 8px;
 }
 #grid {
   display: grid;
@@ -123,4 +155,113 @@ body {
     width: 20px;
     height: 20px;
   }
+}
+
+/* Theme: Wood (default) */
+body.wood {
+    background: #e7dac5;
+}
+
+body.wood #game-container {
+    background: #f5e6c8;
+}
+
+body.wood #grid {
+    background: #bfa06a;
+}
+
+body.wood .grid-cell {
+    background: #e0c48c;
+}
+
+body.wood .block-shape .grid-cell {
+    background: #bfa06a;
+}
+
+/* Theme: Neon */
+body.neon {
+    background: #181c2b;
+}
+
+body.neon #game-container {
+    background: #23264a;
+}
+
+body.neon #grid {
+    background: #00fff7;
+}
+
+body.neon .grid-cell {
+    background: #0fffc3;
+    box-shadow: 0 0 8px #00fff7;
+    border-radius: 4px;
+}
+
+body.neon .block-shape .grid-cell {
+    background: #ff00e6;
+    box-shadow: 0 0 8px #ff00e6;
+}
+
+body.neon #theme-toggle {
+    background: #00fff7;
+    color: #23264a;
+}
+
+body.neon #reset-btn,
+body.neon #restart-btn,
+body.neon #sound-toggle {
+    background: #ff00e6;
+    color: #fff;
+}
+
+body.neon #reset-btn:hover,
+body.neon #restart-btn:hover,
+body.neon #sound-toggle:hover {
+    background: #c800b0;
+}
+
+body.neon #score,
+body.neon #high-score {
+    color: #00fff7;
+    text-shadow: 0 0 8px #00fff7, 0 0 16px #00fff7;
+}
+
+/* Theme: Pastel */
+body.pastel {
+    background: #f7e6ff;
+}
+
+body.pastel #game-container {
+    background: #fff6fa;
+}
+
+body.pastel #grid {
+    background: #b2a4ff;
+}
+
+body.pastel .grid-cell {
+    background: #ffd6ec;
+    border-radius: 4px;
+}
+
+body.pastel .block-shape .grid-cell {
+    background: #b2a4ff;
+}
+
+body.pastel #theme-toggle {
+    background: #b2a4ff;
+    color: #fff6fa;
+}
+
+body.pastel #reset-btn,
+body.pastel #restart-btn,
+body.pastel #sound-toggle {
+    background: #ffd6ec;
+    color: #b2a4ff;
+}
+
+body.pastel #reset-btn:hover,
+body.pastel #restart-btn:hover,
+body.pastel #sound-toggle:hover {
+    background: #e0c48c;
 }

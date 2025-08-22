@@ -373,6 +373,41 @@ function initGame() {
     renderTray();
 }
 
+// Theme support
+const THEMES = ['wood', 'neon', 'pastel'];
+let currentTheme = 'wood';
+
+function applyTheme(theme) {
+    document.body.classList.remove(...THEMES);
+    document.body.classList.add(theme);
+    currentTheme = theme;
+    localStorage.setItem('blockwood-theme', theme);
+}
+
+function loadTheme() {
+    const stored = localStorage.getItem('blockwood-theme');
+    if (stored && THEMES.includes(stored)) {
+        applyTheme(stored);
+    } else {
+        applyTheme('wood');
+    }
+}
+
+function createThemeSwitcher() {
+    const btn = document.getElementById('theme-toggle');
+    if (!btn) return;
+    function updateBtn() {
+        btn.textContent = 'Theme: ' + currentTheme.charAt(0).toUpperCase() + currentTheme.slice(1);
+    }
+    btn.onclick = () => {
+        let idx = THEMES.indexOf(currentTheme);
+        idx = (idx + 1) % THEMES.length;
+        applyTheme(THEMES[idx]);
+        updateBtn();
+    };
+    updateBtn();
+}
+
 window.addEventListener('DOMContentLoaded', () => {
     modal = document.getElementById('game-over-modal');
     finalScore = document.getElementById('final-score');
@@ -391,4 +426,6 @@ window.addEventListener('DOMContentLoaded', () => {
         };
     }
     initGame();
+    loadTheme();
+    createThemeSwitcher();
 });
