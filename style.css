@@ -1,0 +1,126 @@
+/* Blockwood Puzzle Game Styles */
+body {
+  background: #e7dac5;
+  font-family: 'Segoe UI', sans-serif;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+}
+#game-container {
+  background: #f5e6c8;
+  border-radius: 16px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.15);
+  padding: 32px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+#score-panel {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: 16px;
+  align-items: center;
+}
+#grid {
+  display: grid;
+  grid-template-columns: repeat(9, 32px);
+  grid-template-rows: repeat(9, 32px);
+  gap: 2px;
+  background: #bfa06a;
+  border-radius: 8px;
+  margin-bottom: 24px;
+}
+.grid-cell {
+  width: 32px;
+  height: 32px;
+  background: #e0c48c;
+  border-radius: 4px;
+  transition: background 0.2s;
+  transition: background 0.2s, transform 0.3s;
+}
+
+.grid-cell-hover {
+  background: #ffe082 !important;
+  box-shadow: 0 0 0 2px #bfa06a;
+  z-index: 2;
+}
+.grid-cell-error {
+  background: #e57373 !important;
+}
+
+.cell-placed {
+  animation: pop-in 0.3s;
+  background: #ffe082 !important;
+}
+
+.cell-cleared {
+  animation: fade-out 0.4s;
+  background: #b2dfdb !important;
+}
+
+@keyframes pop-in {
+  0% { transform: scale(0.7); background: #ffe082; }
+  80% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
+@keyframes fade-out {
+  0% { opacity: 1; background: #b2dfdb; }
+  100% { opacity: 0.2; background: #e0c48c; }
+}
+#block-tray {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.block-shape {
+  display: inline-block;
+  cursor: grab;
+}
+#reset-btn, #restart-btn, #sound-toggle {
+  background: #bfa06a;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 1rem;
+  margin-top: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+#reset-btn:hover, #restart-btn:hover, #sound-toggle:hover {
+  background: #a88b5a;
+}
+#game-over-modal {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.modal-content {
+  background: #fffbe6;
+  padding: 32px 24px;
+  border-radius: 12px;
+  text-align: center;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.2);
+}
+@media (max-width: 600px) {
+  #game-container {
+    padding: 8px 2px;
+  }
+  #grid {
+    grid-template-columns: repeat(9, 20px);
+    grid-template-rows: repeat(9, 20px);
+  }
+  .grid-cell {
+    width: 20px;
+    height: 20px;
+  }
+}

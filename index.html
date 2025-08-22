@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Blockwood Puzzle</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="game-container">
+    <div id="score-panel">
+      <span id="score">Score: 0</span>
+      <span id="high-score">High Score: 0</span>
+      <button id="sound-toggle">🔊</button>
+    </div>
+    <div id="grid"></div>
+    <div id="block-tray"></div>
+    <button id="reset-btn">Restart</button>
+  </div>
+  <div id="game-over-modal" style="display:none;">
+    <div class="modal-content">
+      <h2>Game Over</h2>
+      <p id="final-score"></p>
+      <button id="restart-btn">Restart</button>
+    </div>
+  </div>
+  <script type="module" src="main.js"></script>
+</body>
+</html>
