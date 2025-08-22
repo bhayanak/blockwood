@@ -196,23 +196,59 @@ function hideGameOver() {
 }
 // --- Sound Effects (Stubs) ---
 const sounds = {
-	place: new Audio('place.wav'), // Placeholder path
-	clear: new Audio('clear.wav'),
-	gameover: new Audio('gameover.wav'),
+    place: new Audio('place.wav'), // Placeholder path
+    clear: new Audio('clear.wav'),
+    gameover: new Audio('gameover.wav'),
 };
 let soundEnabled = true;
 
-document.getElementById('sound-toggle').addEventListener('click', () => {
-	soundEnabled = !soundEnabled;
-	document.getElementById('sound-toggle').textContent = soundEnabled ? '🔊' : '🔇';
-});
+function updateSoundButton() {
+    const btn = document.getElementById('sound-toggle');
+    if (!btn) return;
+    btn.textContent = soundEnabled ? '🔊' : '🔇';
+}
+
+function loadSoundSetting() {
+    const stored = localStorage.getItem('blockwood-sound');
+    soundEnabled = stored === null ? true : stored === 'true';
+    updateSoundButton();
+}
+
+function toggleSound() {
+    soundEnabled = !soundEnabled;
+    localStorage.setItem('blockwood-sound', soundEnabled);
+    updateSoundButton();
+}
 
 function playSound(name) {
-	if (soundEnabled && sounds[name]) {
-		sounds[name].currentTime = 0;
-		sounds[name].play();
-	}
+    if (!soundEnabled) return;
+    if (sounds[name]) {
+        sounds[name].currentTime = 0;
+        sounds[name].play();
+    }
 }
+
+// Unlock all sounds on first user gesture (mobile fix)
+let soundsUnlocked = false;
+function unlockSounds() {
+    if (soundsUnlocked) return;
+    Object.values(sounds).forEach(audio => {
+        try {
+            const prevVolume = audio.volume;
+            audio.muted = true;
+            audio.volume = 0;
+            audio.play().catch(() => { });
+            audio.pause();
+            audio.currentTime = 0;
+            audio.muted = false;
+            audio.volume = prevVolume;
+        } catch (e) { }
+    });
+    soundsUnlocked = true;
+}
+window.addEventListener('touchstart', unlockSounds, { once: true });
+window.addEventListener('mousedown', unlockSounds, { once: true });
+
 
 // --- Animation Helpers ---
 function animateCell(row, col, type) {
@@ -425,6 +461,12 @@ window.addEventListener('DOMContentLoaded', () => {
             renderTray();
         };
     }
+    // Sound toggle button
+    const soundBtn = document.getElementById('sound-toggle');
+    if (soundBtn) {
+        soundBtn.onclick = toggleSound;
+    }
+    loadSoundSetting();
     initGame();
     loadTheme();
     createThemeSwitcher();
