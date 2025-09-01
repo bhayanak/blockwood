@@ -16,8 +16,24 @@ let score = 0;
 let highScore = 0;
 
 function updateScorePanel() {
-    document.getElementById('score').textContent = 'Score: ' + score;
-    document.getElementById('high-score').textContent = 'High Score: ' + highScore;
+    const scoreElement = document.getElementById('score');
+    const highScoreElement = document.getElementById('high-score');
+
+    scoreElement.textContent = 'Score: ' + score;
+    highScoreElement.textContent = 'High Score: ' + highScore;
+
+    // Add animation to score when it changes
+    scoreElement.classList.add('score-animate');
+    setTimeout(() => {
+        scoreElement.classList.remove('score-animate');
+    }, 600);
+
+    if (score === highScore && score > 0) {
+        highScoreElement.classList.add('score-animate');
+        setTimeout(() => {
+            highScoreElement.classList.remove('score-animate');
+        }, 600);
+    }
 }
 
 function loadHighScore() {
@@ -37,9 +53,12 @@ function renderGrid() {
             cell.className = 'grid-cell';
             cell.dataset.row = row;
             cell.dataset.col = col;
-            // Show placed blocks in a different color
-            if (gridManager.grid[row][col]) {
-                cell.style.background = '#bfa06a';
+            // Show placed blocks with their original colors
+            const cellData = gridManager.grid[row][col];
+            if (cellData && cellData.filled) {
+                cell.style.background = `linear-gradient(135deg, ${cellData.color} 0%, ${cellData.color}dd 100%)`;
+                cell.style.borderColor = cellData.color;
+                cell.classList.add('filled-cell');
             }
             // Drag-over and drop events
             cell.addEventListener('dragover', (e) => {
@@ -54,8 +73,10 @@ function renderGrid() {
                 cell.classList.remove('grid-cell-hover');
                 const shapeIdx = e.dataTransfer.getData('shapeIdx');
                 if (shapeIdx === undefined) return;
-                const shape = trayShapes[shapeIdx];
-                if (!shape) return;
+                const shapeConfig = trayShapes[shapeIdx];
+                if (!shapeConfig) return;
+                const shape = shapeConfig.pattern;
+                const shapeColor = shapeConfig.color;
                 // Validate placement
                 if (canPlaceShape(gridManager.grid, shape, { row, col })) {
                     playSound('place');
@@ -67,7 +88,10 @@ function renderGrid() {
                                 const gr = row + r;
                                 const gc = col + c;
                                 if (gr < gridSize && gc < gridSize) {
-                                    gridManager.grid[gr][gc] = 1;
+                                    gridManager.grid[gr][gc] = {
+                                        filled: true,
+                                        color: shapeColor
+                                    };
                                     placedCount++;
                                 }
                             }
@@ -84,7 +108,7 @@ function renderGrid() {
                     let clearedCols = [];
                     // Check rows
                     for (let r = 0; r < gridSize; r++) {
-                        if (gridManager.grid[r].every(cell => cell === 1)) {
+                        if (gridManager.grid[r].every(cell => cell && cell.filled)) {
                             clearedRows.push(r);
                         }
                     }
@@ -92,7 +116,7 @@ function renderGrid() {
                     for (let c = 0; c < gridSize; c++) {
                         let full = true;
                         for (let r = 0; r < gridSize; r++) {
-                            if (gridManager.grid[r][c] !== 1) {
+                            if (!gridManager.grid[r][c] || !gridManager.grid[r][c].filled) {
                                 full = false;
                                 break;
                             }
@@ -165,10 +189,11 @@ function renderGrid() {
 
 // Check if any tray shape can be placed on the grid
 function checkGameOver() {
-    if (!trayShapes.some(shape => shape)) return; // No shapes left, not game over
+    if (!trayShapes.some(shapeConfig => shapeConfig)) return; // No shapes left, not game over
     for (let idx = 0; idx < trayShapes.length; idx++) {
-        const shape = trayShapes[idx];
-        if (!shape) continue;
+        const shapeConfig = trayShapes[idx];
+        if (!shapeConfig) continue;
+        const shape = shapeConfig.pattern;
         const shapeRows = shape.length;
         const shapeCols = shape[0].length;
         for (let row = 0; row <= gridSize - shapeRows; row++) {
@@ -257,9 +282,68 @@ function animateCell(row, col, type) {
 	const cell = document.querySelector(selector);
 	if (cell) {
 		cell.classList.add(type === 'placed' ? 'cell-placed' : 'cell-cleared');
+
+        // Add particle effect for cleared cells
+        if (type === 'cleared') {
+            createParticleExplosion(cell);
+        }
+
 		setTimeout(() => {
 			cell.classList.remove(type === 'placed' ? 'cell-placed' : 'cell-cleared');
-		}, 400);
+        }, 800);
+    }
+}
+
+function createParticleExplosion(element) {
+    const rect = element.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+
+    // Create multiple particles
+    for (let i = 0; i < 8; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'particle';
+        particle.style.position = 'fixed';
+        particle.style.left = centerX + 'px';
+        particle.style.top = centerY + 'px';
+        particle.style.width = '6px';
+        particle.style.height = '6px';
+        particle.style.borderRadius = '50%';
+        particle.style.pointerEvents = 'none';
+        particle.style.zIndex = '1000';
+
+        // Random colors
+        const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57', '#ff9ff3'];
+        particle.style.background = colors[Math.floor(Math.random() * colors.length)];
+
+        // Random direction
+        const angle = (i / 8) * Math.PI * 2;
+        const velocity = 50 + Math.random() * 30;
+        const deltaX = Math.cos(angle) * velocity;
+        const deltaY = Math.sin(angle) * velocity;
+
+        particle.style.transform = `translate(${deltaX}px, ${deltaY}px) scale(0)`;
+        particle.style.opacity = '0';
+        particle.style.transition = 'all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+
+        document.body.appendChild(particle);
+
+        // Trigger animation
+        requestAnimationFrame(() => {
+            particle.style.transform = `translate(${deltaX}px, ${deltaY}px) scale(1)`;
+            particle.style.opacity = '1';
+
+            setTimeout(() => {
+                particle.style.opacity = '0';
+                particle.style.transform = `translate(${deltaX * 1.5}px, ${deltaY * 1.5}px) scale(0)`;
+
+                setTimeout(() => {
+                    if (particle.parentNode) {
+                        particle.parentNode.removeChild(particle);
+                    }
+                }, 800);
+            }, 200);
+        });
 	}
 }
 
@@ -289,13 +373,16 @@ function animateMatches(matches) {
 function renderTray() {
     trayContainer.innerHTML = '';
     let anyShape = false;
-    trayShapes.forEach((shape, idx) => {
-        if (!shape) return; // Skip used shapes
+    trayShapes.forEach((shapeConfig, idx) => {
+        if (!shapeConfig) return; // Skip used shapes
         anyShape = true;
+        const shape = shapeConfig.pattern;
+        const shapeColor = shapeConfig.color;
         const shapeDiv = document.createElement('div');
         shapeDiv.className = 'block-shape';
         shapeDiv.draggable = true;
         shapeDiv.dataset.shapeIdx = idx;
+        shapeDiv.style.setProperty('--shape-index', idx);
         shapeDiv.addEventListener('dragstart', (e) => {
             e.dataTransfer.setData('shapeIdx', idx);
             e.dataTransfer.effectAllowed = 'move';
@@ -375,8 +462,15 @@ function renderTray() {
                 block.style.height = '20px';
                 block.style.display = 'inline-block';
                 block.style.margin = '1px';
-                block.style.background = cellVal ? '#bfa06a' : 'transparent';
-                block.className = 'grid-cell';
+                if (cellVal) {
+                    block.style.background = `linear-gradient(135deg, ${shapeColor} 0%, ${shapeColor}dd 100%)`;
+                    block.style.borderColor = shapeColor;
+                    block.classList.add('tray-block-filled');
+                    block.style.setProperty('--block-index', (r - minR) * (maxC - minC + 1) + (c - minC));
+                } else {
+                    block.style.background = 'transparent';
+                }
+                block.className = 'grid-cell tray-block';
                 shapeDiv.appendChild(block);
             }
             if (r < maxR) {

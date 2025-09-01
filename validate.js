@@ -8,8 +8,8 @@ export function canPlaceShape(grid, shape, position) {
         const gc = col + c;
         // Out of bounds
         if (gr < 0 || gr >= grid.length || gc < 0 || gc >= grid[0].length) return false;
-        // Overlap
-        if (grid[gr][gc]) return false;
+        // Overlap - check if cell is filled
+        if (grid[gr][gc] && grid[gr][gc].filled) return false;
       }
     }
   }
