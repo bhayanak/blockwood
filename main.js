@@ -60,6 +60,14 @@ function renderGrid() {
                 cell.style.borderColor = cellData.color;
                 cell.classList.add('filled-cell');
             }
+
+            // Check if this row/column can be cleared and highlight
+            const isRowComplete = gridManager.grid[row].every(cell => cell && cell.filled);
+            const isColComplete = gridManager.grid.every(r => r[col] && r[col].filled);
+
+            if (isRowComplete || isColComplete) {
+                cell.classList.add('clearable');
+            }
             // Drag-over and drop events
             cell.addEventListener('dragover', (e) => {
                 e.preventDefault();
@@ -290,7 +298,7 @@ function animateCell(row, col, type) {
 
 		setTimeout(() => {
 			cell.classList.remove(type === 'placed' ? 'cell-placed' : 'cell-cleared');
-        }, 800);
+        }, 600);
     }
 }
 
@@ -299,32 +307,29 @@ function createParticleExplosion(element) {
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
 
-    // Create multiple particles
-    for (let i = 0; i < 8; i++) {
+    // Create fewer particles for better performance
+    for (let i = 0; i < 4; i++) {
         const particle = document.createElement('div');
         particle.className = 'particle';
         particle.style.position = 'fixed';
         particle.style.left = centerX + 'px';
         particle.style.top = centerY + 'px';
-        particle.style.width = '6px';
-        particle.style.height = '6px';
+        particle.style.width = '4px';
+        particle.style.height = '4px';
         particle.style.borderRadius = '50%';
         particle.style.pointerEvents = 'none';
         particle.style.zIndex = '1000';
-
-        // Random colors
-        const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57', '#ff9ff3'];
-        particle.style.background = colors[Math.floor(Math.random() * colors.length)];
+        particle.style.background = '#ff6b6b';
 
         // Random direction
-        const angle = (i / 8) * Math.PI * 2;
-        const velocity = 50 + Math.random() * 30;
+        const angle = (i / 4) * Math.PI * 2;
+        const velocity = 30;
         const deltaX = Math.cos(angle) * velocity;
         const deltaY = Math.sin(angle) * velocity;
 
         particle.style.transform = `translate(${deltaX}px, ${deltaY}px) scale(0)`;
         particle.style.opacity = '0';
-        particle.style.transition = 'all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+        particle.style.transition = 'all 0.5s ease-out';
 
         document.body.appendChild(particle);
 
@@ -335,19 +340,15 @@ function createParticleExplosion(element) {
 
             setTimeout(() => {
                 particle.style.opacity = '0';
-                particle.style.transform = `translate(${deltaX * 1.5}px, ${deltaY * 1.5}px) scale(0)`;
-
                 setTimeout(() => {
                     if (particle.parentNode) {
                         particle.parentNode.removeChild(particle);
                     }
-                }, 800);
-            }, 200);
+                }, 500);
+            }, 100);
         });
 	}
-}
-
-function animateMatches(matches) {
+} function animateMatches(matches) {
 	matches.forEach(match => {
 		if (match.type === 'row') {
 			for (let c = 0; c < gridSize; c++) {
@@ -382,7 +383,6 @@ function renderTray() {
         shapeDiv.className = 'block-shape';
         shapeDiv.draggable = true;
         shapeDiv.dataset.shapeIdx = idx;
-        shapeDiv.style.setProperty('--shape-index', idx);
         shapeDiv.addEventListener('dragstart', (e) => {
             e.dataTransfer.setData('shapeIdx', idx);
             e.dataTransfer.effectAllowed = 'move';
@@ -454,29 +454,41 @@ function renderTray() {
             minR = 0; maxR = shape.length - 1;
             minC = 0; maxC = shape[0].length - 1;
         }
+
+        // Create a proper 2D grid layout for the shape
+        const shapeGrid = document.createElement('div');
+        shapeGrid.style.display = 'grid';
+        shapeGrid.style.gridTemplateColumns = `repeat(${maxC - minC + 1}, 24px)`;
+        shapeGrid.style.gridTemplateRows = `repeat(${maxR - minR + 1}, 24px)`;
+        shapeGrid.style.gap = '2px';
+
         for (let r = minR; r <= maxR; r++) {
             for (let c = minC; c <= maxC; c++) {
                 const cellVal = shape[r][c] || 0;
                 const block = document.createElement('div');
-                block.style.width = '20px';
-                block.style.height = '20px';
-                block.style.display = 'inline-block';
-                block.style.margin = '1px';
+                block.style.width = '24px';
+                block.style.height = '24px';
+                block.style.borderRadius = '6px';
+
                 if (cellVal) {
-                    block.style.background = `linear-gradient(135deg, ${shapeColor} 0%, ${shapeColor}dd 100%)`;
-                    block.style.borderColor = shapeColor;
-                    block.classList.add('tray-block-filled');
-                    block.style.setProperty('--block-index', (r - minR) * (maxC - minC + 1) + (c - minC));
+                    // 3D effect with gradients and shadows
+                    block.style.background = `linear-gradient(135deg, ${shapeColor}, ${shapeColor}dd)`;
+                    block.style.boxShadow = `
+                        0 4px 8px rgba(0,0,0,0.2),
+                        inset 0 2px 4px rgba(255,255,255,0.4),
+                        inset 0 -2px 4px rgba(0,0,0,0.1)
+                    `;
+                    block.style.border = '1px solid rgba(0,0,0,0.1)';
+                    block.style.transform = 'translateZ(0)';
                 } else {
                     block.style.background = 'transparent';
+                    block.style.border = 'none';
+                    block.style.boxShadow = 'none';
                 }
-                block.className = 'grid-cell tray-block';
-                shapeDiv.appendChild(block);
-            }
-            if (r < maxR) {
-                shapeDiv.appendChild(document.createElement('br'));
+                shapeGrid.appendChild(block);
             }
         }
+        shapeDiv.appendChild(shapeGrid);
         trayContainer.appendChild(shapeDiv);
     });
     if (!anyShape) {
@@ -559,6 +571,14 @@ window.addEventListener('DOMContentLoaded', () => {
     const soundBtn = document.getElementById('sound-toggle');
     if (soundBtn) {
         soundBtn.onclick = toggleSound;
+    }
+
+    // Reset button (main game restart)
+    const resetBtn = document.getElementById('reset-btn');
+    if (resetBtn) {
+        resetBtn.onclick = () => {
+            initGame(); // Use the full init function
+        };
     }
     loadSoundSetting();
     initGame();
