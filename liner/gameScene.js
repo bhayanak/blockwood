@@ -13,10 +13,34 @@ const SHAPE_PATTERNS = [
   [[0, 1, 1], [1, 1, 0]],
   // Z-shape
   [[1, 1, 0], [0, 1, 1]],
-  // Plus
+  // Big Plus
   [[0, 1, 0], [1, 1, 1], [0, 1, 0]],
   // Big L
   [[1, 0, 0], [1, 0, 0], [1, 1, 1]],
+  // Big square
+  [[1, 1, 1], [1, 1, 1], [1, 1, 1]],
+  // Long line (5)
+  [[1, 1, 1, 1, 1]],
+  // Vertical line (4)
+  [[1], [1], [1], [1]],
+  // Vertical line (5)
+  [[1], [1], [1], [1], [1]],
+  // Big reverse L
+  [[1, 1, 1], [0, 0, 1], [0, 0, 1]],
+  // Small L
+  [[1, 1], [1, 0]],
+  // Small reverse L
+  [[1, 1], [0, 1]],
+  // Small line (3)
+  [[1, 1, 1]],
+  // Small vertical line (3)
+  [[1], [1], [1]],
+  // Small line (2)
+  [[1, 1]],
+  // Small vertical line (2)
+  [[1], [1]],
+  // Small line (1)
+  [[1]],
 ];
 
 const BLOCK_COLORS = [
