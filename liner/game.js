@@ -29,13 +29,70 @@ const THEMES = [
     overlay: 0x1a2e1a,
     overlayAlpha: 0.88,
     button: { color: '#228B22', background: '#eaffea' }
-  }
+  },
+  {
+    name: 'Neon',
+    blockColors: [0x39ff14, 0xff073a, 0x00f0ff, 0xfffb00, 0xff00fb, 0x00ff90, 0xffa600, 0x00ffea],
+    background: '#0a0a23',
+    gridLine: 0xffffff,
+    gridLineAlpha: 0.25,
+    highlight: 0x39ff14,
+    highlightAlpha: 0.8,
+    highlightFillAlpha: 0.18,
+    text: '#fff',
+    overlay: 0x0a0a23,
+    overlayAlpha: 0.92,
+    button: { color: '#39ff14', background: '#222' }
+  },
+  {
+    name: 'Pastel',
+    blockColors: [0xffb3ba, 0xbaffc9, 0xbae1ff, 0xffffba, 0xffdfba, 0xc9baff, 0xbaffff, 0xffbae1],
+    background: '#f7f7fa',
+    gridLine: 0xcccccc,
+    gridLineAlpha: 0.15,
+    highlight: 0xbaffc9,
+    highlightAlpha: 0.5,
+    highlightFillAlpha: 0.10,
+    text: '#222',
+    overlay: 0xf7f7fa,
+    overlayAlpha: 0.90,
+    button: { color: '#baaeff', background: '#fff' }
+  },
+  {
+    name: 'Space',
+    blockColors: [0x6b6bff, 0x8c6bff, 0x6b8cff, 0x48e6e6, 0x7fffd4, 0x2222ff, 0x9dff6b, 0x6bffb2],
+    background: '#181830',
+    gridLine: 0xccccff,
+    gridLineAlpha: 0.22,
+    highlight: 0x8c6bff,
+    highlightAlpha: 0.7,
+    highlightFillAlpha: 0.16,
+    text: '#fff',
+    overlay: 0x181830,
+    overlayAlpha: 0.93,
+    button: { color: '#8c6bff', background: '#222' }
+  },
+  {
+    name: 'Colorblind',
+    blockColors: [0x000000, 0xE69F00, 0x56B4E9, 0x009E73, 0xF0E442, 0x0072B2, 0xD55E00, 0xCC79A7],
+    background: '#f5f5f5',
+    gridLine: 0x222222,
+    gridLineAlpha: 0.18,
+    highlight: 0x56B4E9,
+    highlightAlpha: 0.7,
+    highlightFillAlpha: 0.13,
+    text: '#222',
+    overlay: 0xf5f5f5,
+    overlayAlpha: 0.92,
+    button: { color: '#56B4E9', background: '#fff' }
+  },
   // End of GameScene class
 ];
 let activeThemeIdx = 0;
 function getActiveTheme() { return THEMES[activeThemeIdx]; }
 // Difficulty modes
 let DIFFICULTY = 'easy'; // 'easy' or 'difficult'
+let GAME_MODE = 'normal'; // 'normal', 'daily', 'puzzle'
 const SHAPE_PATTERNS_EASY = [
   [[1, 1]],
   [[1, 1], [1, 1]],
@@ -65,6 +122,239 @@ function getRandomShape() {
   return { pattern, color };
 }
 class GameScene extends Phaser.Scene {
+  // --- Mobile UX: Undo/Redo Gesture ---
+  moveHistory = [];
+  redoHistory = [];
+  lastPointerDown = null;
+  create() {
+    // ...existing code...
+    // Swipe gesture detection for undo/redo
+    this.input.on('pointerdown', (pointer) => {
+      this.lastPointerDown = { x: pointer.x, y: pointer.y, time: Date.now() };
+    });
+    this.input.on('pointerup', (pointer) => {
+      if (!this.lastPointerDown) return;
+      const dx = pointer.x - this.lastPointerDown.x;
+      const dy = pointer.y - this.lastPointerDown.y;
+      const dt = Date.now() - this.lastPointerDown.time;
+      // Only consider horizontal swipes, quick gesture
+      if (Math.abs(dx) > 80 && Math.abs(dx) > Math.abs(dy) && dt < 500) {
+        if (dx < 0) {
+          this.undoMove();
+        } else {
+          this.redoMove();
+        }
+      }
+      this.lastPointerDown = null;
+    });
+    // ...existing code...
+  }
+  undoMove() {
+    if (!this.moveHistory.length) return;
+    const move = this.moveHistory.pop();
+    this.redoHistory.push(move);
+    if (move.type === 'place') {
+      // Remove placed blocks
+      move.placedBlocks.forEach(({ r, c, prev }) => {
+        this.gridState[r][c] = prev;
+      });
+      // Restore shape to tray
+      this.trayShapes[move.trayIdx] = move.shape;
+      this.renderTrayShapes();
+      this.redrawGridBlocks();
+    } else if (move.type === 'clear') {
+      // Restore cleared blocks
+      move.clearedBlocks.forEach(({ r, c, prev }) => {
+        this.gridState[r][c] = prev;
+      });
+      this.redrawGridBlocks();
+    }
+  }
+  redoMove() {
+    if (!this.redoHistory.length) return;
+    const move = this.redoHistory.pop();
+    this.moveHistory.push(move);
+    if (move.type === 'place') {
+      // Re-place blocks
+      move.placedBlocks.forEach(({ r, c }) => {
+        this.gridState[r][c] = move.shape.color;
+      });
+      this.trayShapes[move.trayIdx] = null;
+      this.renderTrayShapes();
+      this.redrawGridBlocks();
+    } else if (move.type === 'clear') {
+      // Re-clear blocks
+      move.clearedBlocks.forEach(({ r, c }) => {
+        this.gridState[r][c] = 0;
+      });
+      this.redrawGridBlocks();
+    }
+  }
+  // --- Visual Effects ---
+  showParticleBurst(x, y, color, count = 12, size = 10, duration = 600) {
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.PI * 2 * i) / count;
+      const dx = Math.cos(angle) * 40;
+      const dy = Math.sin(angle) * 40;
+      const particle = this.add.graphics();
+      particle.fillStyle(color, 1);
+      particle.fillCircle(0, 0, size);
+      particle.x = x;
+      particle.y = y;
+      this.tweens.add({
+        targets: particle,
+        x: x + dx,
+        y: y + dy,
+        alpha: 0,
+        duration,
+        onComplete: () => particle.destroy()
+      });
+    }
+  }
+  showGlowEffect(x, y, color, size = 60, duration = 500) {
+    const glow = this.add.graphics();
+    glow.fillStyle(color, 0.4);
+    glow.fillCircle(x, y, size);
+    this.tweens.add({
+      targets: glow,
+      alpha: 0,
+      duration,
+      onComplete: () => glow.destroy()
+    });
+  }
+  // Track if game has started
+  gameStarted = false;
+  // --- MODE LOGIC SECTION ---
+  // Helper: Get today's seed for daily challenge
+  getDailySeed() {
+    const today = new Date();
+    return today.getFullYear() + '-' + (today.getMonth() + 1) + '-' + today.getDate();
+  }
+
+  // Helper: Seeded random for daily mode
+  seededRandom(seed) {
+    let h = 2166136261 >>> 0;
+    for (let i = 0; i < seed.length; i++) {
+      h ^= seed.charCodeAt(i);
+      h += (h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24);
+    }
+    return () => {
+      h ^= h >>> 13;
+      h ^= h << 7;
+      h ^= h >>> 17;
+      return (h >>> 0) / 4294967295;
+    };
+  }
+
+  // Helper: Generate daily challenge tray and grid (deterministic)
+  generateDailyChallenge() {
+    const seed = this.getDailySeed();
+    const rand = this.seededRandom(seed);
+    // Deterministic tray shapes and seeded grid for daily mode
+    const patterns = DIFFICULTY === 'easy' ? SHAPE_PATTERNS_EASY : SHAPE_PATTERNS_DIFFICULT;
+    this.trayShapes = [];
+    for (let i = 0; i < 3; i++) {
+      const patternIdx = Math.floor(rand() * patterns.length);
+      const colorIdx = Math.floor(rand() * getActiveTheme().blockColors.length);
+      this.trayShapes.push({ pattern: patterns[patternIdx], color: getActiveTheme().blockColors[colorIdx] });
+    }
+    // Seeded grid: fill 8 blocks in fixed positions for challenge
+    this.gridState = Array.from({ length: this.gridSize }, () => Array(this.gridSize).fill(0));
+    for (let i = 0; i < 8; i++) {
+      const r = Math.floor(rand() * this.gridSize);
+      const c = Math.floor(rand() * this.gridSize);
+      const colorIdx = Math.floor(rand() * getActiveTheme().blockColors.length);
+      this.gridState[r][c] = getActiveTheme().blockColors[colorIdx];
+    }
+  }
+
+  // --- PUZZLE MODE ---
+  // Predefined puzzles (expand as needed)
+  static PUZZLES = [
+    {
+      id: 0,
+      grid: [
+        // Example: a puzzle with a cross pattern
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0x48e6e6, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0x48e6e6, 0x48e6e6, 0x48e6e6, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0x48e6e6, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      ],
+      tray: [
+        { pattern: [[1, 1]], color: 0xff6b6b },
+        { pattern: [[1, 1, 1]], color: 0x48e6e6 },
+        { pattern: [[1], [1], [1]], color: 0x6b8cff }
+      ]
+    },
+    {
+      id: 1,
+      grid: [
+        // Example: a puzzle with a block in each corner
+        [0xff6b6b, 0, 0, 0, 0, 0, 0, 0, 0, 0x48e6e6],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0x6b8cff, 0, 0, 0, 0, 0, 0, 0, 0, 0xffd86b],
+      ],
+      tray: [
+        { pattern: [[1, 1, 1, 1]], color: 0xffd86b },
+        { pattern: [[1, 0], [1, 1]], color: 0x9dff6b },
+        { pattern: [[1, 1], [0, 1]], color: 0x6bffb2 }
+      ]
+    }
+  ];
+
+  // Helper: Load a predefined puzzle
+  loadPuzzle(puzzleId) {
+    const puzzle = GameScene.PUZZLES[puzzleId % GameScene.PUZZLES.length];
+    this.trayShapes = puzzle.tray.map(s => ({ ...s }));
+    // Deep copy grid
+    this.gridState = puzzle.grid.map(row => row.slice());
+  }
+  // Draw highlight for valid placement during drag
+  drawPlacementHighlight(shape, gridRow, gridCol) {
+    const theme = getActiveTheme();
+    // Remove previous highlight
+    if (this.placementHighlight) {
+      this.placementHighlight.clear();
+    } else {
+      this.placementHighlight = this.add.graphics();
+      this.children.bringToTop(this.placementHighlight);
+    }
+    const pattern = shape.pattern;
+    for (let r = 0; r < pattern.length; r++) {
+      for (let c = 0; c < pattern[0].length; c++) {
+        if (pattern[r][c]) {
+          const gr = gridRow + r;
+          const gc = gridCol + c;
+          if (
+            gr >= 0 && gr < this.gridSize &&
+            gc >= 0 && gc < this.gridSize &&
+            !this.gridState[gr][gc]
+          ) {
+            const x = this.gridOrigin.x + gc * this.cellSize;
+            const y = this.gridOrigin.y + gr * this.cellSize;
+            // Draw highlight block
+            this.placementHighlight.fillStyle(theme.highlight, theme.highlightFillAlpha);
+            this.placementHighlight.fillRect(x + 2, y + 2, this.cellSize - 6, this.cellSize - 6);
+            this.placementHighlight.lineStyle(3, theme.highlight, theme.highlightAlpha);
+            this.placementHighlight.strokeRect(x + 2, y + 2, this.cellSize - 6, this.cellSize - 6);
+          }
+        }
+      }
+    }
+  }
   // Draw placed blocks on grid
   redrawGridBlocks() {
     const theme = getActiveTheme();
@@ -90,11 +380,42 @@ class GameScene extends Phaser.Scene {
   }
   showSettingsMenu() {
     const theme = getActiveTheme();
+    // Mode selector
+    this.settingsModeButton = this.add.text(450, 340, 'Mode: ' + (GAME_MODE === 'normal' ? 'Normal' : GAME_MODE === 'daily' ? 'Daily' : 'Puzzle'), {
+      fontSize: 24,
+      color: theme.button.color,
+      backgroundColor: theme.button.background,
+      padding: { left: 12, right: 12, top: 6, bottom: 6 }
+    }).setOrigin(0.5).setInteractive();
+    this.settingsModeButton.on('pointerdown', () => {
+      if (this.settingsOverlay) this.settingsOverlay.destroy();
+      if (this.settingsTitle) this.settingsTitle.destroy();
+      if (this.settingsThemeButton) this.settingsThemeButton.destroy();
+      if (this.settingsDifficultyButton) this.settingsDifficultyButton.destroy();
+      if (this.settingsModeButton) this.settingsModeButton.destroy();
+      if (this.settingsCloseButton) this.settingsCloseButton.destroy();
+      this.settingsOverlay = null;
+      // Cycle mode
+      if (GAME_MODE === 'normal') GAME_MODE = 'daily';
+      else if (GAME_MODE === 'daily') GAME_MODE = 'puzzle';
+      else GAME_MODE = 'normal';
+      window._blockwoodJustRestartedFromSettings = true;
+      this.time.delayedCall(0, () => {
+        this.scene.restart();
+      });
+    });
     if (this.settingsOverlay) return;
     this.settingsOverlay = this.add.rectangle(450, 450, 400, 320, theme.overlay, theme.overlayAlpha).setOrigin(0.5);
-    this.settingsTitle = this.add.text(450, 320, 'Settings', { fontFamily: 'Arial', fontSize: 36, color: theme.text, fontStyle: 'bold' }).setOrigin(0.5);
+    this.settingsTitle = this.add.text(450, 300, 'Settings', { fontFamily: 'Arial', fontSize: 36, color: theme.text, fontStyle: 'bold' }).setOrigin(0.5);
     // Theme selector
     this.settingsThemeButton = this.add.text(450, 380, 'Theme: ' + theme.name, {
+      fontSize: 24,
+      color: theme.button.color,
+      backgroundColor: theme.button.background,
+      padding: { left: 12, right: 12, top: 6, bottom: 6 }
+    }).setOrigin(0.5).setInteractive();
+    // Difficulty selector (missing creation)
+    this.settingsDifficultyButton = this.add.text(450, 420, 'Difficulty: ' + (DIFFICULTY === 'easy' ? 'Easy' : 'Difficult'), {
       fontSize: 24,
       color: theme.button.color,
       backgroundColor: theme.button.background,
@@ -107,16 +428,16 @@ class GameScene extends Phaser.Scene {
       if (this.settingsDifficultyButton) this.settingsDifficultyButton.destroy();
       if (this.settingsCloseButton) this.settingsCloseButton.destroy();
       this.settingsOverlay = null;
+      // Switch to next theme and restart scene
       activeThemeIdx = (activeThemeIdx + 1) % THEMES.length;
-      this.time.delayedCall(0, () => this.scene.restart());
+      window._blockwoodJustRestartedFromSettings = true;
+      this.time.delayedCall(0, () => {
+        this.scene.restart();
+        if (this.placementHighlight) this.placementHighlight.destroy();
+        this.placementHighlight = this.add.graphics();
+        this.children.bringToTop(this.placementHighlight);
+      });
     });
-    // Difficulty selector
-    this.settingsDifficultyButton = this.add.text(450, 440, 'Difficulty: ' + (DIFFICULTY === 'easy' ? 'Easy' : 'Difficult'), {
-      fontSize: 24,
-      color: '#fff',
-      backgroundColor: '#444',
-      padding: { left: 12, right: 12, top: 6, bottom: 6 }
-    }).setOrigin(0.5).setInteractive();
     this.settingsDifficultyButton.on('pointerdown', () => {
       if (this.settingsOverlay) this.settingsOverlay.destroy();
       if (this.settingsTitle) this.settingsTitle.destroy();
@@ -125,10 +446,16 @@ class GameScene extends Phaser.Scene {
       if (this.settingsCloseButton) this.settingsCloseButton.destroy();
       this.settingsOverlay = null;
       DIFFICULTY = DIFFICULTY === 'easy' ? 'difficult' : 'easy';
-      this.time.delayedCall(0, () => this.scene.restart());
+      window._blockwoodJustRestartedFromSettings = true;
+      this.time.delayedCall(0, () => {
+        this.scene.restart();
+        if (this.placementHighlight) this.placementHighlight.destroy();
+        this.placementHighlight = this.add.graphics();
+        this.children.bringToTop(this.placementHighlight);
+      });
     });
     // Close button
-    this.settingsCloseButton = this.add.text(450, 520, 'Close', {
+    this.settingsCloseButton = this.add.text(450, 500, 'Close', {
       fontSize: 24,
       color: '#fff',
       backgroundColor: '#222',
@@ -144,13 +471,15 @@ class GameScene extends Phaser.Scene {
     });
     this.children.bringToTop(this.settingsOverlay);
     this.children.bringToTop(this.settingsTitle);
+    this.children.bringToTop(this.settingsModeButton);
     this.children.bringToTop(this.settingsThemeButton);
     this.children.bringToTop(this.settingsDifficultyButton);
     this.children.bringToTop(this.settingsCloseButton);
   }
   updateOptionsDisplay() {
     const theme = getActiveTheme();
-    const text = `Theme: ${theme.name}    Difficulty: ${DIFFICULTY === 'easy' ? 'Easy' : 'Difficult'}`;
+    let modeLabel = 'Mode: ' + (GAME_MODE === 'normal' ? 'Normal' : GAME_MODE === 'daily' ? 'Daily' : 'Puzzle');
+    let text = `${modeLabel}    Theme: ${theme.name}    Difficulty: ${DIFFICULTY === 'easy' ? 'Easy' : 'Difficult'}`;
     // Always destroy and recreate optionsText for robustness
     if (this.optionsText) {
       this.optionsText.destroy();
@@ -164,6 +493,8 @@ class GameScene extends Phaser.Scene {
       padding: { left: 12, right: 12, top: 6, bottom: 6 }
     }).setOrigin(0.5);
     this.children.bringToTop(this.optionsText);
+
+    // No mode banners; only show top options text
   }
   create() {
     const theme = getActiveTheme();
@@ -171,8 +502,40 @@ class GameScene extends Phaser.Scene {
     this.cellSize = 60;
     this.gridOrigin = { x: 120, y: 120 };
     this.trayOrigin = { x: 120, y: 780 };
-    this.gridState = Array.from({ length: this.gridSize }, () => Array(this.gridSize).fill(0));
-    this.trayShapes = [getRandomShape(), getRandomShape(), getRandomShape()];
+    // --- MODE LOGIC ---
+    if (GAME_MODE === 'normal') {
+      this.gridState = Array.from({ length: this.gridSize }, () => Array(this.gridSize).fill(0));
+      this.trayShapes = [getRandomShape(), getRandomShape(), getRandomShape()];
+    } else if (GAME_MODE === 'daily') {
+      this.generateDailyChallenge();
+      // Add a visual cue for daily seed (date)
+      if (this.dailySeedText) this.dailySeedText.destroy();
+      this.dailySeedText = this.add.text(450, 180, `Seed: ${this.getDailySeed()}`, {
+        fontSize: 18,
+        color: getActiveTheme().text,
+        fontFamily: 'Arial',
+        backgroundColor: 'rgba(0,0,0,0)',
+        padding: { left: 8, right: 8, top: 4, bottom: 4 }
+      }).setOrigin(0.5);
+      this.children.bringToTop(this.dailySeedText);
+    } else if (GAME_MODE === 'puzzle') {
+      // Always load puzzle 0 for now
+      this.loadPuzzle(0);
+      // Show puzzle ID
+      if (this.puzzleIdText) this.puzzleIdText.destroy();
+      this.puzzleIdText = this.add.text(450, 180, `Puzzle #${GameScene.PUZZLES[0].id + 1}`, {
+        fontSize: 18,
+        color: getActiveTheme().text,
+        fontFamily: 'Arial',
+        backgroundColor: 'rgba(0,0,0,0)',
+        padding: { left: 8, right: 8, top: 4, bottom: 4 }
+      }).setOrigin(0.5);
+      this.children.bringToTop(this.puzzleIdText);
+    }
+    // Always create placementHighlight graphics object after restart
+    if (this.placementHighlight) this.placementHighlight.destroy();
+    this.placementHighlight = this.add.graphics();
+    this.children.bringToTop(this.placementHighlight);
     this.score = 0;
     this.highScore = parseInt(localStorage.getItem('blockwood_highscore') || '0');
     this.gridGraphics = this.add.graphics();
@@ -188,25 +551,16 @@ class GameScene extends Phaser.Scene {
     this.input.on('pointermove', this.onPointerMove, this);
     this.input.on('pointerup', this.onPointerUp, this);
     this.dragData = null;
-    // Add theme switcher button
-    this.themeButton = this.add.text(820, 20, theme.name, {
-      fontSize: 20,
-      color: theme.button.color,
-      backgroundColor: theme.button.background,
-      padding: { left: 12, right: 12, top: 6, bottom: 6 }
-    }).setOrigin(0.5).setInteractive();
-    this.themeButton.on('pointerdown', () => {
-      activeThemeIdx = (activeThemeIdx + 1) % THEMES.length;
-      this.scene.restart();
-    });
-    // Add settings button
-    this.settingsButton = this.add.text(820, 60, 'Settings', {
-      fontSize: 20,
-      color: theme.button.color,
-      backgroundColor: theme.button.background,
-      padding: { left: 12, right: 12, top: 6, bottom: 6 }
-    }).setOrigin(0.5).setInteractive();
-    this.settingsButton.on('pointerdown', this.showSettingsMenu, this);
+    // Show settings button only if game not started
+    if (!this.gameStarted) {
+      this.settingsButton = this.add.text(820, 60, 'Settings', {
+        fontSize: 20,
+        color: theme.button.color,
+        backgroundColor: theme.button.background,
+        padding: { left: 12, right: 12, top: 6, bottom: 6 }
+      }).setOrigin(0.5).setInteractive();
+      this.settingsButton.on('pointerdown', this.showSettingsMenu, this);
+    }
     this.updateOptionsDisplay();
   }
   preload() {
@@ -229,37 +583,6 @@ class GameScene extends Phaser.Scene {
       this.showGameOverOverlay();
     }
   }
-  drawPlacementHighlight(shape, gridRow, gridCol) {
-    const theme = getActiveTheme();
-    // Remove previous highlight
-    if (this.placementHighlight) {
-      this.placementHighlight.clear();
-    } else {
-      this.placementHighlight = this.add.graphics();
-    }
-    const pattern = shape.pattern;
-    for (let r = 0; r < pattern.length; r++) {
-      for (let c = 0; c < pattern[0].length; c++) {
-        if (pattern[r][c]) {
-          const gr = gridRow + r;
-          const gc = gridCol + c;
-          if (
-            gr >= 0 && gr < this.gridSize &&
-            gc >= 0 && gc < this.gridSize &&
-            !this.gridState[gr][gc]
-          ) {
-            const x = this.gridOrigin.x + gc * this.cellSize;
-            const y = this.gridOrigin.y + gr * this.cellSize;
-            // Draw highlight block
-            this.placementHighlight.fillStyle(theme.highlight, theme.highlightFillAlpha);
-            this.placementHighlight.fillRect(x + 2, y + 2, this.cellSize - 6, this.cellSize - 6);
-            this.placementHighlight.lineStyle(3, theme.highlight, theme.highlightAlpha);
-            this.placementHighlight.strokeRect(x + 2, y + 2, this.cellSize - 6, this.cellSize - 6);
-          }
-        }
-      }
-    }
-  }
   // ...existing code...
   // ...existing code...
   drawGrid() {
@@ -276,14 +599,45 @@ class GameScene extends Phaser.Scene {
   // Helper: Place shape on grid
   placeShapeAt(shape, gridRow, gridCol) {
     const pattern = shape.pattern;
+    // Save move for undo
+    let placedBlocks = [];
+    for (let r = 0; r < pattern.length; r++) {
+      for (let c = 0; c < pattern[0].length; c++) {
+        if (pattern[r][c]) {
+          const gr = gridRow + r;
+          const gc = gridCol + c;
+          placedBlocks.push({ r: gr, c: gc, prev: this.gridState[gr][gc] });
+        }
+      }
+    }
+    this.moveHistory.push({
+      type: 'place',
+      shape: JSON.parse(JSON.stringify(shape)),
+      gridRow,
+      gridCol,
+      placedBlocks,
+      trayIdx: this.trayShapes.indexOf(shape)
+    });
+    this.redoHistory = [];
     for (let r = 0; r < pattern.length; r++) {
       for (let c = 0; c < pattern[0].length; c++) {
         if (pattern[r][c]) {
           const gr = gridRow + r;
           const gc = gridCol + c;
           this.gridState[gr][gc] = shape.color;
+          // Visual effect: glow and burst on block placement
+          const x = this.gridOrigin.x + gc * this.cellSize + this.cellSize / 2;
+          const y = this.gridOrigin.y + gr * this.cellSize + this.cellSize / 2;
+          this.showGlowEffect(x, y, shape.color, this.cellSize / 2, 350);
+          this.showParticleBurst(x, y, shape.color, 8, 7, 400);
         }
       }
+    }
+    // Hide settings button after first move
+    if (!this.gameStarted && this.settingsButton) {
+      this.settingsButton.destroy();
+      this.settingsButton = null;
+      this.gameStarted = true;
     }
     // Play block placement sound
     if (this.sfxPlace) this.sfxPlace.play();
@@ -343,14 +697,20 @@ class GameScene extends Phaser.Scene {
     // Play game over sound
     if (this.sfxGameOver) this.sfxGameOver.play();
     this.gameOverOverlay = this.add.rectangle(450, 450, 600, 300, theme.overlay, theme.overlayAlpha).setOrigin(0.5);
+    // Visual effect: big burst and glow for game over
+    this.showGlowEffect(450, 450, theme.overlay, 300, 1200);
+    this.showParticleBurst(450, 450, theme.button.color, 32, 18, 1200);
     this.gameOverText = this.add.text(450, 400, 'Game Over!', { fontFamily: 'Arial', fontSize: 64, color: theme.text, fontStyle: 'bold' }).setOrigin(0.5);
     this.restartButton = this.add.text(450, 500, 'Restart', { fontFamily: 'Arial', fontSize: 36, color: theme.button.color, backgroundColor: theme.button.background, padding: { left: 24, right: 24, top: 12, bottom: 12 } }).setOrigin(0.5).setInteractive();
     this.restartButton.on('pointerdown', () => {
       this.restartGame();
     });
-    this.children.bringToTop(this.gameOverOverlay);
-    this.children.bringToTop(this.gameOverText);
-    this.children.bringToTop(this.restartButton);
+    // Bring overlay and buttons to top after a short delay to ensure they are above all blocks
+    this.time.delayedCall(50, () => {
+      this.children.bringToTop(this.gameOverOverlay);
+      this.children.bringToTop(this.gameOverText);
+      this.children.bringToTop(this.restartButton);
+    });
   }
 
   hideGameOverOverlay() {
@@ -374,7 +734,19 @@ class GameScene extends Phaser.Scene {
     this.drawGrid();
     this.drawTray();
     this.renderTrayShapes();
+    this.setupDragHandlers(); // Ensure drag handlers are always set up after restart
     this.redrawGridBlocks();
+    // Show settings button again after restart
+    this.gameStarted = false;
+    if (this.settingsButton) this.settingsButton.destroy();
+    const theme = getActiveTheme();
+    this.settingsButton = this.add.text(820, 60, 'Settings', {
+      fontSize: 20,
+      color: theme.button.color,
+      backgroundColor: theme.button.background,
+      padding: { left: 12, right: 12, top: 6, bottom: 6 }
+    }).setOrigin(0.5).setInteractive();
+    this.settingsButton.on('pointerdown', this.showSettingsMenu, this);
   }
   renderTrayShapes() {
     if (this.trayBlocks) { this.trayBlocks.forEach(block => block.destroy()); }
@@ -435,12 +807,22 @@ class GameScene extends Phaser.Scene {
     }
     // Ensure drag handlers are set up for new tray shapes
     this.setupDragHandlers();
+    // Always bring highlight to top after tray shapes are rendered
+    if (this.placementHighlight) {
+      this.children.bringToTop(this.placementHighlight);
+      this.placementHighlight.clear();
+    }
   }
   setupDragHandlers() {
     // Remove previous drag event listeners to avoid duplicates
     this.input.off('dragstart');
     this.input.off('drag');
     this.input.off('dragend');
+    // Always bring highlight to top before drag events
+    if (this.placementHighlight) {
+      this.children.bringToTop(this.placementHighlight);
+      this.placementHighlight.clear();
+    }
   // Offset for mobile UX: show shape above finger
     this.input.on('dragstart', (pointer, gameObject) => {
       gameObject.setAlpha(0.7);
@@ -573,17 +955,7 @@ class GameScene extends Phaser.Scene {
     this.input.on('pointermove', this.onPointerMove, this);
     this.input.on('pointerup', this.onPointerUp, this);
     this.dragData = null;
-    // Add theme switcher button
-    this.themeButton = this.add.text(820, 20, theme.name, {
-      fontSize: 20,
-      color: theme.button.color,
-      backgroundColor: theme.button.background,
-      padding: { left: 12, right: 12, top: 6, bottom: 6 }
-    }).setOrigin(0.5).setInteractive();
-    this.themeButton.on('pointerdown', () => {
-      activeThemeIdx = (activeThemeIdx + 1) % THEMES.length;
-      this.scene.restart();
-    });
+    // Theme button removed; theme switching only via settings
     // Add settings button
     this.settingsButton = this.add.text(820, 60, 'Settings', {
       fontSize: 20,
@@ -618,6 +990,22 @@ class GameScene extends Phaser.Scene {
         linesCleared++;
       }
     }
+    // Save clear for undo
+    let clearedBlocks = [];
+    for (let r of clearedRows) {
+      for (let c = 0; c < this.gridSize; c++) {
+        clearedBlocks.push({ r, c, prev: this.gridState[r][c] });
+      }
+    }
+    for (let c of clearedCols) {
+      for (let r = 0; r < this.gridSize; r++) {
+        if (!clearedBlocks.some(b => b.r === r && b.c === c)) {
+          clearedBlocks.push({ r, c, prev: this.gridState[r][c] });
+        }
+      }
+    }
+    this.moveHistory.push({ type: 'clear', clearedBlocks });
+    this.redoHistory = [];
     if (linesCleared > 0) {
       // Play line clear sound
       if (this.sfxClear) this.sfxClear.play();
@@ -641,11 +1029,16 @@ class GameScene extends Phaser.Scene {
           }
         }
       }
-      // Animate fade out (no scale, no movement)
+      // Animate fade out and show visual effects
       let fadePromises = [];
       for (let blockInfo of blocksToClear) {
         const idx = blockInfo.r * this.gridSize + blockInfo.c;
         const block = this.gridBlocks[idx];
+        const x = this.gridOrigin.x + blockInfo.c * this.cellSize + this.cellSize / 2;
+        const y = this.gridOrigin.y + blockInfo.r * this.cellSize + this.cellSize / 2;
+        // Visual effect: burst and glow for cleared block
+        this.showGlowEffect(x, y, 0xffffff, this.cellSize / 2, 500);
+        this.showParticleBurst(x, y, 0xffffff, 10, 8, 600);
         if (block) {
           fadePromises.push(new Promise(resolve => {
             this.tweens.add({
