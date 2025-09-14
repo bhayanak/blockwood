@@ -61,6 +61,7 @@ function getRandomShape() {
 }
 
 export class GameScene extends Phaser.Scene {
+  // IMPORTANT: Always use addScore(points) for score increases so coins update instantly!
   constructor() {
     super('GameScene');
   }
@@ -84,6 +85,14 @@ export class GameScene extends Phaser.Scene {
     // Score panel
     this.scoreText = this.add.text(40, 20, 'Score: 0', { fontSize: 24, color: '#fff' });
     this.highScoreText = this.add.text(700, 20, 'High Score: 0', { fontSize: 24, color: '#fff' });
+    // Coin display (top right)
+    import('./powerups.js').then(module => {
+      this.coinText = this.add.text(700, 60, 'Coins: ' + (module.getCoins ? module.getCoins() : 0), { fontSize: 24, color: '#ffd700', backgroundColor: '#222', padding: { left: 12, right: 12, top: 6, bottom: 6 } });
+      this.children.bringToTop(this.coinText);
+      this.updateCoinDisplay = () => {
+        this.coinText.setText('Coins: ' + (module.getCoins ? module.getCoins() : 0));
+      };
+    });
 
     // Grid container
     this.gridOrigin = { x: 150, y: 100 };
@@ -121,6 +130,21 @@ export class GameScene extends Phaser.Scene {
         );
       }
     }
+  }
+
+  // Score-to-coins conversion: award coins as score increases
+  addScore(points) {
+    this.score += points;
+    if (this.scoreText) this.scoreText.setText('Score: ' + this.score);
+    // Award 1 coin per 100 points
+    import('./powerups.js').then(module => {
+      const coinsBefore = module.getCoins ? module.getCoins() : 0;
+      const coinsToAdd = Math.floor(this.score / 100) - coinsBefore;
+      if (coinsToAdd > 0 && module.addCoins) {
+        module.addCoins(coinsToAdd);
+      }
+      if (this.updateCoinDisplay) this.updateCoinDisplay();
+    });
   }
 
   drawTray() {

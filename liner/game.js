@@ -6,7 +6,247 @@ import { Sound } from './sound.js';
 import { Modes } from './modes.js';
 import { Input } from './input.js';
 import { THEMES, PUZZLES, SHAPE_PATTERNS_EASY, SHAPE_PATTERNS_DIFFICULT } from './const.js';
-class GameScene extends Phaser.Scene {
+import { DEFAULT_STATS, loadStats, saveStats } from './stats.js';
+
+import {
+  PUZZLE_PACKS,
+  getUnlockedPacks,
+  loadCompletedPuzzles,
+  markPuzzleCompleted,
+  unlockNextPack,
+  isPackCompleted
+} from './puzzles.js';
+import { resetPuzzleProgress } from './puzzles.js';
+import { PUZZLE_DATA } from './puzzleData.js';
+import { enableEndlessMode, disableEndlessMode, isEndlessMode } from './endless.js';
+
+let STATS = loadStats();
+export class GameScene extends Phaser.Scene {
+  // Score-to-coins conversion: award coins as score increases
+  addScore(points) {
+    this.score += points;
+    if (this.scoreText) this.scoreText.setText('Score: ' + this.score);
+    // Award 1 coin per 100 points
+    import('./powerups.js').then(module => {
+      const coinsBefore = module.getCoins ? module.getCoins() : 0;
+      const coinsToAdd = Math.floor(this.score / 100) - coinsBefore;
+      if (coinsToAdd > 0 && module.addCoins) {
+        module.addCoins(coinsToAdd);
+        if (this.updateCoinDisplay) this.updateCoinDisplay();
+      } else if (this.updateCoinDisplay) {
+        this.updateCoinDisplay();
+      }
+    });
+  }
+  static activeThemeIdx = 0;
+  static DIFFICULTY = 'easy'; // 'easy' or 'difficult'
+  static GAME_MODE = 'normal'; // 'normal', 'daily', 'puzzle'
+  static getActiveTheme() { return THEMES[GameScene.activeThemeIdx]; }
+  showPuzzlePackMenu() {
+    // Destroy previous overlay if present
+    if (this.puzzlePackOverlay) { this.puzzlePackOverlay.destroy(); this.puzzlePackOverlay = null; }
+    if (this.puzzlePackTitle) { this.puzzlePackTitle.destroy(); this.puzzlePackTitle = null; }
+    if (this.puzzlePackButtons) { this.puzzlePackButtons.forEach(b => b.destroy()); }
+    if (this.resetProgressButton) { this.resetProgressButton.destroy(); this.resetProgressButton = null; }
+    if (this.puzzlePackCloseButton) { this.puzzlePackCloseButton.destroy(); this.puzzlePackCloseButton = null; }
+    this.puzzlePackButtons = [];
+    const theme = GameScene.getActiveTheme();
+    this.puzzlePackOverlay = this.add.rectangle(450, 450, 500, 400, theme.overlay, theme.overlayAlpha).setOrigin(0.5);
+    this.puzzlePackTitle = this.add.text(450, 300, 'Puzzle Packs', { fontFamily: 'Arial', fontSize: 36, color: theme.text, fontStyle: 'bold' }).setOrigin(0.5);
+    const unlockedPacks = getUnlockedPacks();
+    let y = 360;
+    unlockedPacks.forEach((pack, idx) => {
+      const label = pack.unlocked ? pack.name : `${pack.name} (Locked)`;
+      const btn = this.add.text(450, y, label, {
+        fontSize: 24,
+        color: pack.unlocked ? theme.button.color : '#888',
+        backgroundColor: pack.unlocked ? theme.button.background : '#333',
+        padding: { left: 16, right: 16, top: 8, bottom: 8 }
+      }).setOrigin(0.5).setInteractive();
+      if (pack.unlocked) {
+        btn.on('pointerdown', () => {
+          this.showPuzzleSelectionMenu(idx);
+        });
+      }
+      this.puzzlePackButtons.push(btn);
+      y += 50;
+    });
+    // Add Close button above Reset Progress for visibility
+    this.puzzlePackCloseButton = this.add.text(450, 650, 'Close', {
+      fontSize: 22,
+      color: '#fff',
+      backgroundColor: '#222',
+      fontStyle: 'bold',
+      padding: { left: 24, right: 24, top: 10, bottom: 10 },
+      shadow: { offsetX: 2, offsetY: 2, color: '#000', blur: 4, stroke: true }
+    }).setOrigin(0.5).setInteractive();
+    this.puzzlePackCloseButton.on('pointerdown', () => {
+      if (this.puzzlePackOverlay) { this.puzzlePackOverlay.destroy(); this.puzzlePackOverlay = null; }
+      if (this.puzzlePackTitle) { this.puzzlePackTitle.destroy(); this.puzzlePackTitle = null; }
+      if (this.puzzlePackButtons) { this.puzzlePackButtons.forEach(b => b.destroy()); }
+      if (this.resetProgressButton) { this.resetProgressButton.destroy(); this.resetProgressButton = null; }
+      if (this.puzzlePackCloseButton) { this.puzzlePackCloseButton.destroy(); this.puzzlePackCloseButton = null; }
+    });
+    // Add Reset Progress button at the bottom, always visible
+    this.resetProgressButton = this.add.text(450, 700, 'Reset Progress', {
+      fontSize: 22,
+      color: '#fff',
+      backgroundColor: '#c00',
+      fontStyle: 'bold',
+      padding: { left: 24, right: 24, top: 10, bottom: 10 }
+    }).setOrigin(0.5).setInteractive();
+    this.resetProgressButton.on('pointerdown', () => {
+      resetPuzzleProgress();
+      this.showPuzzlePackMenu();
+    });
+    this.children.bringToTop(this.puzzlePackOverlay);
+    this.children.bringToTop(this.puzzlePackTitle);
+    this.puzzlePackButtons.forEach(b => this.children.bringToTop(b));
+    this.children.bringToTop(this.puzzlePackCloseButton);
+    this.children.bringToTop(this.resetProgressButton);
+  }
+
+  showPuzzleSelectionMenu(packIdx) {
+    // Destroy previous overlay if present
+    if (this.puzzleSelectionOverlay) { this.puzzleSelectionOverlay.destroy(); this.puzzleSelectionOverlay = null; }
+    if (this.puzzleSelectionTitle) { this.puzzleSelectionTitle.destroy(); this.puzzleSelectionTitle = null; }
+    if (this.puzzleSelectionButtons) { this.puzzleSelectionButtons.forEach(b => b.destroy()); }
+    this.puzzleSelectionButtons = [];
+    const theme = GameScene.getActiveTheme();
+    this.puzzleSelectionOverlay = this.add.rectangle(450, 450, 500, 400, theme.overlay, theme.overlayAlpha).setOrigin(0.5);
+    this.puzzleSelectionTitle = this.add.text(450, 300, 'Select Puzzle', { fontFamily: 'Arial', fontSize: 32, color: theme.text, fontStyle: 'bold' }).setOrigin(0.5);
+    const pack = PUZZLE_PACKS[packIdx];
+    const completed = loadCompletedPuzzles();
+    let y = 360;
+    pack.puzzles.forEach(pid => {
+      const isCompleted = completed.includes(pid);
+      const label = isCompleted ? `Puzzle #${pid + 1} (Done)` : `Puzzle #${pid + 1}`;
+      const btn = this.add.text(450, y, label, {
+        fontSize: 22,
+        color: isCompleted ? '#aaa' : theme.button.color,
+        backgroundColor: isCompleted ? '#333' : theme.button.background,
+        padding: { left: 12, right: 12, top: 6, bottom: 6 }
+      }).setOrigin(0.5).setInteractive();
+      if (!isCompleted) {
+        btn.on('pointerdown', () => {
+          this.startPuzzle(pid, packIdx);
+        });
+      }
+      this.puzzleSelectionButtons.push(btn);
+      y += 40;
+    });
+    this.children.bringToTop(this.puzzleSelectionOverlay);
+    this.children.bringToTop(this.puzzleSelectionTitle);
+    this.puzzleSelectionButtons.forEach(b => this.children.bringToTop(b));
+  }
+
+  startPuzzle(puzzleId, packIdx) {
+    // Load puzzle data
+    const pdata = PUZZLE_DATA.find(p => p.id === puzzleId);
+    if (!pdata) return;
+    // Set up grid for puzzle
+    this.gridState = pdata.grid.map(row => row.slice());
+    this.gridSize = pdata.grid.length;
+    this.cellSize = 60;
+    this.gridOrigin = { x: 120, y: 120 };
+    this.trayOrigin = { x: 120, y: 780 };
+    // Initialize tray and tray shapes for puzzle mode
+    if (!this.tray) {
+      this.tray = new Tray(this, { gridSize: this.gridSize, cellSize: this.cellSize, trayOrigin: this.trayOrigin });
+    }
+    // Generate tray shapes for puzzle mode
+    this.tray.trayShapes = [getRandomShape(), getRandomShape(), getRandomShape()];
+    this.tray.drawTray();
+    this.tray.renderTrayShapes();
+    this.score = 0;
+    this.highScore = Storage.getHighScore();
+    if (!this.gridGraphics) this.gridGraphics = this.add.graphics();
+    if (!this.scoreText) this.scoreText = this.add.text(20, 20, 'Score: 0', { fontSize: 32, color: GameScene.getActiveTheme().text });
+    else this.scoreText.setText('Score: 0');
+    if (!this.highScoreText) this.highScoreText = this.add.text(20, 60, 'High Score: ' + this.highScore, { fontSize: 24, color: GameScene.getActiveTheme().text });
+    else this.highScoreText.setText('High Score: ' + this.highScore);
+    // Draw grid lines before blocks
+    this.drawGrid();
+    this.redrawGridBlocks();
+    // Track initial filled blocks for completion check
+    this.initialFilledBlocks = [];
+    for (let r = 0; r < pdata.grid.length; r++) {
+      for (let c = 0; c < pdata.grid[r].length; c++) {
+        if (pdata.grid[r][c]) {
+          this.initialFilledBlocks.push({ r, c });
+        }
+      }
+    }
+    // Store current puzzle context
+    this.currentPuzzleId = puzzleId;
+    this.currentPackIdx = packIdx;
+    this.puzzleGoal = pdata.goal;
+    // Optionally show puzzle goal
+    if (this.puzzleGoalText) this.puzzleGoalText.destroy();
+    this.puzzleGoalText = this.add.text(450, 60, `Goal: ${pdata.goal}`, {
+      fontSize: 20,
+      color: '#fff',
+      backgroundColor: '#222',
+      padding: { left: 16, right: 16, top: 8, bottom: 8 }
+    }).setOrigin(0.5);
+    this.children.bringToTop(this.puzzleGoalText);
+    // Hide overlays
+    if (this.puzzlePackOverlay) { this.puzzlePackOverlay.destroy(); this.puzzlePackOverlay = null; }
+    if (this.puzzlePackTitle) { this.puzzlePackTitle.destroy(); this.puzzlePackTitle = null; }
+    if (this.puzzlePackButtons) { this.puzzlePackButtons.forEach(b => b.destroy()); }
+    if (this.resetProgressButton) { this.resetProgressButton.destroy(); this.resetProgressButton = null; }
+    if (this.puzzlePackCloseButton) { this.puzzlePackCloseButton.destroy(); this.puzzlePackCloseButton = null; }
+    if (this.puzzleSelectionOverlay) { this.puzzleSelectionOverlay.destroy(); this.puzzleSelectionOverlay = null; }
+    if (this.puzzleSelectionTitle) { this.puzzleSelectionTitle.destroy(); this.puzzleSelectionTitle = null; }
+    if (this.puzzleSelectionButtons) { this.puzzleSelectionButtons.forEach(b => b.destroy()); }
+    // Mark puzzle as active
+    this.puzzleActive = true;
+  }
+
+  checkPuzzleCompletion() {
+    if (typeof this.currentPuzzleId === 'number' && Array.isArray(this.initialFilledBlocks)) {
+      // Puzzle is complete when all initial filled blocks are now empty
+      const allCleared = this.initialFilledBlocks.every(pos => this.gridState[pos.r][pos.c] === 0);
+      if (allCleared) {
+        // Puzzle solved!
+        console.log('Puzzle completed:', this.currentPuzzleId);
+        markPuzzleCompleted(this.currentPuzzleId);
+        const completed = loadCompletedPuzzles();
+        if (isPackCompleted(this.currentPackIdx, completed)) {
+          unlockNextPack(this.currentPackIdx);
+        }
+        // Always reload stats before updating
+        STATS = loadStats();
+        if (typeof STATS.puzzlesSolved === 'number') {
+          STATS.puzzlesSolved++;
+        } else {
+          STATS.puzzlesSolved = 1;
+        }
+        saveStats(STATS);
+        // Show game over overlay
+        this.showGameOverOverlay();
+        // Block further moves until menu
+        this.puzzleActive = false;
+        // Show success and return to pack menu after delay
+        if (this.puzzleGoalText) this.puzzleGoalText.destroy();
+        this.puzzleGoalText = this.add.text(450, 60, 'Puzzle Completed!', {
+          fontSize: 24,
+          color: '#0f0',
+          backgroundColor: '#222',
+          padding: { left: 16, right: 16, top: 8, bottom: 8 }
+        }).setOrigin(0.5);
+        this.children.bringToTop(this.puzzleGoalText);
+        this.time.delayedCall(1200, () => {
+          if (this.puzzleGoalText) this.puzzleGoalText.destroy();
+          this.showPuzzlePackMenu();
+          this.currentPuzzleId = null;
+          this.currentPackIdx = null;
+          this.puzzleActive = false;
+        });
+      }
+    }
+  }
+// showStatsMenu removed; stats now only accessible from main menu
   // Draw placement highlight during drag
   drawPlacementHighlight(shape, gridRow, gridCol) {
     if (
@@ -39,6 +279,12 @@ class GameScene extends Phaser.Scene {
   create() {
     // Theme and initial state
     const theme = GameScene.getActiveTheme();
+    // Read scene data for puzzle mode
+    const data = this.scene.settings.data || {};
+    const mode = data.mode || GameScene.GAME_MODE;
+    const packIdx = typeof data.packIdx === 'number' ? data.packIdx : undefined;
+    const puzzleId = typeof data.puzzleId === 'number' ? data.puzzleId : undefined;
+
     this.gridSize = 10;
     this.cellSize = 60;
     this.gridOrigin = { x: 120, y: 120 };
@@ -50,29 +296,57 @@ class GameScene extends Phaser.Scene {
     this.gridGraphics = this.add.graphics();
     this.scoreText = this.add.text(20, 20, 'Score: 0', { fontSize: 32, color: theme.text });
     this.highScoreText = this.add.text(20, 60, 'High Score: ' + this.highScore, { fontSize: 24, color: theme.text });
+    // Coin display
+    import('./powerups.js').then(module => {
+      this.coinText = this.add.text(20, 100, 'Coins: ' + (module.getCoins ? module.getCoins() : 0), { fontSize: 24, color: '#ffd700', backgroundColor: '#222', padding: { left: 12, right: 12, top: 6, bottom: 6 } });
+      this.children.bringToTop(this.coinText);
+      this.updateCoinDisplay = () => {
+        this.coinText.setText('Coins: ' + (module.getCoins ? module.getCoins() : 0));
+      };
+    });
     const sfx = Sound.create(this);
     this.sfxPlace = sfx.sfxPlace;
     this.sfxClear = sfx.sfxClear;
     this.sfxGameOver = sfx.sfxGameOver;
-    this.drawGrid();
-    this.tray.drawTray();
-    this.tray.renderTrayShapes();
     Input.setup(this);
     this.dragData = null;
-    this.settingsButton = this.add.text(820, 60, 'Settings', {
+    // ...settings/options now handled in MainMenu...
+    // Stats button
+    this.statsButton = this.add.text(820, 100, 'Stats', {
       fontSize: 20,
       color: theme.button.color,
       backgroundColor: theme.button.background,
       padding: { left: 12, right: 12, top: 6, bottom: 6 }
     }).setOrigin(0.5).setInteractive();
-    this.settingsButton.on('pointerdown', this.showSettingsMenu, this);
+    this.statsButton.on('pointerdown', this.showStatsMenu, this);
+    // Puzzle Packs button
+    this.puzzlePacksButton = this.add.text(820, 140, 'Puzzle Packs', {
+      fontSize: 20,
+      color: theme.button.color,
+      backgroundColor: theme.button.background,
+      padding: { left: 12, right: 12, top: 6, bottom: 6 }
+    }).setOrigin(0.5).setInteractive();
+    this.puzzlePacksButton.on('pointerdown', this.showPuzzlePackMenu, this);
     this.updateOptionsDisplay();
     window.DIFFICULTY = GameScene.DIFFICULTY;
+
+    // If puzzle mode and valid puzzleId/packIdx, start correct puzzle
+    if (mode === 'puzzle') {
+      if (typeof packIdx === 'number' && typeof puzzleId === 'number') {
+        this.startPuzzle(puzzleId, packIdx);
+        return;
+      } else {
+        // If puzzle mode but no puzzle selected, show puzzle pack menu
+        this.showPuzzlePackMenu();
+        return;
+      }
+    }
+    // Otherwise, normal game start
+    this.drawGrid();
+    this.tray.drawTray();
+    this.tray.renderTrayShapes();
   }
-  static activeThemeIdx = 0;
-  static DIFFICULTY = 'easy'; // 'easy' or 'difficult'
-  static GAME_MODE = 'normal'; // 'normal', 'daily', 'puzzle'
-  static getActiveTheme() { return THEMES[GameScene.activeThemeIdx]; }
+  // Remove duplicate static/class property declarations outside the class body
 
   constructor() {
     super('GameScene');
@@ -144,7 +418,7 @@ class GameScene extends Phaser.Scene {
     // Removed broken glow effect: color, x, y, size, duration were undefined
   }
   // Track if game has started
-  gameStarted = false;
+  // gameStarted is initialized in constructor
   // --- MODE LOGIC SECTION ---
   // Helper: Get today's seed for daily challenge
   getDailySeed() {
@@ -191,8 +465,10 @@ class GameScene extends Phaser.Scene {
   // Draw placed blocks on grid
   redrawGridBlocks() {
     const theme = GameScene.getActiveTheme();
+    // Destroy previous grid blocks
     if (this.gridBlocks) { this.gridBlocks.forEach(b => b.destroy()); }
     this.gridBlocks = [];
+    // Draw new grid blocks for filled cells
     for (let r = 0; r < this.gridSize; r++) {
       for (let c = 0; c < this.gridSize; c++) {
         const color = this.gridState[r][c];
@@ -211,84 +487,60 @@ class GameScene extends Phaser.Scene {
       }
     }
   }
-  showSettingsMenu() {
-    const theme = THEMES[GameScene.activeThemeIdx];
-    // Always destroy previous settings UI if present
-    if (this.settingsOverlay) { this.settingsOverlay.destroy(); this.settingsOverlay = null; }
-    if (this.settingsTitle) { this.settingsTitle.destroy(); this.settingsTitle = null; }
-    if (this.settingsThemeButton) { this.settingsThemeButton.destroy(); this.settingsThemeButton = null; }
-    if (this.settingsDifficultyButton) { this.settingsDifficultyButton.destroy(); this.settingsDifficultyButton = null; }
-    if (this.settingsModeButton) { this.settingsModeButton.destroy(); this.settingsModeButton = null; }
-    if (this.settingsCloseButton) { this.settingsCloseButton.destroy(); this.settingsCloseButton = null; }
 
-    // Mode selector
-    this.settingsModeButton = this.add.text(450, 340, 'Mode: ' + GameScene.GAME_MODE.charAt(0).toUpperCase() + GameScene.GAME_MODE.slice(1), {
-      fontSize: 24,
-      color: theme.button.color,
-      backgroundColor: theme.button.background,
-      padding: { left: 12, right: 12, top: 6, bottom: 6 }
-    }).setOrigin(0.5).setInteractive();
-    this.settingsModeButton.on('pointerdown', () => {
-      // Switch mode using Modes module and restart
-      GameScene.GAME_MODE = Modes.getNextMode(GameScene.GAME_MODE);
-      window._blockwoodJustRestartedFromSettings = true;
-      this.time.delayedCall(0, () => {
-        this.scene.restart();
-      });
-    });
-
-    this.settingsOverlay = this.add.rectangle(450, 450, 400, 320, theme.overlay, theme.overlayAlpha).setOrigin(0.5);
-    this.settingsTitle = this.add.text(450, 300, 'Settings', { fontFamily: 'Arial', fontSize: 36, color: theme.text, fontStyle: 'bold' }).setOrigin(0.5);
-    // Theme selector
-    this.settingsThemeButton = this.add.text(450, 380, 'Theme: ' + theme.name, {
-      fontSize: 24,
-      color: theme.button.color,
-      backgroundColor: theme.button.background,
-      padding: { left: 12, right: 12, top: 6, bottom: 6 }
-    }).setOrigin(0.5).setInteractive();
-    this.settingsThemeButton.on('pointerdown', () => {
-      GameScene.activeThemeIdx = (GameScene.activeThemeIdx + 1) % THEMES.length;
-      window._blockwoodJustRestartedFromSettings = true;
-      this.time.delayedCall(0, () => {
-        this.scene.restart();
-      });
-    });
-    // Difficulty selector
-    this.settingsDifficultyButton = this.add.text(450, 420, 'Difficulty: ' + (GameScene.DIFFICULTY === 'easy' ? 'Easy' : 'Difficult'), {
-      fontSize: 24,
-      color: theme.button.color,
-      backgroundColor: theme.button.background,
-      padding: { left: 12, right: 12, top: 6, bottom: 6 }
-    }).setOrigin(0.5).setInteractive();
-    this.settingsDifficultyButton.on('pointerdown', () => {
-      GameScene.DIFFICULTY = GameScene.DIFFICULTY === 'easy' ? 'difficult' : 'easy';
-      window._blockwoodJustRestartedFromSettings = true;
-      this.time.delayedCall(0, () => {
-        this.scene.restart();
-      });
-    });
-    // Close button
-    this.settingsCloseButton = this.add.text(450, 500, 'Close', {
+  showStatsMenu() {
+    // Destroy previous stats overlay if present
+    if (this.statsOverlay) { this.statsOverlay.destroy(); this.statsOverlay = null; }
+    if (this.statsTitle) { this.statsTitle.destroy(); this.statsTitle = null; }
+    if (this.statsText) { this.statsText.destroy(); this.statsText = null; }
+    if (this.statsCloseButton) { this.statsCloseButton.destroy(); this.statsCloseButton = null; }
+    const theme = GameScene.getActiveTheme();
+    this.statsOverlay = this.add.rectangle(450, 450, 420, 340, theme.overlay, theme.overlayAlpha).setOrigin(0.5);
+    this.statsTitle = this.add.text(450, 300, 'Statistics', { fontFamily: 'Arial', fontSize: 36, color: theme.text, fontStyle: 'bold' }).setOrigin(0.5);
+    let statsText = `High Score: ${Storage.getHighScore()}\nTotal Games: ${STATS.totalGames}\nTotal Lines Cleared: ${STATS.totalLines}\nPuzzles Solved: ${STATS.puzzlesSolved}\nLongest Streak: ${STATS.longestStreak}\nCurrent Streak: ${STATS.currentStreak}`;
+    this.statsText = this.add.text(450, 400, statsText, {
+      fontSize: 22,
+      color: theme.text,
+      fontFamily: 'Arial',
+      backgroundColor: 'rgba(0,0,0,0)',
+      padding: { left: 12, right: 12, top: 6, bottom: 6 },
+      align: 'center'
+    }).setOrigin(0.5);
+    this.statsCloseButton = this.add.text(450, 520, 'Close', {
       fontSize: 24,
       color: '#fff',
       backgroundColor: '#222',
       padding: { left: 24, right: 24, top: 12, bottom: 12 }
     }).setOrigin(0.5).setInteractive();
-    this.settingsCloseButton.on('pointerdown', () => {
-      if (this.settingsOverlay) { this.settingsOverlay.destroy(); this.settingsOverlay = null; }
-      if (this.settingsTitle) { this.settingsTitle.destroy(); this.settingsTitle = null; }
-      if (this.settingsThemeButton) { this.settingsThemeButton.destroy(); this.settingsThemeButton = null; }
-      if (this.settingsDifficultyButton) { this.settingsDifficultyButton.destroy(); this.settingsDifficultyButton = null; }
-      if (this.settingsModeButton) { this.settingsModeButton.destroy(); this.settingsModeButton = null; }
-      if (this.settingsCloseButton) { this.settingsCloseButton.destroy(); this.settingsCloseButton = null; }
+    this.statsCloseButton.on('pointerdown', () => {
+      if (this.statsOverlay) { this.statsOverlay.destroy(); this.statsOverlay = null; }
+      if (this.statsTitle) { this.statsTitle.destroy(); this.statsTitle = null; }
+      if (this.statsText) { this.statsText.destroy(); this.statsText = null; }
+      if (this.statsCloseButton) { this.statsCloseButton.destroy(); this.statsCloseButton = null; }
     });
-    this.children.bringToTop(this.settingsOverlay);
-    this.children.bringToTop(this.settingsTitle);
-    this.children.bringToTop(this.settingsModeButton);
-    this.children.bringToTop(this.settingsThemeButton);
-    this.children.bringToTop(this.settingsDifficultyButton);
-    this.children.bringToTop(this.settingsCloseButton);
+    this.children.bringToTop(this.statsOverlay);
+    this.children.bringToTop(this.statsTitle);
+    this.children.bringToTop(this.statsText);
+    this.children.bringToTop(this.statsCloseButton);
+    for (let r = 0; r < this.gridSize; r++) {
+      for (let c = 0; c < this.gridSize; c++) {
+        const color = this.gridState[r][c];
+        if (color) {
+          const x = this.gridOrigin.x + c * this.cellSize;
+          const y = this.gridOrigin.y + r * this.cellSize;
+          const block = this.add.graphics();
+          block.fillStyle(color, 1);
+          block.fillRect(x + 2, y + 2, this.cellSize - 6, this.cellSize - 6);
+          block.lineStyle(3, theme.gridLine, 0.25);
+          block.strokeRect(x + 2, y + 2, this.cellSize - 6, this.cellSize - 6);
+          block.lineStyle(6, theme.background, 0.15);
+          block.strokeRect(x + 6, y + 6, this.cellSize - 14, this.cellSize - 14);
+          this.gridBlocks.push(block);
+        }
+      }
+    }
   }
+  // ...settings/options now handled in MainMenu...
   updateOptionsDisplay() {
     const theme = GameScene.getActiveTheme();
     let modeLabel = 'Mode: ' + (GameScene.GAME_MODE === 'normal' ? 'Normal' : GameScene.GAME_MODE === 'daily' ? 'Daily' : 'Puzzle');
@@ -320,8 +572,6 @@ class GameScene extends Phaser.Scene {
   }
   // Helper: Refill tray if all slots are empty
   // Tray refill now handled by Tray module
-  // ...existing code...
-  // ...existing code...
   drawGrid() {
     const theme = GameScene.getActiveTheme();
     this.gridGraphics.clear();
@@ -335,6 +585,8 @@ class GameScene extends Phaser.Scene {
 
   // Helper: Place shape on grid
   placeShapeAt(shape, gridRow, gridCol) {
+    // Block moves if puzzle is completed
+    if (this.puzzleActive === false) return;
     const pattern = shape.pattern;
     // Save move for undo
     let placedBlocks = [];
@@ -362,11 +614,11 @@ class GameScene extends Phaser.Scene {
           const gr = gridRow + r;
           const gc = gridCol + c;
           this.gridState[gr][gc] = shape.color;
-          // Visual effect: glow and burst on block placement
+          // New effect: sparkle burst and larger glow on block placement
           const x = this.gridOrigin.x + gc * this.cellSize + this.cellSize / 2;
           const y = this.gridOrigin.y + gr * this.cellSize + this.cellSize / 2;
-          Effects.showGlowEffect(this, x, y, shape.color, this.cellSize / 2, 350);
-          Effects.showParticleBurst(this, x, y, shape.color, 8, 7, 400);
+          Effects.showGlowEffect(this, x, y, shape.color, this.cellSize / 1.5, 500);
+          Effects.showSparkleBurst ? Effects.showSparkleBurst(this, x, y, shape.color, 12, 10, 600) : Effects.showGlowEffect(this, x, y, 0xffffff, this.cellSize / 2, 400);
         }
       }
     }
@@ -380,6 +632,7 @@ class GameScene extends Phaser.Scene {
     if (this.sfxPlace) this.sfxPlace.play();
     this.redrawGridBlocks();
     this.checkAndClearLines();
+    this.checkPuzzleCompletion();
     // After placing, check for game over
     if (!this.anyMovePossible()) {
       this.showGameOverOverlay();
@@ -419,12 +672,20 @@ class GameScene extends Phaser.Scene {
     if (this.gameOverOverlay) return;
     // Play game over sound
     if (this.sfxGameOver) this.sfxGameOver.play();
-    this.gameOverOverlay = this.add.rectangle(450, 450, 600, 300, theme.overlay, theme.overlayAlpha).setOrigin(0.5);
-    // Visual effect: big burst and glow for game over
-    Effects.showGlowEffect(this, 450, 450, theme.overlay, 300, 1200);
-    Effects.showParticleBurst(this, 450, 450, theme.button.color, 32, 18, 1200);
-    this.gameOverText = this.add.text(450, 400, 'Game Over!', { fontFamily: 'Arial', fontSize: 64, color: theme.text, fontStyle: 'bold' }).setOrigin(0.5);
-    this.restartButton = this.add.text(450, 500, 'Restart', { fontFamily: 'Arial', fontSize: 36, color: theme.button.color, backgroundColor: theme.button.background, padding: { left: 24, right: 24, top: 12, bottom: 12 } }).setOrigin(0.5).setInteractive();
+    // Update stats on game over
+    STATS.totalGames++;
+    if (this.score > STATS.bestScore) STATS.bestScore = this.score;
+    STATS.lastPlayed = new Date().toISOString();
+    saveStats(STATS);
+    this.gameOverOverlay = this.add.rectangle(450, 450, 700, 400, theme.overlay, theme.overlayAlpha).setOrigin(0.5);
+    // Grand effect: huge glow, confetti burst, and screen shake
+    Effects.showGlowEffect(this, 450, 450, theme.button.color, 400, 2500);
+    Effects.showConfettiBurst ? Effects.showConfettiBurst(this, 450, 450, theme.button.color, 60, 30, 2500) : Effects.showParticleBurst(this, 450, 450, theme.button.color, 60, 30, 2500);
+    if (this.cameras && this.cameras.main) {
+      this.cameras.main.shake(800, 0.01);
+    }
+    this.gameOverText = this.add.text(450, 400, 'Game Over!', { fontFamily: 'Arial', fontSize: 72, color: theme.text, fontStyle: 'bold' }).setOrigin(0.5);
+    this.restartButton = this.add.text(450, 520, 'Restart', { fontFamily: 'Arial', fontSize: 40, color: theme.button.color, backgroundColor: theme.button.background, padding: { left: 32, right: 32, top: 16, bottom: 16 } }).setOrigin(0.5).setInteractive();
     this.restartButton.on('pointerdown', () => {
       this.restartGame();
     });
@@ -446,17 +707,20 @@ class GameScene extends Phaser.Scene {
   }
 
   restartGame() {
+    // If restarting after game over, increment totalGames and save
+    STATS.totalGames++;
+    saveStats(STATS);
     // Reset optionsText reference to avoid accessing destroyed object
     this.optionsText = null;
     this.updateOptionsDisplay();
     this.hideGameOverOverlay();
     this.gridState = Array.from({ length: this.gridSize }, () => Array(this.gridSize).fill(0));
-    this.trayShapes = [getRandomShape(), getRandomShape(), getRandomShape()];
+    this.tray.trayShapes = [getRandomShape(), getRandomShape(), getRandomShape()];
     this.score = 0;
     this.scoreText.setText('Score: 0');
     this.drawGrid();
-    this.drawTray();
-    this.renderTrayShapes();
+    this.tray.drawTray();
+    this.tray.renderTrayShapes();
     Input.setup(this);
     this.redrawGridBlocks();
     // Show settings button again after restart
@@ -567,6 +831,8 @@ class GameScene extends Phaser.Scene {
     this.moveHistory.push({ type: 'clear', clearedBlocks });
     this.redoHistory = [];
     if (linesCleared > 0) {
+      STATS.totalLines += linesCleared;
+      saveStats(STATS);
       // Play line clear sound
       if (this.sfxClear) this.sfxClear.play();
       // Combo bonus: 10 points per line, +5 per extra line
@@ -638,14 +904,15 @@ class GameScene extends Phaser.Scene {
           for (let c of clearedCols) {
             for (let r = 0; r < this.gridSize; r++) this.gridState[r][c] = 0;
           }
-          this.score += bonus;
-          this.scoreText.setText('Score: ' + this.score);
+          this.addScore(bonus);
           if (this.score > this.highScore) {
             this.highScore = this.score;
             Storage.setHighScore(this.highScore);
             this.highScoreText.setText('High Score: ' + this.highScore);
           }
           this.redrawGridBlocks();
+          // Check puzzle completion after clearing lines
+          this.checkPuzzleCompletion();
         }, 500); // 100ms buffer after animation for clarity
       });
     }
@@ -687,12 +954,13 @@ class GameScene extends Phaser.Scene {
 }
 
 
+import { MainMenu } from './mainmenu.js';
 const config = {
   type: Phaser.AUTO,
   width: 900,
   height: 900,
   backgroundColor: '#222',
   parent: 'game-container',
-  scene: [GameScene]
+  scene: [MainMenu, GameScene]
 };
 new Phaser.Game(config);
