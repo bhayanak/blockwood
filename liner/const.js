@@ -153,18 +153,6 @@ export const SHAPE_PATTERNS_EASY = [
   [[1], [1]],
   // Small line (1)
   [[1]],
-  // small C/up
-  [[1, 0, 1], [1, 1, 1]],
-  // small C/down
-  [[1, 1, 1], [1, 0, 1]],
-  // small C/left
-  [[1, 1], [1, 0], [1, 1]],
-  // small C/right
-  [[1, 1], [0, 1], [1, 1]],
-  // Z up
-  [[1, 0], [1, 1], [0, 1]],
-  // Z down
-  [[0, 1], [1, 1], [1, 0]],
 ];
 
 export const SHAPE_PATTERNS_DIFFICULT = [
@@ -203,4 +191,16 @@ export const SHAPE_PATTERNS_DIFFICULT = [
   [[1, 1, 1], [0, 1, 0], [1, 1, 1]],
   // Outline square
   [[1, 1, 1], [1, 0, 1], [1, 1, 1]],
+  // small C/up
+  [[1, 0, 1], [1, 1, 1]],
+  // small C/down
+  [[1, 1, 1], [1, 0, 1]],
+  // small C/left
+  [[1, 1], [1, 0], [1, 1]],
+  // small C/right
+  [[1, 1], [0, 1], [1, 1]],
+  // Z up
+  [[1, 0], [1, 1], [0, 1]],
+  // Z down
+  [[0, 1], [1, 1], [1, 0]],
 ];

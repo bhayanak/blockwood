@@ -15,9 +15,9 @@
  */
 
 export const POWERUP_TYPES = {
-  CLEAR_ROW: 'CLEAR_ROW',
-  SWAP_TRAY: 'SWAP_TRAY',
-  EXTRA_UNDO: 'EXTRA_UNDO',
+  CLEAR_ROW: 'CLEAR ROW',
+  SWAP_TRAY: 'SWAP TRAY',
+  EXTRA_UNDO: 'EXTRA UNDO',
   // Add more types as needed
 };
 

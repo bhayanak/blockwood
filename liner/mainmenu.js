@@ -20,7 +20,7 @@ export class MainMenu extends Phaser.Scene {
     create() {
         // Hidden cheat code: Ctrl+Shift+C adds 10 coins
         window.addEventListener('keydown', (e) => {
-            if (e.ctrlKey && e.shiftKey && (e.key === 'c' || e.key === 'C') && (e.key === 'd' || e.key === 'D')) {
+            if (e.ctrlKey && e.shiftKey && (e.key === 'c' || e.key === 'C')) {
                 import('./powerups.js').then(mod => {
                     mod.addCoins(10);
                     // Optionally, show a subtle notification (remove/comment if not desired)
@@ -208,35 +208,67 @@ export class MainMenu extends Phaser.Scene {
 
     showPowerUpsMenu() {
         import('./powerups.js').then(module => {
-            const { POWERUP_TYPES, getInventory, getCoins, buyPowerup } = module;
-            const inventory = getInventory ? getInventory() : {};
+            const { POWERUP_TYPES, getInventory, getCoins, buyPowerup, usePowerup } = module;
+            let inventory = getInventory ? getInventory() : {};
             let coins = getCoins ? getCoins() : 0;
             const overlay = this.add.rectangle(450, 450, 480, 420, 0x222222, 0.85).setOrigin(0.5);
             const title = this.add.text(450, 300, 'Power-Ups', { fontFamily: 'Arial', fontSize: 36, color: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
             const coinsText = this.add.text(450, 340, `Coins: ${coins}`, { fontSize: 24, color: '#ffd700', backgroundColor: '#333', padding: { left: 18, right: 18, top: 8, bottom: 8 } }).setOrigin(0.5);
-            let y = 380;
-            const powerupTexts = [];
+            let y = 400;
+            const powerupButtons = [];
             const buyButtons = [];
+            const typeLabels = { CLEAR_ROW: 'Row', SWAP_TRAY: 'Swap', EXTRA_UNDO: 'Undo' };
             Object.keys(POWERUP_TYPES).forEach(type => {
-                const label = `${POWERUP_TYPES[type]}: ${inventory[type] || 0}`;
-                const txt = this.add.text(350, y, label, { fontSize: 22, color: '#fff', backgroundColor: '#333', padding: { left: 14, right: 14, top: 6, bottom: 6 } }).setOrigin(0.5);
-                powerupTexts.push(txt);
+                const count = inventory[type] || 0;
+                const label = `${typeLabels[type] || POWERUP_TYPES[type]} (${count})`;
+                const btn = this.add.text(300, y, label, {
+                    fontSize: 26,
+                    color: count > 0 ? '#fff' : '#888',
+                    backgroundColor: count > 0 ? '#0af' : '#333',
+                    padding: { left: 18, right: 18, top: 8, bottom: 8 }
+                }).setOrigin(0.5);
+                btn.setInteractive({ useHandCursor: true });
+                if (count === 0) {
+                    btn.setAlpha(0.5);
+                    btn.disableInteractive();
+                } else {
+                    btn.setAlpha(1);
+                    btn.on('pointerdown', () => {
+                        if (usePowerup(type)) {
+                            inventory = getInventory();
+                            const newCount = inventory[type] || 0;
+                            btn.setText(`${typeLabels[type] || POWERUP_TYPES[type]} (${newCount})`);
+                            if (newCount === 0) {
+                                btn.setAlpha(0.5);
+                                btn.disableInteractive();
+                            }
+                        }
+                    });
+                }
+                powerupButtons.push(btn);
                 // Buy button
-                const buyBtn = this.add.text(550, y, 'Buy (5)', { fontSize: 20, color: '#fff', backgroundColor: '#0a0', padding: { left: 12, right: 12, top: 4, bottom: 4 } }).setOrigin(0.5).setInteractive();
+                const buyBtn = this.add.text(500, y, 'Buy (5)', {
+                    fontSize: 20,
+                    color: '#fff',
+                    backgroundColor: '#0a0',
+                    padding: { left: 12, right: 12, top: 4, bottom: 4 }
+                }).setOrigin(0.5).setInteractive();
                 buyBtn.on('pointerdown', () => {
                     if (buyPowerup(type, 5)) {
-                        // Update inventory and coins
-                        const newInventory = getInventory();
+                        inventory = getInventory();
                         coins = getCoins();
-                        txt.setText(`${POWERUP_TYPES[type]}: ${newInventory[type] || 0}`);
+                        btn.setText(`${typeLabels[type] || POWERUP_TYPES[type]} (${inventory[type] || 0})`);
                         coinsText.setText(`Coins: ${coins}`);
+                        btn.setAlpha(inventory[type] > 0 ? 1 : 0.5);
+                        if (inventory[type] > 0) btn.setInteractive({ useHandCursor: true });
+                        else btn.disableInteractive();
                     } else {
                         buyBtn.setBackgroundColor('#a00');
                         this.time.delayedCall(400, () => buyBtn.setBackgroundColor('#0a0'));
                     }
                 });
                 buyButtons.push(buyBtn);
-                y += 40;
+                y += 56;
             });
             // Add close button
             const closeBtn = this.add.text(450, 580, 'Close', { fontSize: 24, color: '#fff', backgroundColor: '#222', padding: { left: 24, right: 24, top: 12, bottom: 12 } }).setOrigin(0.5).setInteractive();
@@ -244,14 +276,14 @@ export class MainMenu extends Phaser.Scene {
                 overlay.destroy();
                 title.destroy();
                 coinsText.destroy();
-                powerupTexts.forEach(t => t.destroy());
+                powerupButtons.forEach(t => t.destroy());
                 buyButtons.forEach(b => b.destroy());
                 closeBtn.destroy();
             });
             this.children.bringToTop(overlay);
             this.children.bringToTop(title);
             this.children.bringToTop(coinsText);
-            powerupTexts.forEach(t => this.children.bringToTop(t));
+            powerupButtons.forEach(t => this.children.bringToTop(t));
             buyButtons.forEach(b => this.children.bringToTop(b));
             this.children.bringToTop(closeBtn);
         });

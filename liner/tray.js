@@ -52,18 +52,18 @@ export class Tray {
   }
 
   drawTray() {
-    // Calculate tray slot positions for each shape
+    // Always create 3 slot positions (left, middle, right)
     this.traySlotPositions = [];
     let trayY = this.trayOrigin.y;
     let trayX = this.trayOrigin.x;
     let spacing = 48;
-    for (let i = 0; i < this.trayShapes.length; i++) {
-      const shape = this.trayShapes[i];
-      if (!shape) continue;
-      const shapeWidth = shape.pattern[0].length;
-      const shapeHeight = shape.pattern.length;
-      const slotWidth = shapeWidth * this.cellSize + 16;
-      const slotHeight = shapeHeight * this.cellSize + 16;
+    for (let i = 0; i < 3; i++) {
+      // Use default size for empty slots, or actual shape size if present
+      let shape = this.trayShapes[i];
+      let shapeWidth = shape && shape.pattern ? shape.pattern[0].length : 2;
+      let shapeHeight = shape && shape.pattern ? shape.pattern.length : 2;
+      let slotWidth = shapeWidth * this.cellSize + 16;
+      let slotHeight = shapeHeight * this.cellSize + 16;
       this.traySlotPositions.push({
         x: trayX + i * (this.cellSize * 4 + spacing),
         width: slotWidth,

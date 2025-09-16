@@ -270,7 +270,8 @@ export class GameScene extends Phaser.Scene {
           const gc = gridCol + c;
           const x = this.gridOrigin.x + gc * this.cellSize;
           const y = this.gridOrigin.y + gr * this.cellSize;
-          this.placementHighlight.lineStyle(4, theme.button.color, 0.7);
+          // Use a bright cyan for highlight, high opacity for visibility
+          this.placementHighlight.lineStyle(5, 0x00ffff, 0.95);
           this.placementHighlight.strokeRect(x + 2, y + 2, this.cellSize - 6, this.cellSize - 6);
         }
       }
@@ -302,113 +303,73 @@ export class GameScene extends Phaser.Scene {
       this.coinText = this.add.text(20, 100, 'Coins: ' + (module.getCoins ? module.getCoins() : 0), { fontSize: 24, color: '#ffd700', backgroundColor: '#222', padding: { left: 12, right: 12, top: 6, bottom: 6 } });
       this.children.bringToTop(this.coinText);
       this.updateCoinDisplay = () => {
-        // Always read coins from localStorage for display
         import('./powerups.js').then(mod => {
           this.coinText.setText('Coins: ' + (mod.getCoins ? mod.getCoins() : 0));
         });
       };
-      // Power-up UI panel
-      const panelBg = this.add.rectangle(820, 220, 150, 120, 0x222222, 0.8).setOrigin(0.5);
-      // Create text objects with placeholder values
-      this.powerupTextRow = this.add.text(760, 180, 'Row: ?', { fontSize: 16, color: '#fff' });
-      this.powerupTextSwap = this.add.text(760, 200, 'Swap: ?', { fontSize: 16, color: '#fff' });
-      this.powerupTextUndo = this.add.text(760, 220, 'Undo: ?', { fontSize: 16, color: '#fff' });
-      // After creation, load inventory and update text
-      import('./powerups.js').then(mod => {
-        this.powerupTextRow.setText(`Row: ${mod.getPowerupCount(mod.POWERUP_TYPES.CLEAR_ROW)}`);
-        this.powerupTextSwap.setText(`Swap: ${mod.getPowerupCount(mod.POWERUP_TYPES.SWAP_TRAY)}`);
-        this.powerupTextUndo.setText(`Undo: ${mod.getPowerupCount(mod.POWERUP_TYPES.EXTRA_UNDO)}`);
+      // Power-up UI panel: Row (N), Swap (N), Undo (N) as buttons
+      const panelBg = this.add.rectangle(820, 220, 180, 160, 0x222222, 0.8).setOrigin(0.5);
+      const typeLabels = { CLEAR_ROW: 'Row', SWAP_TRAY: 'Swap', EXTRA_UNDO: 'Undo' };
+      const yStart = 180;
+      const yStep = 38;
+      this.powerupButtons = {};
+      Object.keys(module.POWERUP_TYPES).forEach((type, idx) => {
+        const count = module.getPowerupCount(type);
+        const label = `${typeLabels[type] || type} (${count})`;
+        const btn = this.add.text(820, yStart + idx * yStep, label, {
+          fontSize: 20,
+          color: count > 0 ? '#fff' : '#888',
+          backgroundColor: count > 0 ? '#0af' : '#333',
+          padding: { left: 14, right: 14, top: 6, bottom: 6 }
+        }).setOrigin(0.5);
+        btn.setInteractive({ useHandCursor: true });
+        if (count === 0) {
+          btn.setAlpha(0.5);
+          btn.disableInteractive();
+        } else {
+          btn.setAlpha(1);
+          btn.on('pointerdown', () => {
+            import('./powerups.js').then(mod => {
+              if (mod.getPowerupCount(type) > 0) {
+                mod.usePowerup(type);
+                // Action for each powerup
+                if (type === 'CLEAR_ROW') {
+                  this.powerupRowActive = true;
+                  if (this.powerupPromptOverlay) this.powerupPromptOverlay.destroy();
+                  this.powerupPromptOverlay = this.add.rectangle(450, 450, 500, 80, 0x222222, 0.9).setOrigin(0.5);
+                  this.powerupPromptText = this.add.text(450, 450, 'Click a row to clear (Power-Up)', { fontSize: 22, color: '#ffd700', backgroundColor: '#222', padding: { left: 12, right: 12, top: 6, bottom: 6 } }).setOrigin(0.5);
+                  this.children.bringToTop(this.powerupPromptOverlay);
+                  this.children.bringToTop(this.powerupPromptText);
+                } else if (type === 'SWAP_TRAY') {
+                  if (this.tray && this.tray.trayShapes) {
+                    this.tray.trayShapes = [getRandomShape(), getRandomShape(), getRandomShape()];
+                    this.tray.drawTray();
+                    this.tray.renderTrayShapes();
+                  }
+                } else if (type === 'EXTRA_UNDO') {
+                  this.undoMove();
+                }
+                this.updatePowerupDisplay();
+              }
+            });
+          });
+        }
+        this.powerupButtons[type] = btn;
       });
-      // Use buttons (visually pressable, disable if unavailable)
-      this.useRowBtn = this.add.text(820, 180, 'Use', { fontSize: 14, color: '#fff', backgroundColor: '#0a0', padding: { left: 8, right: 8, top: 2, bottom: 2 } }).setOrigin(0.5).setInteractive();
-      this.useSwapBtn = this.add.text(820, 200, 'Use', { fontSize: 14, color: '#fff', backgroundColor: '#0a0', padding: { left: 8, right: 8, top: 2, bottom: 2 } }).setOrigin(0.5).setInteractive();
-      this.useUndoBtn = this.add.text(820, 220, 'Use', { fontSize: 14, color: '#fff', backgroundColor: '#0a0', padding: { left: 8, right: 8, top: 2, bottom: 2 } }).setOrigin(0.5).setInteractive();
-
-      // Button logic
-      this.useRowBtn.on('pointerdown', () => {
-        console.log('Row Powerup Button Pressed');
-        import('./powerups.js').then(mod => {
-          if (mod.getPowerupCount(mod.POWERUP_TYPES.CLEAR_ROW) > 0) {
-            console.log('Row Powerup available, using...');
-            mod.usePowerup(mod.POWERUP_TYPES.CLEAR_ROW);
-            this.powerupRowActive = true;
-            this.updatePowerupDisplay();
-            // Show prompt overlay for row selection
-            if (this.powerupPromptOverlay) this.powerupPromptOverlay.destroy();
-            this.powerupPromptOverlay = this.add.rectangle(450, 450, 500, 80, 0x222222, 0.9).setOrigin(0.5);
-            this.powerupPromptText = this.add.text(450, 450, 'Click a row to clear (Power-Up)', { fontSize: 22, color: '#ffd700', backgroundColor: '#222', padding: { left: 12, right: 12, top: 6, bottom: 6 } }).setOrigin(0.5);
-            this.children.bringToTop(this.powerupPromptOverlay);
-            this.children.bringToTop(this.powerupPromptText);
-          } else {
-            console.log('Row Powerup unavailable');
-          }
-        });
-      });
-      this.useSwapBtn.on('pointerdown', () => {
-        console.log('Swap Powerup Button Pressed');
-        import('./powerups.js').then(mod => {
-          if (mod.getPowerupCount(mod.POWERUP_TYPES.SWAP_TRAY) > 0) {
-            console.log('Swap Powerup available, using...');
-            mod.usePowerup(mod.POWERUP_TYPES.SWAP_TRAY);
-            if (this.tray && this.tray.trayShapes) {
-              this.tray.trayShapes = [getRandomShape(), getRandomShape(), getRandomShape()];
-              this.tray.drawTray();
-              this.tray.renderTrayShapes();
-            }
-            this.updatePowerupDisplay();
-          } else {
-            console.log('Swap Powerup unavailable');
-          }
-        });
-      });
-      this.useUndoBtn.on('pointerdown', () => {
-        console.log('Undo Powerup Button Pressed');
-        import('./powerups.js').then(mod => {
-          if (mod.getPowerupCount(mod.POWERUP_TYPES.EXTRA_UNDO) > 0) {
-            console.log('Undo Powerup available, using...');
-            mod.usePowerup(mod.POWERUP_TYPES.EXTRA_UNDO);
-            this.undoMove();
-            this.updatePowerupDisplay();
-          } else {
-            console.log('Undo Powerup unavailable');
-          }
-        });
-      });
-
-      // Update button enabled/disabled state
       this.updatePowerupDisplay = () => {
         import('./powerups.js').then(mod => {
-          const rowCount = mod.getPowerupCount(mod.POWERUP_TYPES.CLEAR_ROW);
-          const swapCount = mod.getPowerupCount(mod.POWERUP_TYPES.SWAP_TRAY);
-          const undoCount = mod.getPowerupCount(mod.POWERUP_TYPES.EXTRA_UNDO);
-          this.powerupTextRow.setText(`Row: ${rowCount}`);
-          this.powerupTextSwap.setText(`Swap: ${swapCount}`);
-          this.powerupTextUndo.setText(`Undo: ${undoCount}`);
-          // Enable/disable buttons visually
-          this.useRowBtn.setAlpha(rowCount > 0 ? 1 : 0.4);
-          this.useRowBtn.setInteractive(rowCount > 0);
-          this.useSwapBtn.setAlpha(swapCount > 0 ? 1 : 0.4);
-          this.useSwapBtn.setInteractive(swapCount > 0);
-          this.useUndoBtn.setAlpha(undoCount > 0 ? 1 : 0.4);
-          this.useUndoBtn.setInteractive(undoCount > 0);
+          Object.keys(module.POWERUP_TYPES).forEach(type => {
+            const count = mod.getPowerupCount(type);
+            const btn = this.powerupButtons[type];
+            btn.setText(`${typeLabels[type] || type} (${count})`);
+            btn.setAlpha(count > 0 ? 1 : 0.5);
+            if (count > 0) btn.setInteractive({ useHandCursor: true });
+            else btn.disableInteractive();
+          });
         });
       };
       this.children.bringToTop(panelBg);
-      this.children.bringToTop(this.powerupTextRow);
-      this.children.bringToTop(this.powerupTextSwap);
-      this.children.bringToTop(this.powerupTextUndo);
-      this.children.bringToTop(this.useRowBtn);
-      this.children.bringToTop(this.useSwapBtn);
-      this.children.bringToTop(this.useUndoBtn);
-      this.debugGrantUndoBtn.on('pointerdown', () => {
-        import('./powerups.js').then(mod => {
-          mod.addPowerup(mod.POWERUP_TYPES.EXTRA_UNDO, 1);
-          this.debugPowerupBtn.emit('pointerdown');
-        });
-      });
-      this.children.bringToTop(this.debugGrantRowBtn);
-      this.children.bringToTop(this.debugGrantSwapBtn);
-      this.children.bringToTop(this.debugGrantUndoBtn);
+      Object.values(this.powerupButtons).forEach(btn => this.children.bringToTop(btn));
 
       // Listen for grid clicks for power-up row clear
       this.input.on('pointerdown', pointer => {
