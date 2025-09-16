@@ -18,20 +18,24 @@ export class MainMenu extends Phaser.Scene {
     }
 
     create() {
+        // Use theme for all colors and backgrounds
+        const theme = THEMES[GameScene.activeThemeIdx];
+        // Modern font stack
+        const fontFamily = 'Poppins, Montserrat, Arial, sans-serif';
         // Hidden cheat code: Ctrl+Shift+C adds 10 coins
         window.addEventListener('keydown', (e) => {
             if (e.ctrlKey && e.shiftKey && (e.key === 'c' || e.key === 'C')) {
                 import('./powerups.js').then(mod => {
                     mod.addCoins(10);
-                    // Optionally, show a subtle notification (remove/comment if not desired)
                     if (window.CHEAT_NOTIFICATION) window.CHEAT_NOTIFICATION.remove();
                     const note = document.createElement('div');
                     note.textContent = '+10 coins!';
                     note.style.position = 'fixed';
                     note.style.bottom = '32px';
                     note.style.right = '32px';
-                    note.style.background = '#222';
-                    note.style.color = '#ffd700';
+                    note.style.background = theme.button.background;
+                    note.style.color = theme.button.color;
+                    note.style.fontFamily = fontFamily;
                     note.style.fontSize = '20px';
                     note.style.padding = '10px 20px';
                     note.style.borderRadius = '8px';
@@ -50,50 +54,80 @@ export class MainMenu extends Phaser.Scene {
                 });
             }
         });
+        // Vibrant animated background
+        this.cameras.main.setBackgroundColor(theme.background);
+        // Animated particles for background effect
+        this.add.particles({
+            key: 'logo',
+            x: 450,
+            y: 200,
+            speed: { min: -100, max: 100 },
+            scale: { start: 0.4, end: 0 },
+            blendMode: 'ADD',
+            lifespan: 1200,
+            frequency: 80
+        });
+        // Animated glow effect behind logo
+        const glow = this.add.graphics();
+        glow.fillStyle(theme.button.color ? parseInt(theme.button.color.replace('#', '0x')) : 0x00ffff, 0.22);
+        glow.fillCircle(450, 170, 90);
+        this.tweens.add({
+            targets: glow,
+            alpha: { from: 0.22, to: 0.5 },
+            duration: 1200,
+            yoyo: true,
+            repeat: -1
+        });
+        // Logo (smaller, always visible)
+        this.logo = this.add.image(450, 140, 'logo')
+            .setScale(0.45)
+            .setAlpha(0.98)
+            .setOrigin(0.5, 0.5)
+            .setInteractive();
+        // Animated title text (smaller, always visible)
+        this.titleText = this.add.text(450, 220, 'BlockQuest', {
+            fontFamily,
+            fontSize: 48,
+            color: theme.button.color,
+            fontStyle: 'bold',
+            shadow: { offsetX: 2, offsetY: 2, color: theme.background, blur: 10, stroke: true }
+        }).setOrigin(0.5);
+        this.tweens.add({
+            targets: this.titleText,
+            scale: { from: 1, to: 1.07 },
+            duration: 900,
+            yoyo: true,
+            repeat: -1
+        });
+        // Helper to get mode label
+        const getModeLabel = () => {
+            const mode = GameScene.GAME_MODE;
+            if (mode === 'normal') return 'Normal';
+            if (mode === 'daily') return 'Daily';
+            if (mode === 'puzzle') return 'Puzzle';
+            return mode.charAt(0).toUpperCase() + mode.slice(1);
+        };
+        // Button style helper
+        const btnStyle = {
+            fontFamily,
+            fontSize: 28,
+            color: theme.button.color,
+            backgroundColor: theme.button.background,
+            padding: { left: 22, right: 22, top: 10, bottom: 10 },
+            borderRadius: 16
+        };
         // Puzzle Packs button
-        this.puzzlePacksButton = this.add.text(200, 600, 'Puzzle Packs', {
-            fontSize: 28,
-            color: '#fff',
-            backgroundColor: '#444',
-            padding: { left: 18, right: 18, top: 8, bottom: 8 }
-        }).setOrigin(0.5).setInteractive();
-        this.puzzlePacksButton.on('pointerdown', () => {
-            this.showPuzzlePackMenu();
-        });
-
+        this.puzzlePacksButton = this.add.text(200, 600, 'Puzzle Packs', btnStyle).setOrigin(0.5).setInteractive();
+        this.puzzlePacksButton.on('pointerdown', () => { this.showPuzzlePackMenu(); });
         // Stats button
-        this.statsButton = this.add.text(700, 600, 'Stats', {
-            fontSize: 28,
-            color: '#fff',
-            backgroundColor: '#444',
-            padding: { left: 18, right: 18, top: 8, bottom: 8 }
-        }).setOrigin(0.5).setInteractive();
-        this.statsButton.on('pointerdown', () => {
-            this.showStatsMenu();
-        });
-
+        this.statsButton = this.add.text(700, 600, 'Stats', btnStyle).setOrigin(0.5).setInteractive();
+        this.statsButton.on('pointerdown', () => { this.showStatsMenu(); });
         // Power-Ups button
-        this.powerUpsButton = this.add.text(200, 700, 'Power-Ups', {
-            fontSize: 28,
-            color: '#fff',
-            backgroundColor: '#444',
-            padding: { left: 18, right: 18, top: 8, bottom: 8 }
-        }).setOrigin(0.5).setInteractive();
-        this.powerUpsButton.on('pointerdown', () => {
-            this.showPowerUpsMenu();
-        });
-
+        this.powerUpsButton = this.add.text(200, 700, 'Power-Ups', btnStyle).setOrigin(0.5).setInteractive();
+        this.powerUpsButton.on('pointerdown', () => { this.showPowerUpsMenu(); });
         // Adventure button
-        this.adventureButton = this.add.text(700, 700, 'Adventure', {
-            fontSize: 28,
-            color: '#fff',
-            backgroundColor: '#444',
-            padding: { left: 18, right: 18, top: 8, bottom: 8 }
-        }).setOrigin(0.5).setInteractive();
-        this.adventureButton.on('pointerdown', () => {
-            this.showAdventureMenu();
-        });
-
+        this.adventureButton = this.add.text(700, 700, 'Adventure', btnStyle).setOrigin(0.5).setInteractive();
+        this.adventureButton.on('pointerdown', () => { this.showAdventureMenu(); });
         // Fade-in effect for new buttons
         [this.puzzlePacksButton, this.statsButton, this.powerUpsButton, this.adventureButton].forEach(el => {
             el.setAlpha(0);
@@ -104,91 +138,48 @@ export class MainMenu extends Phaser.Scene {
                 delay: 200
             });
         });
-
-        // Glossy animated background
-        this.cameras.main.setBackgroundColor('#222');
-        // Example: animated particles (Phaser 3.60+)
-        this.add.particles({
-            key: 'logo',
-            x: 450,
-            y: 200,
-            speed: { min: -100, max: 100 },
-            scale: { start: 0.5, end: 0 },
-            blendMode: 'ADD',
-            lifespan: 1200,
-            frequency: 80
-        });
-        // Animated glow effect behind logo
-        const glow = this.add.graphics();
-        glow.fillStyle(0x00ffff, 0.25);
-        glow.fillCircle(450, 200, 120);
-        this.tweens.add({
-            targets: glow,
-            alpha: { from: 0.25, to: 0.6 },
-            duration: 1200,
-            yoyo: true,
-            repeat: -1
-        });
-        // Logo (centered, crisp, optimal size)
-        this.logo = this.add.image(450, 170, 'logo')
-            .setScale(0.7)
-            .setAlpha(0.98)
-            .setOrigin(0.5, 0.5)
-            .setInteractive();
-        // Optionally, add a subtle drop shadow or glow for better contrast
-        // this.logo.setShadow(0, 4, '#0ff', 8, true, true); // Uncomment if Phaser supports setShadow
-        // Animated title text
-        this.titleText = this.add.text(450, 320, 'BlockQuest', {
-            fontFamily: 'Arial', fontSize: 64, color: '#fff', fontStyle: 'bold', shadow: { offsetX: 4, offsetY: 4, color: '#0ff', blur: 12, stroke: true }
-        }).setOrigin(0.5);
-        this.tweens.add({
-            targets: this.titleText,
-            scale: { from: 1, to: 1.08 },
-            duration: 900,
-            yoyo: true,
-            repeat: -1
-        });
-        // Options: Mode, Difficulty, Theme, Endless Mode
-        // Helper to get mode label
-        const getModeLabel = () => {
-            const mode = GameScene.GAME_MODE;
-            if (mode === 'normal') return 'Normal';
-            if (mode === 'daily') return 'Daily';
-            if (mode === 'puzzle') return 'Puzzle';
-            return mode.charAt(0).toUpperCase() + mode.slice(1);
-        };
         // Mode selector
-        this.modeButton = this.add.text(300, 420, 'Mode: ' + getModeLabel(), { fontSize: 28, color: '#fff', backgroundColor: '#444', padding: { left: 18, right: 18, top: 8, bottom: 8 } }).setOrigin(0.5).setInteractive();
+        this.modeButton = this.add.text(300, 420, 'Mode: ' + getModeLabel(), btnStyle).setOrigin(0.5).setInteractive();
         this.modeButton.on('pointerdown', () => {
             GameScene.GAME_MODE = Modes.getNextMode(GameScene.GAME_MODE);
             this.modeButton.setText('Mode: ' + getModeLabel());
         });
         // Difficulty selector
-        this.difficultyButton = this.add.text(600, 420, 'Difficulty: ' + (GameScene.DIFFICULTY === 'easy' ? 'Easy' : 'Difficult'), { fontSize: 28, color: '#fff', backgroundColor: '#444', padding: { left: 18, right: 18, top: 8, bottom: 8 } }).setOrigin(0.5).setInteractive();
+        this.difficultyButton = this.add.text(600, 420, 'Difficulty: ' + (GameScene.DIFFICULTY === 'easy' ? 'Easy' : 'Difficult'), btnStyle).setOrigin(0.5).setInteractive();
         this.difficultyButton.on('pointerdown', () => {
             GameScene.DIFFICULTY = GameScene.DIFFICULTY === 'easy' ? 'difficult' : 'easy';
             this.difficultyButton.setText('Difficulty: ' + (GameScene.DIFFICULTY === 'easy' ? 'Easy' : 'Difficult'));
         });
         // Theme selector
-        this.themeButton = this.add.text(300, 500, 'Theme: ' + THEMES[GameScene.activeThemeIdx].name, { fontSize: 28, color: '#fff', backgroundColor: '#444', padding: { left: 18, right: 18, top: 8, bottom: 8 } }).setOrigin(0.5).setInteractive();
+        this.themeButton = this.add.text(300, 500, 'Theme: ' + THEMES[GameScene.activeThemeIdx].name, btnStyle).setOrigin(0.5).setInteractive();
         this.themeButton.on('pointerdown', () => {
             GameScene.activeThemeIdx = (GameScene.activeThemeIdx + 1) % THEMES.length;
             this.themeButton.setText('Theme: ' + THEMES[GameScene.activeThemeIdx].name);
+            // Refresh menu to apply new theme
+            this.scene.restart();
         });
         // Endless Mode toggle
-        this.endlessButton = this.add.text(600, 500, 'Endless Mode: ' + (isEndlessMode() ? 'On' : 'Off'), { fontSize: 28, color: '#fff', backgroundColor: '#444', padding: { left: 18, right: 18, top: 8, bottom: 8 } }).setOrigin(0.5).setInteractive();
+        this.endlessButton = this.add.text(600, 500, 'Endless Mode: ' + (isEndlessMode() ? 'On' : 'Off'), btnStyle).setOrigin(0.5).setInteractive();
         this.endlessButton.on('pointerdown', () => {
             if (isEndlessMode()) { disableEndlessMode(); } else { enableEndlessMode(); }
             this.endlessButton.setText('Endless Mode: ' + (isEndlessMode() ? 'On' : 'Off'));
         });
-        // Start button
-        this.startButton = this.add.text(450, 650, 'Start', { fontSize: 40, color: '#0ff', backgroundColor: '#111', fontStyle: 'bold', padding: { left: 32, right: 32, top: 16, bottom: 16 }, shadow: { offsetX: 2, offsetY: 2, color: '#fff', blur: 8, stroke: true } }).setOrigin(0.5).setInteractive();
-        this.startButton.on('pointerdown', () => {
-            this.scene.start('GameScene');
-        });
+        // Start button (bigger, theme accent)
+        const startBtnStyle = {
+            fontFamily,
+            fontSize: 44,
+            color: theme.text,
+            backgroundColor: theme.button.color,
+            fontStyle: 'bold',
+            padding: { left: 38, right: 38, top: 18, bottom: 18 },
+            borderRadius: 22,
+            shadow: { offsetX: 2, offsetY: 2, color: theme.background, blur: 10, stroke: true }
+        };
+        this.startButton = this.add.text(450, 650, 'Start', startBtnStyle).setOrigin(0.5).setInteractive();
+        this.startButton.on('pointerdown', () => { this.scene.start('GameScene'); });
         this.tweens.add({
             targets: this.startButton,
-            alpha: { from: 1, to: 0.7 },
+            alpha: { from: 1, to: 0.8 },
             duration: 700,
             yoyo: true,
             repeat: -1
@@ -497,7 +488,7 @@ export class MainMenu extends Phaser.Scene {
             const overlay = this.add.rectangle(450, 450, 420, 400, 0x222222, 0.85).setOrigin(0.5);
             const title = this.add.text(450, 300, 'Statistics', { fontFamily: 'Arial', fontSize: 36, color: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
             // Improved stats logic (from game scene)
-            let statTextStr = `Best Score: ${stats.bestScore || 0}\nTotal Games: ${stats.totalGames || 0}\nTotal Lines Cleared: ${stats.totalLines || 0}\nPuzzles Solved: ${stats.puzzlesSolved || 0}\nLongest Streak: ${stats.longestStreak || 0}\nCurrent Streak: ${stats.currentStreak || 0}\nCoins: ${coins}`;
+            let statTextStr = `Best Score (Easy): ${stats.bestScoreEasy || 0}\nBest Score (Difficult): ${stats.bestScoreDifficult || 0}\nTotal Games: ${stats.totalGames || 0}\nTotal Lines Cleared: ${stats.totalLines || 0}\nPuzzles Solved: ${stats.puzzlesSolved || 0}\nLongest Streak: ${stats.longestStreak || 0}\nCurrent Streak: ${stats.currentStreak || 0}\nCoins: ${coins}`;
             const statText = this.add.text(450, 400, statTextStr, {
                 fontSize: 22,
                 color: '#fff',

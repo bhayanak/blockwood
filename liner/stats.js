@@ -1,6 +1,7 @@
 // --- Statistics & History Module ---
 export const DEFAULT_STATS = {
-  bestScore: 0,
+  bestScoreEasy: 0,
+  bestScoreDifficult: 0,
   totalGames: 0,
   totalLines: 0,
   puzzlesSolved: 0,

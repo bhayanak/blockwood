@@ -281,6 +281,7 @@ export class GameScene extends Phaser.Scene {
   create() {
     // Theme and initial state
     const theme = GameScene.getActiveTheme();
+    const fontFamily = 'Poppins, Montserrat, Arial, sans-serif';
     // Read scene data for endless mode
     const data = this.scene.settings.data || {};
     const mode = data.mode || GameScene.GAME_MODE;
@@ -293,34 +294,49 @@ export class GameScene extends Phaser.Scene {
     this.trayOrigin = { x: 120, y: 780 };
     this.gridState = Array.from({ length: this.gridSize }, () => Array(this.gridSize).fill(0));
     this.tray = new Tray(this, { gridSize: this.gridSize, cellSize: this.cellSize, trayOrigin: this.trayOrigin });
-    this.score = 0;
-    this.highScore = Storage.getHighScore();
-    this.gridGraphics = this.add.graphics();
-    this.scoreText = this.add.text(20, 20, 'Score: 0', { fontSize: 32, color: theme.text });
-    this.highScoreText = this.add.text(20, 60, 'High Score: ' + this.highScore, { fontSize: 24, color: theme.text });
-    // Coin display
+  this.score = 0;
+  // Use bestScoreEasy or bestScoreDifficult from stats
+  this.highScore = (GameScene.DIFFICULTY === 'easy' ? STATS.bestScoreEasy : STATS.bestScoreDifficult) || 0;
+  this.gridGraphics = this.add.graphics();
+  // Set vibrant background
+  this.cameras.main.setBackgroundColor(theme.background);
+  // Score and high score text
+  this.scoreText = this.add.text(40, 30, 'Score: 0', { fontFamily, fontSize: 32, color: theme.text, fontStyle: 'bold', shadow: { offsetX: 2, offsetY: 2, color: theme.background, blur: 8, stroke: true } });
+  this.highScoreText = this.add.text(40, 70, 'High Score: ' + this.highScore, { fontFamily, fontSize: 24, color: theme.text, fontStyle: 'bold', shadow: { offsetX: 1, offsetY: 1, color: theme.background, blur: 6, stroke: true } });
+    // Coin display (modern gold, never clips grid)
     import('./powerups.js').then(module => {
-      this.coinText = this.add.text(20, 100, 'Coins: ' + (module.getCoins ? module.getCoins() : 0), { fontSize: 24, color: '#ffd700', backgroundColor: '#222', padding: { left: 12, right: 12, top: 6, bottom: 6 } });
+      this.coinText = this.add.text(860, 40, '⭑ ' + (module.getCoins ? module.getCoins() : 0), {
+        fontFamily,
+        fontSize: 28,
+        color: '#FFD700',
+        fontStyle: 'bold',
+        backgroundColor: 'rgba(255,255,255,0.08)',
+        padding: { left: 18, right: 18, top: 8, bottom: 8 },
+        borderRadius: 16
+      }).setOrigin(1, 0);
       this.children.bringToTop(this.coinText);
       this.updateCoinDisplay = () => {
         import('./powerups.js').then(mod => {
-          this.coinText.setText('Coins: ' + (mod.getCoins ? mod.getCoins() : 0));
+          this.coinText.setText('⭑ ' + (mod.getCoins ? mod.getCoins() : 0));
         });
       };
-      // Power-up UI panel: Row (N), Swap (N), Undo (N) as buttons
-      const panelBg = this.add.rectangle(820, 220, 180, 160, 0x222222, 0.8).setOrigin(0.5);
+      // Power-up UI panel: Row (N), Swap (N), Undo (N) as modern buttons
+      const panelBg = this.add.rectangle(820, 220, 200, 170, theme.overlay, theme.overlayAlpha).setOrigin(0.5);
       const typeLabels = { CLEAR_ROW: 'Row', SWAP_TRAY: 'Swap', EXTRA_UNDO: 'Undo' };
       const yStart = 180;
-      const yStep = 38;
+      const yStep = 44;
       this.powerupButtons = {};
       Object.keys(module.POWERUP_TYPES).forEach((type, idx) => {
         const count = module.getPowerupCount(type);
         const label = `${typeLabels[type] || type} (${count})`;
         const btn = this.add.text(820, yStart + idx * yStep, label, {
-          fontSize: 20,
-          color: count > 0 ? '#fff' : '#888',
-          backgroundColor: count > 0 ? '#0af' : '#333',
-          padding: { left: 14, right: 14, top: 6, bottom: 6 }
+          fontFamily,
+          fontSize: 22,
+          color: count > 0 ? theme.button.background : '#aaa',
+          backgroundColor: count > 0 ? theme.button.color : '#eee',
+          fontStyle: 'bold',
+          padding: { left: 22, right: 22, top: 10, bottom: 10 },
+          borderRadius: 16
         }).setOrigin(0.5);
         btn.setInteractive({ useHandCursor: true });
         if (count === 0) {
@@ -336,8 +352,8 @@ export class GameScene extends Phaser.Scene {
                 if (type === 'CLEAR_ROW') {
                   this.powerupRowActive = true;
                   if (this.powerupPromptOverlay) this.powerupPromptOverlay.destroy();
-                  this.powerupPromptOverlay = this.add.rectangle(450, 450, 500, 80, 0x222222, 0.9).setOrigin(0.5);
-                  this.powerupPromptText = this.add.text(450, 450, 'Click a row to clear (Power-Up)', { fontSize: 22, color: '#ffd700', backgroundColor: '#222', padding: { left: 12, right: 12, top: 6, bottom: 6 } }).setOrigin(0.5);
+                  this.powerupPromptOverlay = this.add.rectangle(450, 450, 500, 80, theme.overlay, 0.92).setOrigin(0.5);
+                  this.powerupPromptText = this.add.text(450, 450, 'Click a row to clear (Power-Up)', { fontFamily, fontSize: 22, color: theme.button.color, backgroundColor: theme.overlay, padding: { left: 12, right: 12, top: 6, bottom: 6 } }).setOrigin(0.5);
                   this.children.bringToTop(this.powerupPromptOverlay);
                   this.children.bringToTop(this.powerupPromptText);
                 } else if (type === 'SWAP_TRAY') {
@@ -1013,7 +1029,11 @@ export class GameScene extends Phaser.Scene {
     if (this.gameOverOverlay) return;
     if (this.sfxGameOver) this.sfxGameOver.play();
     STATS.totalGames++;
-    if (this.score > STATS.bestScore) STATS.bestScore = this.score;
+    if (GameScene.DIFFICULTY === 'easy') {
+      if (this.score > (STATS.bestScoreEasy || 0)) STATS.bestScoreEasy = this.score;
+    } else {
+      if (this.score > (STATS.bestScoreDifficult || 0)) STATS.bestScoreDifficult = this.score;
+    }
     STATS.lastPlayed = new Date().toISOString();
     saveStats(STATS);
     this.gameOverOverlay = this.add.rectangle(450, 450, 700, 400, theme.overlay, theme.overlayAlpha).setOrigin(0.5);
@@ -1242,10 +1262,20 @@ export class GameScene extends Phaser.Scene {
             for (let r = 0; r < this.gridSize; r++) this.gridState[r][c] = 0;
           }
           this.addScore(bonus);
-          if (this.score > this.highScore) {
-            this.highScore = this.score;
-            Storage.setHighScore(this.highScore);
-            this.highScoreText.setText('High Score: ' + this.highScore);
+          if (GameScene.DIFFICULTY === 'easy') {
+            if (this.score > (STATS.bestScoreEasy || 0)) {
+              STATS.bestScoreEasy = this.score;
+              this.highScore = this.score;
+              this.highScoreText.setText('High Score: ' + this.highScore);
+              saveStats(STATS);
+            }
+          } else {
+            if (this.score > (STATS.bestScoreDifficult || 0)) {
+              STATS.bestScoreDifficult = this.score;
+              this.highScore = this.score;
+              this.highScoreText.setText('High Score: ' + this.highScore);
+              saveStats(STATS);
+            }
           }
           this.redrawGridBlocks();
           // Check puzzle completion after clearing lines
