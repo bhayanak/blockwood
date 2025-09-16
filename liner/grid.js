@@ -1,5 +1,5 @@
 // grid.js
-// Grid logic module for Blockwood
+// Grid logic module for TimberTiles
 // Usage: import { Grid } from './grid.js';
 
 export class Grid {

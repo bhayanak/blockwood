@@ -1,5 +1,5 @@
 // sound.js
-// Sound logic module for Blockwood
+// Sound logic module for TimberTiles
 // Responsibilities: sound loading, playback, mute/unmute
 
 

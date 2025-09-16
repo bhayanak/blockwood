@@ -75,7 +75,7 @@ export class GameScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor('#222');
 
     // Title
-    this.add.text(450, 40, 'Blockwood Puzzle', {
+    this.add.text(450, 40, 'TimberTiles', {
       fontFamily: 'Arial',
       fontSize: 48,
       color: '#fff',

@@ -19,7 +19,7 @@ export function getRandomShape() {
   return { pattern, color };
 }
 // tray.js
-// Tray logic module for Blockwood
+// Tray logic module for TimberTiles
 // Responsibilities: tray state, tray shape generation, tray refill, tray rendering
 
 

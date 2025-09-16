@@ -18,6 +18,38 @@ export class MainMenu extends Phaser.Scene {
     }
 
     create() {
+        // Hidden cheat code: Ctrl+Shift+C adds 10 coins
+        window.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.shiftKey && (e.key === 'c' || e.key === 'C') && (e.key === 'd' || e.key === 'D')) {
+                import('./powerups.js').then(mod => {
+                    mod.addCoins(10);
+                    // Optionally, show a subtle notification (remove/comment if not desired)
+                    if (window.CHEAT_NOTIFICATION) window.CHEAT_NOTIFICATION.remove();
+                    const note = document.createElement('div');
+                    note.textContent = '+10 coins!';
+                    note.style.position = 'fixed';
+                    note.style.bottom = '32px';
+                    note.style.right = '32px';
+                    note.style.background = '#222';
+                    note.style.color = '#ffd700';
+                    note.style.fontSize = '20px';
+                    note.style.padding = '10px 20px';
+                    note.style.borderRadius = '8px';
+                    note.style.zIndex = 9999;
+                    note.style.boxShadow = '0 2px 8px #0008';
+                    note.style.opacity = '0.95';
+                    note.id = 'cheat-note';
+                    window.CHEAT_NOTIFICATION = note;
+                    document.body.appendChild(note);
+                    setTimeout(() => {
+                        if (window.CHEAT_NOTIFICATION) {
+                            window.CHEAT_NOTIFICATION.remove();
+                            window.CHEAT_NOTIFICATION = null;
+                        }
+                    }, 1200);
+                });
+            }
+        });
         // Puzzle Packs button
         this.puzzlePacksButton = this.add.text(200, 600, 'Puzzle Packs', {
             fontSize: 28,
@@ -97,10 +129,16 @@ export class MainMenu extends Phaser.Scene {
             yoyo: true,
             repeat: -1
         });
-        // Logo
-        this.logo = this.add.image(450, 200, 'logo').setScale(1.2).setAlpha(0.95);
+        // Logo (centered, crisp, optimal size)
+        this.logo = this.add.image(450, 170, 'logo')
+            .setScale(0.7)
+            .setAlpha(0.98)
+            .setOrigin(0.5, 0.5)
+            .setInteractive();
+        // Optionally, add a subtle drop shadow or glow for better contrast
+        // this.logo.setShadow(0, 4, '#0ff', 8, true, true); // Uncomment if Phaser supports setShadow
         // Animated title text
-        this.titleText = this.add.text(450, 320, 'Blockwood', {
+        this.titleText = this.add.text(450, 320, 'BlockQuest', {
             fontFamily: 'Arial', fontSize: 64, color: '#fff', fontStyle: 'bold', shadow: { offsetX: 4, offsetY: 4, color: '#0ff', blur: 12, stroke: true }
         }).setOrigin(0.5);
         this.tweens.add({

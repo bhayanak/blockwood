@@ -307,6 +307,123 @@ export class GameScene extends Phaser.Scene {
           this.coinText.setText('Coins: ' + (mod.getCoins ? mod.getCoins() : 0));
         });
       };
+      // Power-up UI panel
+      const panelBg = this.add.rectangle(820, 220, 150, 120, 0x222222, 0.8).setOrigin(0.5);
+      // Create text objects with placeholder values
+      this.powerupTextRow = this.add.text(760, 180, 'Row: ?', { fontSize: 16, color: '#fff' });
+      this.powerupTextSwap = this.add.text(760, 200, 'Swap: ?', { fontSize: 16, color: '#fff' });
+      this.powerupTextUndo = this.add.text(760, 220, 'Undo: ?', { fontSize: 16, color: '#fff' });
+      // After creation, load inventory and update text
+      import('./powerups.js').then(mod => {
+        this.powerupTextRow.setText(`Row: ${mod.getPowerupCount(mod.POWERUP_TYPES.CLEAR_ROW)}`);
+        this.powerupTextSwap.setText(`Swap: ${mod.getPowerupCount(mod.POWERUP_TYPES.SWAP_TRAY)}`);
+        this.powerupTextUndo.setText(`Undo: ${mod.getPowerupCount(mod.POWERUP_TYPES.EXTRA_UNDO)}`);
+      });
+      // Use buttons (visually pressable, disable if unavailable)
+      this.useRowBtn = this.add.text(820, 180, 'Use', { fontSize: 14, color: '#fff', backgroundColor: '#0a0', padding: { left: 8, right: 8, top: 2, bottom: 2 } }).setOrigin(0.5).setInteractive();
+      this.useSwapBtn = this.add.text(820, 200, 'Use', { fontSize: 14, color: '#fff', backgroundColor: '#0a0', padding: { left: 8, right: 8, top: 2, bottom: 2 } }).setOrigin(0.5).setInteractive();
+      this.useUndoBtn = this.add.text(820, 220, 'Use', { fontSize: 14, color: '#fff', backgroundColor: '#0a0', padding: { left: 8, right: 8, top: 2, bottom: 2 } }).setOrigin(0.5).setInteractive();
+
+      // Button logic
+      this.useRowBtn.on('pointerdown', () => {
+        console.log('Row Powerup Button Pressed');
+        import('./powerups.js').then(mod => {
+          if (mod.getPowerupCount(mod.POWERUP_TYPES.CLEAR_ROW) > 0) {
+            console.log('Row Powerup available, using...');
+            mod.usePowerup(mod.POWERUP_TYPES.CLEAR_ROW);
+            this.powerupRowActive = true;
+            this.updatePowerupDisplay();
+            // Show prompt overlay for row selection
+            if (this.powerupPromptOverlay) this.powerupPromptOverlay.destroy();
+            this.powerupPromptOverlay = this.add.rectangle(450, 450, 500, 80, 0x222222, 0.9).setOrigin(0.5);
+            this.powerupPromptText = this.add.text(450, 450, 'Click a row to clear (Power-Up)', { fontSize: 22, color: '#ffd700', backgroundColor: '#222', padding: { left: 12, right: 12, top: 6, bottom: 6 } }).setOrigin(0.5);
+            this.children.bringToTop(this.powerupPromptOverlay);
+            this.children.bringToTop(this.powerupPromptText);
+          } else {
+            console.log('Row Powerup unavailable');
+          }
+        });
+      });
+      this.useSwapBtn.on('pointerdown', () => {
+        console.log('Swap Powerup Button Pressed');
+        import('./powerups.js').then(mod => {
+          if (mod.getPowerupCount(mod.POWERUP_TYPES.SWAP_TRAY) > 0) {
+            console.log('Swap Powerup available, using...');
+            mod.usePowerup(mod.POWERUP_TYPES.SWAP_TRAY);
+            if (this.tray && this.tray.trayShapes) {
+              this.tray.trayShapes = [getRandomShape(), getRandomShape(), getRandomShape()];
+              this.tray.drawTray();
+              this.tray.renderTrayShapes();
+            }
+            this.updatePowerupDisplay();
+          } else {
+            console.log('Swap Powerup unavailable');
+          }
+        });
+      });
+      this.useUndoBtn.on('pointerdown', () => {
+        console.log('Undo Powerup Button Pressed');
+        import('./powerups.js').then(mod => {
+          if (mod.getPowerupCount(mod.POWERUP_TYPES.EXTRA_UNDO) > 0) {
+            console.log('Undo Powerup available, using...');
+            mod.usePowerup(mod.POWERUP_TYPES.EXTRA_UNDO);
+            this.undoMove();
+            this.updatePowerupDisplay();
+          } else {
+            console.log('Undo Powerup unavailable');
+          }
+        });
+      });
+
+      // Update button enabled/disabled state
+      this.updatePowerupDisplay = () => {
+        import('./powerups.js').then(mod => {
+          const rowCount = mod.getPowerupCount(mod.POWERUP_TYPES.CLEAR_ROW);
+          const swapCount = mod.getPowerupCount(mod.POWERUP_TYPES.SWAP_TRAY);
+          const undoCount = mod.getPowerupCount(mod.POWERUP_TYPES.EXTRA_UNDO);
+          this.powerupTextRow.setText(`Row: ${rowCount}`);
+          this.powerupTextSwap.setText(`Swap: ${swapCount}`);
+          this.powerupTextUndo.setText(`Undo: ${undoCount}`);
+          // Enable/disable buttons visually
+          this.useRowBtn.setAlpha(rowCount > 0 ? 1 : 0.4);
+          this.useRowBtn.setInteractive(rowCount > 0);
+          this.useSwapBtn.setAlpha(swapCount > 0 ? 1 : 0.4);
+          this.useSwapBtn.setInteractive(swapCount > 0);
+          this.useUndoBtn.setAlpha(undoCount > 0 ? 1 : 0.4);
+          this.useUndoBtn.setInteractive(undoCount > 0);
+        });
+      };
+      this.children.bringToTop(panelBg);
+      this.children.bringToTop(this.powerupTextRow);
+      this.children.bringToTop(this.powerupTextSwap);
+      this.children.bringToTop(this.powerupTextUndo);
+      this.children.bringToTop(this.useRowBtn);
+      this.children.bringToTop(this.useSwapBtn);
+      this.children.bringToTop(this.useUndoBtn);
+      this.debugGrantUndoBtn.on('pointerdown', () => {
+        import('./powerups.js').then(mod => {
+          mod.addPowerup(mod.POWERUP_TYPES.EXTRA_UNDO, 1);
+          this.debugPowerupBtn.emit('pointerdown');
+        });
+      });
+      this.children.bringToTop(this.debugGrantRowBtn);
+      this.children.bringToTop(this.debugGrantSwapBtn);
+      this.children.bringToTop(this.debugGrantUndoBtn);
+
+      // Listen for grid clicks for power-up row clear
+      this.input.on('pointerdown', pointer => {
+        if (this.powerupRowActive) {
+          const gridY = Math.floor((pointer.y - this.gridOrigin.y) / this.cellSize);
+          if (gridY >= 0 && gridY < this.gridSize) {
+            for (let c = 0; c < this.gridSize; c++) this.gridState[gridY][c] = 0;
+            this.redrawGridBlocks();
+            this.powerupRowActive = false;
+            if (this.powerupPromptOverlay) this.powerupPromptOverlay.destroy();
+            if (this.powerupPromptText) this.powerupPromptText.destroy();
+            if (this.updatePowerupDisplay) this.updatePowerupDisplay();
+          }
+        }
+      });
     });
     const sfx = Sound.create(this);
     this.sfxPlace = sfx.sfxPlace;
@@ -519,38 +636,47 @@ export class GameScene extends Phaser.Scene {
               });
               colRects.push(rect);
             }
-          } else if (type === 'block') {
-            promptText.setText('Click a block to remove (-1 coin, -5 score)');
-            let blockRects = [];
+            if (type === 'row') {
+              promptText.setText('Click a row to remove');
+              let rowRects = [];
             for (let r = 0; r < this.gridSize; r++) {
-              for (let c = 0; c < this.gridSize; c++) {
-                let rect = this.add.rectangle(this.gridOrigin.x + c * this.cellSize + this.cellSize / 2, this.gridOrigin.y + r * this.cellSize + this.cellSize / 2, this.cellSize, this.cellSize, 0x0000ff, 0.15).setOrigin(0.5).setInteractive();
-                rect.on('pointerdown', () => {
-                  import('./powerups.js').then(module => {
-                    let coins = module.getCoins ? module.getCoins() : 0;
-                    if (coins < 1 || this.score < 5) {
-                      alert('Not enough coins or score!');
-                      promptOverlay.destroy();
-                      promptText.destroy();
-                      blockRects.forEach(br => br.destroy());
-                      this.showEndlessStuckOverlay();
-                      return;
-                    }
-                    module.spendCoins(1);
-                    this.score -= 5;
-                    if (this.scoreText) this.scoreText.setText('Score: ' + this.score);
-                    this.gridState[r][c] = 0;
-                    if (this.updateCoinDisplay) this.updateCoinDisplay();
-                    this.redrawGridBlocks();
+              let rect = this.add.rectangle(450, this.gridOrigin.y + r * this.cellSize + this.cellSize / 2, this.gridSize * this.cellSize, this.cellSize, 0xff0000, 0.15).setOrigin(0.5).setInteractive();
+              rect.on('pointerdown', () => {
+                // If called from power-up, don't check coins/score, just clear
+                if (arguments.length > 1 && arguments[1] === true) {
+                  for (let c = 0; c < this.gridSize; c++) this.gridState[r][c] = 0;
+                  this.redrawGridBlocks();
+                  promptOverlay.destroy();
+                  promptText.destroy();
+                  rowRects.forEach(rr => rr.destroy());
+                  if (this.updatePowerupDisplay) this.updatePowerupDisplay();
+                  return;
+                }
+                import('./powerups.js').then(module => {
+                  let coins = module.getCoins ? module.getCoins() : 0;
+                  if (coins < 2 || this.score < 10) {
+                    alert('Not enough coins or score!');
                     promptOverlay.destroy();
                     promptText.destroy();
-                    blockRects.forEach(br => br.destroy());
-                    if (!this._canAnyMove()) {
-                      this.showEndlessStuckOverlay();
-                    }
-                  });
+                    rowRects.forEach(rr => rr.destroy());
+                    this.showEndlessStuckOverlay();
+                    return;
+                  }
+                  module.spendCoins(2);
+                  this.score = Math.max(0, this.score - 10);
+                  if (this.scoreText) this.scoreText.setText('Score: ' + this.score);
+                  for (let c = 0; c < this.gridSize; c++) this.gridState[r][c] = 0;
+                  if (this.updateCoinDisplay) this.updateCoinDisplay();
+                  this.redrawGridBlocks();
+                  promptOverlay.destroy();
+                  promptText.destroy();
+                  rowRects.forEach(rr => rr.destroy());
+                  if (!this._canAnyMove()) {
+                    this.showEndlessStuckOverlay();
+                  }
                 });
-                blockRects.push(rect);
+              });
+              rowRects.push(rect);
               }
             }
           }
@@ -687,64 +813,31 @@ export class GameScene extends Phaser.Scene {
 
   // Removed duplicate create() method. Only the correct modular version remains below.
   undoMove() {
-    if (!this.moveHistory.length) return;
-    const move = this.moveHistory.pop();
-    this.grid = new Grid(this.gridSize);
-    // --- MODE LOGIC ---
-    if (GameScene.GAME_MODE === 'normal') {
-      this.grid.reset();
-      this.tray.trayShapes = [getRandomShape(), getRandomShape(), getRandomShape()];
-    } else if (GameScene.GAME_MODE === 'daily') {
-      this.generateDailyChallenge();
-      if (this.dailySeedText) this.dailySeedText.destroy();
-      this.dailySeedText = this.add.text(450, 180, `Seed: ${this.getDailySeed()}`, {
-        fontSize: 18,
-        color: GameScene.getActiveTheme().text,
-        fontFamily: 'Arial',
-        backgroundColor: 'rgba(0,0,0,0)',
-        padding: { left: 8, right: 8, top: 4, bottom: 4 }
-      }).setOrigin(0.5);
-      this.children.bringToTop(this.dailySeedText);
-    } else if (GameScene.GAME_MODE === 'puzzle') {
-      this.loadPuzzle(0);
-      if (this.puzzleIdText) this.puzzleIdText.destroy();
-      this.puzzleIdText = this.add.text(450, 180, `Puzzle #${PUZZLES[0].id + 1}`, {
-        fontSize: 18,
-        color: GameScene.getActiveTheme().text,
-        fontFamily: 'Arial',
-        backgroundColor: 'rgba(0,0,0,0)',
-        padding: { left: 8, right: 8, top: 4, bottom: 4 }
-      }).setOrigin(0.5);
-      this.children.bringToTop(this.puzzleIdText);
+    // Remove any invalid entries from the end of moveHistory
+    while (this.moveHistory.length && (!this.moveHistory[this.moveHistory.length - 1].gridState || !this.moveHistory[this.moveHistory.length - 1].trayShapes)) {
+      this.moveHistory.pop();
     }
-    if (this.placementHighlight) this.placementHighlight.destroy();
-    this.placementHighlight = this.add.graphics();
-    this.children.bringToTop(this.placementHighlight);
-    this.score = 0;
-    this.highScore = Storage.getHighScore();
-    this.gridGraphics = this.add.graphics();
-    const theme = GameScene.getActiveTheme();
-    this.scoreText = this.add.text(20, 20, 'Score: 0', { fontSize: 32, color: theme.text });
-    this.highScoreText = this.add.text(20, 60, 'High Score: ' + this.highScore, { fontSize: 24, color: theme.text });
-    this.sfxPlace = Sound.get(this, 'place');
-    this.sfxClear = Sound.get(this, 'clear');
-    this.sfxGameOver = Sound.get(this, 'gameover');
-    this.drawGrid();
+    if (!this.moveHistory.length) {
+      alert('No move to undo!');
+      return;
+    }
+    const prev = this.moveHistory.pop();
+    try {
+      this.gridState = JSON.parse(JSON.stringify(prev.gridState));
+      this.tray.trayShapes = JSON.parse(JSON.stringify(prev.trayShapes));
+    } catch (e) {
+      alert('Undo failed: could not restore previous state.');
+      console.error('UndoMove: Failed to restore state:', e, prev);
+      return;
+    }
+    this.score = prev.score || 0;
+    this.highScore = prev.highScore || 0;
+    if (this.scoreText) this.scoreText.setText('Score: ' + this.score);
+    if (this.highScoreText) this.highScoreText.setText('High Score: ' + this.highScore);
+    if (this.sfxPlace) this.sfxPlace.play();
+    this.redrawGridBlocks();
     this.tray.drawTray();
     this.tray.renderTrayShapes();
-    Input.setup(this);
-    this.dragData = null;
-    if (!this.gameStarted) {
-      this.settingsButton = this.add.text(820, 60, 'Settings', {
-        fontSize: 20,
-        color: theme.button.color,
-        backgroundColor: theme.button.background,
-        padding: { left: 12, right: 12, top: 6, bottom: 6 }
-      }).setOrigin(0.5).setInteractive();
-      this.settingsButton.on('pointerdown', this.showSettingsMenu, this);
-    }
-    this.updateOptionsDisplay();
-    // Removed broken glow effect: color, x, y, size, duration were undefined
   }
   // Track if game has started
   // gameStarted is initialized in constructor
@@ -860,6 +953,10 @@ export class GameScene extends Phaser.Scene {
 
   // Helper: Place shape on grid
   placeShapeAt(shape, gridRow, gridCol) {
+    // Ensure moveHistory is initialized and cleared on game start/reset
+    if (!this.moveHistory || !Array.isArray(this.moveHistory)) {
+      this.moveHistory = [];
+    }
     // Block moves if puzzle is completed
     if (this.puzzleActive === false) return;
     const pattern = shape.pattern;
@@ -874,13 +971,14 @@ export class GameScene extends Phaser.Scene {
         }
       }
     }
+    // Save a full game state snapshot for undo
     this.moveHistory.push({
-      type: 'place',
-      shape: JSON.parse(JSON.stringify(shape)),
-      gridRow,
-      gridCol,
-      placedBlocks,
-      trayIdx: this.tray.trayShapes.indexOf(shape)
+      gridState: JSON.parse(JSON.stringify(this.gridState)),
+      trayShapes: JSON.parse(JSON.stringify(this.tray.trayShapes)),
+      score: this.score,
+      coins: this.coinText ? parseInt(this.coinText.text.replace(/\D/g, '')) : 0,
+  powerups: window.localStorage.getItem('timbertiles_powerups'),
+      // Add any other relevant state here
     });
     this.redoHistory = [];
     for (let r = 0; r < pattern.length; r++) {
@@ -1106,7 +1204,7 @@ export class GameScene extends Phaser.Scene {
         }
       }
     }
-    this.moveHistory.push({ type: 'clear', clearedBlocks });
+    // Do not push partial clear actions to moveHistory; only push full game state snapshots for undo
     this.redoHistory = [];
     if (linesCleared > 0) {
       STATS.totalLines += linesCleared;

@@ -1,5 +1,5 @@
 // effects.js
-// Visual effects module for Blockwood
+// Visual effects module for TimberTiles
 // Responsibilities: glow, burst, highlight, animations
 
 export const Effects = {

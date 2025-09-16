@@ -1,5 +1,5 @@
 // input.js
-// Input handling module for Blockwood
+// Input handling module for TimberTiles
 // Responsibilities: pointer, drag, swipe, undo/redo gestures
 
 

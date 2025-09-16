@@ -1,4 +1,4 @@
-// Centralized constants for Blockwood game
+// Centralized constants for TimberTiles game
 export const THEMES = [
   {
     name: 'Vibrant',
@@ -153,6 +153,18 @@ export const SHAPE_PATTERNS_EASY = [
   [[1], [1]],
   // Small line (1)
   [[1]],
+  // small C/up
+  [[1, 0, 1], [1, 1, 1]],
+  // small C/down
+  [[1, 1, 1], [1, 0, 1]],
+  // small C/left
+  [[1, 1], [1, 0], [1, 1]],
+  // small C/right
+  [[1, 1], [0, 1], [1, 1]],
+  // Z up
+  [[1, 0], [1, 1], [0, 1]],
+  // Z down
+  [[0, 1], [1, 1], [1, 0]],
 ];
 
 export const SHAPE_PATTERNS_DIFFICULT = [
@@ -173,4 +185,22 @@ export const SHAPE_PATTERNS_DIFFICULT = [
   [[1], [1], [1], [1], [1]],
   // Big reverse L
   [[1, 1, 1], [0, 0, 1], [0, 0, 1]],
+  // Big reverse L flipped
+  [[0, 0, 1], [0, 0, 1], [1, 1, 1]],
+  // Big L flipped
+  [[0, 0, 1], [0, 0, 1], [1, 1, 1]],
+  // Big L upside down
+  [[1, 1, 1], [1, 0, 0], [1, 0, 0]],
+  // Big reverse L upside down
+  [[1, 1, 1], [0, 0, 1], [0, 0, 1]],
+  // Big C/up
+  [[1, 0, 1], [1, 0, 1], [1, 1, 1]],
+  // Big C/down
+  [[1, 1, 1], [1, 0, 1], [1, 0, 1]],
+  // Big C/left
+  [[1, 1, 1], [1, 0, 1], [1, 1, 1]],
+  // Big C/right
+  [[1, 1, 1], [0, 1, 0], [1, 1, 1]],
+  // Outline square
+  [[1, 1, 1], [1, 0, 1], [1, 1, 1]],
 ];

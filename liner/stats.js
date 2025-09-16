@@ -11,11 +11,11 @@ export const DEFAULT_STATS = {
 
 export function loadStats() {
   try {
-    const stats = JSON.parse(localStorage.getItem('blockwood_stats'));
+    const stats = JSON.parse(localStorage.getItem('timbertiles_stats'));
     return stats ? { ...DEFAULT_STATS, ...stats } : { ...DEFAULT_STATS };
   } catch (e) { return { ...DEFAULT_STATS }; }
 }
 
 export function saveStats(stats) {
-  localStorage.setItem('blockwood_stats', JSON.stringify(stats));
+  localStorage.setItem('timbertiles_stats', JSON.stringify(stats));
 }
