@@ -303,6 +303,29 @@ export class GameScene extends Phaser.Scene {
   // Score and high score text
   this.scoreText = this.add.text(40, 30, 'Score: 0', { fontFamily, fontSize: 32, color: theme.text, fontStyle: 'bold', shadow: { offsetX: 2, offsetY: 2, color: theme.background, blur: 8, stroke: true } });
   this.highScoreText = this.add.text(40, 70, 'High Score: ' + this.highScore, { fontFamily, fontSize: 24, color: theme.text, fontStyle: 'bold', shadow: { offsetX: 1, offsetY: 1, color: theme.background, blur: 6, stroke: true } });
+
+  // --- Speaker Icon for Audio Toggle ---
+  this.isAudioOn = true;
+  this.speakerIcon = this.add.text(800, 40, '🔊', {
+    fontFamily,
+    fontSize: 32,
+    color: theme.text,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    padding: { left: 10, right: 10, top: 6, bottom: 6 },
+    borderRadius: 16
+  }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
+  this.speakerIcon.on('pointerdown', () => {
+    this.isAudioOn = !this.isAudioOn;
+    this.speakerIcon.setText(this.isAudioOn ? '🔊' : '🔇');
+    // Mute/unmute all game audio
+    if (this.sound) {
+      this.sound.mute = !this.isAudioOn;
+    }
+  });
+  // Set initial mute state (in case of reload)
+  if (this.sound) {
+    this.sound.mute = !this.isAudioOn;
+  }
     // Coin display (modern gold, never clips grid)
     import('./powerups.js').then(module => {
       this.coinText = this.add.text(860, 40, '⭑ ' + (module.getCoins ? module.getCoins() : 0), {
@@ -315,6 +338,7 @@ export class GameScene extends Phaser.Scene {
         borderRadius: 16
       }).setOrigin(1, 0);
       this.children.bringToTop(this.coinText);
+      this.children.bringToTop(this.speakerIcon);
       this.updateCoinDisplay = () => {
         import('./powerups.js').then(mod => {
           this.coinText.setText('⭑ ' + (mod.getCoins ? mod.getCoins() : 0));
