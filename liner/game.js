@@ -24,20 +24,26 @@ let STATS = loadStats();
 export class GameScene extends Phaser.Scene {
   // Score-to-coins conversion: award coins as score increases
   addScore(points) {
+    const previousScore = this.score;
     this.score += points;
     if (this.scoreText) this.scoreText.setText('Score: ' + this.score);
-    // Award 1 coin per 100 points, always persist and update display
-    import('./powerups.js').then(module => {
-      const coinsBefore = module.getCoins ? module.getCoins() : 0;
-      const coinsToAdd = Math.floor(this.score / 100) - coinsBefore;
-      if (coinsToAdd > 0 && module.addCoins) {
-        module.addCoins(coinsToAdd);
-      }
-      // Always refresh coin display from localStorage
-      if (this.updateCoinDisplay) {
-        this.updateCoinDisplay();
-      }
-    });
+
+    // Award 1 coin per 100 points earned (not total score)
+    const coinsEarnedBefore = Math.floor(previousScore / 100);
+    const coinsEarnedAfter = Math.floor(this.score / 100);
+    const coinsToAdd = coinsEarnedAfter - coinsEarnedBefore;
+
+    if (coinsToAdd > 0) {
+      import('./powerups.js').then(module => {
+        if (module.addCoins) {
+          module.addCoins(coinsToAdd);
+        }
+        // Always refresh coin display from localStorage
+        if (this.updateCoinDisplay) {
+          this.updateCoinDisplay();
+        }
+      });
+    }
   }
   static activeThemeIdx = 0;
   static DIFFICULTY = 'easy'; // 'easy' or 'difficult'
@@ -323,6 +329,104 @@ export class GameScene extends Phaser.Scene {
     }
     this.children.bringToTop(this.placementHighlight);
   }
+  updateResponsiveLayout() {
+  // Enhanced responsive UI helpers with better font sizing for all screen sizes
+    const width = this.sys.game.config.width;
+    const height = this.sys.game.config.height;
+    const isMobile = width < 600;
+    const isSmallMobile = width < 400;
+    const isWideScreen = width > 1200;
+
+    // Scale font sizes based on screen width for better desktop experience
+    const baseFontScale = isMobile ? width * 0.001 : Math.max(1, width * 0.0008);
+    const scoreFontSize = isMobile ? Math.round(width * 0.035) : Math.round(24 * baseFontScale);
+    const highScoreFontSize = isMobile ? Math.round(width * 0.025) : Math.round(18 * baseFontScale);
+    const coinFontSize = isMobile ? Math.round(width * 0.03) : Math.round(20 * baseFontScale);
+    const speakerFontSize = isMobile ? Math.round(width * 0.03) : Math.round(24 * baseFontScale);
+
+    const leftPad = isMobile ? (isSmallMobile ? 8 : 12) : (isWideScreen ? 60 : 40);
+    const topPad = isMobile ? (isSmallMobile ? 8 : 10) : (isWideScreen ? 40 : 30);
+
+    // Scale right-side element positions for wide screens with proper padding
+    // Use larger padding on mobile to prevent clipping, especially on small screens
+    const rightPadding = isMobile ? (isSmallMobile ? 80 : 60) : 40;
+    const coinRight = isMobile ? width - rightPadding : (isWideScreen ? width - 200 : Math.min(width - 40, 860));
+    const speakerRight = isMobile ? width - rightPadding - 50 : (isWideScreen ? width - 250 : Math.min(width - 100, 800));
+
+    // Responsive grid and tray positioning with dramatically improved scaling
+    this.gridSize = 10;
+    // Much more aggressive scaling for better mobile vs desktop difference
+    let baseCellSize;
+    if (isSmallMobile) baseCellSize = Math.max(35, width * 0.08);
+    else if (isMobile) baseCellSize = Math.max(45, width * 0.085);
+    else if (isWideScreen) baseCellSize = Math.max(65, Math.min(95, width * 0.07));
+    else baseCellSize = Math.max(55, width * 0.065);
+
+    this.cellSize = Math.round(baseCellSize);
+    const gridWidth = this.gridSize * this.cellSize;
+    const gridHeight = this.gridSize * this.cellSize;
+
+    // Center the grid horizontally and position it below the UI elements
+    const gridTopMargin = isMobile ? (isSmallMobile ? 160 : 170) : (isWideScreen ? 120 : 130);
+
+    // Ensure grid doesn't exceed screen bounds with proper padding
+    const gridSidePadding = isMobile ? (isSmallMobile ? 10 : 15) : 20;
+    const maxGridX = width - gridWidth - gridSidePadding;
+    const centeredGridX = (width - gridWidth) / 2;
+
+    this.gridOrigin = {
+      x: Math.max(gridSidePadding, Math.min(centeredGridX, maxGridX)),
+      y: gridTopMargin
+    };
+
+    // Position tray below the grid with responsive spacing
+    const traySpacing = isMobile ? (isSmallMobile ? 30 : 35) : (isWideScreen ? 80 : 50);
+    this.trayOrigin = {
+      x: this.gridOrigin.x,
+      y: this.gridOrigin.y + gridHeight + traySpacing
+    };
+
+    // Update tray if it exists
+    if (this.tray) {
+      this.tray.gridSize = this.gridSize;
+      this.tray.cellSize = this.cellSize;
+      this.tray.trayOrigin = this.trayOrigin;
+      // Redraw tray with new dimensions
+      this.tray.drawTray();
+      this.tray.renderTrayShapes();
+    }
+
+    // Update UI element positions if they exist
+    if (this.scoreText) {
+      this.scoreText.setFontSize(scoreFontSize);
+      this.scoreText.setPosition(leftPad, topPad);
+    }
+    if (this.highScoreText) {
+      this.highScoreText.setFontSize(highScoreFontSize);
+      this.highScoreText.setPosition(leftPad, topPad + (isMobile ? 30 : 35));
+    }
+    if (this.coinText) {
+      this.coinText.setFontSize(coinFontSize);
+      this.coinText.setPosition(coinRight, topPad, 1, 0);
+    }
+    if (this.speakerButton) {
+      this.speakerButton.setFontSize(speakerFontSize);
+      this.speakerButton.setPosition(speakerRight, topPad + (isMobile ? 30 : 35), 1, 0);
+    }
+
+    // Redraw grid with new dimensions
+    if (this.gridGraphics) {
+      this.drawGrid();
+    }
+
+    // Return layout values for initial setup
+    return {
+      width, height, isMobile, isSmallMobile, isWideScreen,
+      scoreFontSize, highScoreFontSize, coinFontSize, speakerFontSize,
+      leftPad, topPad, coinRight, speakerRight
+    };
+  }
+
   create() {
     // Theme and initial state
     const theme = GameScene.getActiveTheme();
@@ -333,37 +437,10 @@ export class GameScene extends Phaser.Scene {
     const packIdx = typeof data.packIdx === 'number' ? data.packIdx : undefined;
     const puzzleId = typeof data.puzzleId === 'number' ? data.puzzleId : undefined;
 
-    // Enhanced responsive UI helpers with better font sizing
-    const width = this.sys.game.config.width;
-    const height = this.sys.game.config.height;
-    const isMobile = width < 600;
-    const isSmallMobile = width < 400;
-    const scoreFontSize = isMobile ? Math.round(width * 0.035) : 24;
-    const highScoreFontSize = isMobile ? Math.round(width * 0.025) : 18;
-    const coinFontSize = isMobile ? Math.round(width * 0.03) : 20;
-    const speakerFontSize = isMobile ? Math.round(width * 0.03) : 24;
-    const leftPad = isMobile ? (isSmallMobile ? 8 : 12) : 40;
-    const topPad = isMobile ? (isSmallMobile ? 8 : 10) : 30;
-    const coinRight = isMobile ? width - 12 : 860;
-    const speakerRight = isMobile ? width - 60 : 800;
+    // Initialize responsive layout
+    const layout = this.updateResponsiveLayout();
+    const { width, height, isMobile, isSmallMobile, isWideScreen, scoreFontSize, highScoreFontSize, coinFontSize, speakerFontSize, leftPad, topPad, coinRight, speakerRight } = layout;
 
-    // Responsive grid and tray positioning
-    this.gridSize = 10;
-    this.cellSize = isMobile ? (isSmallMobile ? 45 : 50) : 60;
-    const gridWidth = this.gridSize * this.cellSize;
-    const gridHeight = this.gridSize * this.cellSize;
-
-    // Center the grid horizontally and position it below the UI elements
-    this.gridOrigin = {
-      x: Math.max(20, (width - gridWidth) / 2),
-      y: isMobile ? 180 : 140
-    };
-
-    // Position tray below the grid with some spacing
-    this.trayOrigin = {
-      x: this.gridOrigin.x,
-      y: this.gridOrigin.y + gridHeight + (isMobile ? 40 : 60)
-    };
     this.gridState = Array.from({ length: this.gridSize }, () => Array(this.gridSize).fill(0));
     this.tray = new Tray(this, { gridSize: this.gridSize, cellSize: this.cellSize, trayOrigin: this.trayOrigin });
     this.score = 0;
@@ -419,7 +496,7 @@ export class GameScene extends Phaser.Scene {
       fontSize: scoreFontSize,
       color: '#ffffff',
       fontStyle: 'bold',
-      shadow: { offsetX: 1, offsetY: 1, color: 'rgba(0,0,0,0.4)', blur: 2, stroke: false }
+      shadow: { offsetX: 1, offsetY: 1, color: 'rgba(0,0,0,0.15)', blur: 3, stroke: false }
     }).setOrigin(0.5);
 
     const highScoreY = topPad + scoreFontSize + 30;
@@ -434,7 +511,7 @@ export class GameScene extends Phaser.Scene {
       fontSize: highScoreFontSize,
       color: '#ffffff',
       fontStyle: 'bold',
-      shadow: { offsetX: 1, offsetY: 1, color: 'rgba(0,0,0,0.3)', blur: 2, stroke: false }
+      shadow: { offsetX: 1, offsetY: 1, color: 'rgba(0,0,0,0.12)', blur: 3, stroke: false }
     }).setOrigin(0.5);
 
     // --- Speaker Icon for Audio Toggle with modern design ---
@@ -520,7 +597,7 @@ export class GameScene extends Phaser.Scene {
           fontSize: isMobile ? 18 : 20,
           color: '#ffffff',
           fontStyle: 'bold',
-          shadow: { offsetX: 1, offsetY: 1, color: 'rgba(0,0,0,0.3)', blur: 2, stroke: false }
+          shadow: { offsetX: 1, offsetY: 1, color: 'rgba(0,0,0,0.12)', blur: 3, stroke: false }
         }).setOrigin(0.5);
         btn.setInteractive({ useHandCursor: true });
         // Add hover effects
@@ -584,7 +661,7 @@ export class GameScene extends Phaser.Scene {
                     fontSize: 22,
                     color: '#ffffff',
                     fontStyle: 'bold',
-                    shadow: { offsetX: 2, offsetY: 2, color: '#000000', blur: 4, stroke: true }
+                    shadow: { offsetX: 1, offsetY: 1, color: 'rgba(0,0,0,0.15)', blur: 3, stroke: false }
                   }).setOrigin(0.5);
                   this.children.bringToTop(this.powerupPromptOverlay);
                   this.children.bringToTop(this.powerupPromptText);
@@ -681,243 +758,503 @@ export class GameScene extends Phaser.Scene {
       // Overlay for stuck state in endless mode
       this.showEndlessStuckOverlay = () => {
         if (this.endlessStuckOverlay) return;
+
         const theme = GameScene.getActiveTheme();
-        this.endlessStuckOverlay = this.add.rectangle(450, 450, 500, 320, theme.overlay, theme.overlayAlpha).setOrigin(0.5);
-        this.endlessStuckText = this.add.text(450, 340, 'No moves left! Remove a row, column, or block?', {
-          fontSize: 24,
-          color: '#ffd700',
-          backgroundColor: '#222',
-          padding: { left: 16, right: 16, top: 8, bottom: 8 }
+        const fontFamily = 'Poppins, Montserrat, Arial, sans-serif';
+        const width = this.sys.game.config.width;
+        const height = this.sys.game.config.height;
+        const isMobile = width < 600;
+        const centerX = width / 2;
+        const centerY = height / 2;
+
+        // Create modern gradient overlay background
+        this.endlessStuckOverlay = this.add.graphics();
+        this.endlessStuckOverlay.fillGradientStyle(
+          parseInt(theme.background.replace('#', '0x')),
+          parseInt(theme.background.replace('#', '0x')),
+          0x1a1a2e,
+          0x16213e
+        );
+
+        const overlayWidth = isMobile ? width - 60 : 520;
+        const overlayHeight = isMobile ? height - 120 : 380;
+        this.endlessStuckOverlay.fillRoundedRect(
+          centerX - overlayWidth / 2,
+          centerY - overlayHeight / 2,
+          overlayWidth,
+          overlayHeight,
+          20
+        );
+        this.endlessStuckOverlay.setAlpha(0.98);
+        this.endlessStuckOverlay.setDepth(1000);
+
+        // Entrance animation
+        this.endlessStuckOverlay.setScale(0.8);
+        this.endlessStuckOverlay.setAlpha(0);
+        this.tweens.add({
+          targets: this.endlessStuckOverlay,
+          scaleX: 1,
+          scaleY: 1,
+          alpha: 0.98,
+          duration: 400,
+          ease: 'Back.Out'
+        });
+
+        // Title text with modern styling
+        this.endlessStuckText = this.add.text(centerX, centerY - 100, 'No moves left!', {
+          fontFamily,
+          fontSize: isMobile ? 24 : 32,
+          fill: '#ffd700',
+          fontStyle: 'bold',
+          stroke: theme.button.color,
+          strokeThickness: 2,
+          shadow: {
+            offsetX: 2,
+            offsetY: 2,
+            color: theme.button.color,
+            blur: 10
+          }
         }).setOrigin(0.5);
-        // Remove Row button
-        this.removeRowButton = this.add.text(300, 420, 'Remove Row (-5 coins)', {
-          fontSize: 22,
-          color: '#fff',
-          backgroundColor: '#444',
-          padding: { left: 16, right: 16, top: 8, bottom: 8 }
-        }).setOrigin(0.5).setInteractive();
-        this.removeRowButton.on('pointerdown', () => {
-          this.destroyEndlessStuckOverlay();
-          this.promptRemove('row');
-        });
-        // Remove Column button
-        this.removeColButton = this.add.text(600, 420, 'Remove Column (-5 coins)', {
-          fontSize: 22,
-          color: '#fff',
-          backgroundColor: '#444',
-          padding: { left: 16, right: 16, top: 8, bottom: 8 }
-        }).setOrigin(0.5).setInteractive();
-        this.removeColButton.on('pointerdown', () => {
-          this.destroyEndlessStuckOverlay();
-          this.promptRemove('col');
-        });
-        // Remove Block button
-        this.removeBlockButton = this.add.text(450, 500, 'Remove Block (-2 coins)', {
-          fontSize: 22,
-          color: '#fff',
-          backgroundColor: '#444',
-          padding: { left: 16, right: 16, top: 8, bottom: 8 }
-        }).setOrigin(0.5).setInteractive();
-        this.removeBlockButton.on('pointerdown', () => {
-          this.destroyEndlessStuckOverlay();
-          this.promptRemove('block');
-        });
-        // Close button
-        this.closeStuckButton = this.add.text(450, 570, 'Cancel', {
-          fontSize: 20,
-          color: '#fff',
-          backgroundColor: '#222',
-          padding: { left: 24, right: 24, top: 10, bottom: 10 }
-        }).setOrigin(0.5).setInteractive();
-        this.closeStuckButton.on('pointerdown', () => {
-          this.destroyEndlessStuckOverlay();
-          // Optionally, show restart and main menu options for full escape
-          if (!this.stuckEscapeOverlay) {
-            const theme = GameScene.getActiveTheme();
-            this.stuckEscapeOverlay = this.add.rectangle(450, 700, 400, 120, theme.overlay, theme.overlayAlpha).setOrigin(0.5);
-            this.stuckRestartButton = this.add.text(320, 700, 'Restart', {
-              fontSize: 20,
-              color: '#fff',
-              backgroundColor: '#444',
-              padding: { left: 24, right: 24, top: 10, bottom: 10 }
-            }).setOrigin(0.5).setInteractive();
-            this.stuckRestartButton.on('pointerdown', () => {
-              this.destroyEndlessStuckOverlay();
-              if (this.stuckEscapeOverlay) this.stuckEscapeOverlay.destroy();
-              if (this.stuckRestartButton) this.stuckRestartButton.destroy();
-              if (this.stuckMainMenuButton) this.stuckMainMenuButton.destroy();
-              this.stuckEscapeOverlay = null;
-              this.stuckRestartButton = null;
-              this.stuckMainMenuButton = null;
-              this.restartGame();
-            });
-            this.stuckMainMenuButton = this.add.text(580, 700, 'Main Menu', {
-              fontSize: 20,
-              color: '#fff',
-              backgroundColor: '#444',
-              padding: { left: 24, right: 24, top: 10, bottom: 10 }
-            }).setOrigin(0.5).setInteractive();
-            this.stuckMainMenuButton.on('pointerdown', () => {
-              this.destroyEndlessStuckOverlay();
-              if (this.stuckEscapeOverlay) this.stuckEscapeOverlay.destroy();
-              if (this.stuckRestartButton) this.stuckRestartButton.destroy();
-              if (this.stuckMainMenuButton) this.stuckMainMenuButton.destroy();
-              this.stuckEscapeOverlay = null;
-              this.stuckRestartButton = null;
-              this.stuckMainMenuButton = null;
-              this.scene.start('MainMenu');
-            });
-            this.children.bringToTop(this.stuckEscapeOverlay);
-            this.children.bringToTop(this.stuckRestartButton);
-            this.children.bringToTop(this.stuckMainMenuButton);
-          }
-        });
-        // Always bring overlay and menu to top
-        this.children.bringToTop(this.endlessStuckOverlay);
-        this.children.bringToTop(this.endlessStuckText);
-        this.children.bringToTop(this.removeRowButton);
-        this.children.bringToTop(this.removeColButton);
-        this.children.bringToTop(this.removeBlockButton);
-        this.children.bringToTop(this.closeStuckButton);
-        // New: Click-to-remove for row/col/block
-        this.promptRemove = (type) => {
-          const theme = GameScene.getActiveTheme();
-          let promptOverlay = this.add.rectangle(450, 450, 500, 320, theme.overlay, theme.overlayAlpha).setOrigin(0.5);
-          let promptText = this.add.text(450, 340, '', {
-            fontSize: 24,
-            color: '#ffd700',
-            backgroundColor: '#222',
-            padding: { left: 16, right: 16, top: 8, bottom: 8 }
+        this.endlessStuckText.setDepth(1001);
+
+        // Show current score and best score
+        const bestEndless = STATS.bestScoreEndless || 0;
+        const isNewRecord = this.score > bestEndless;
+        const scoreColor = isNewRecord ? '#ffdd44' : '#ffffff';
+        const scoreText = isNewRecord ? `Score: ${this.score} (NEW RECORD!)` : `Score: ${this.score}`;
+
+        this.endlessScoreText = this.add.text(centerX, centerY - 70, scoreText, {
+          fontFamily,
+          fontSize: isMobile ? 16 : 20,
+          fill: scoreColor,
+          fontStyle: isNewRecord ? 'bold' : 'normal',
+          stroke: '#000000',
+          strokeThickness: 1
+        }).setOrigin(0.5);
+        this.endlessScoreText.setDepth(1001);
+
+        this.endlessBestText = this.add.text(centerX, centerY - 50, `Best: ${bestEndless}`, {
+          fontFamily,
+          fontSize: isMobile ? 14 : 16,
+          fill: '#cccccc',
+          fontStyle: 'normal',
+          stroke: '#000000',
+          strokeThickness: 1
+        }).setOrigin(0.5);
+        this.endlessBestText.setDepth(1001);
+
+        // Subtitle
+        const subtitleText = this.add.text(centerX, centerY - 20, 'Remove a row, column, or block?', {
+          fontFamily,
+          fontSize: isMobile ? 16 : 20,
+          fill: '#ffffff',
+          fontStyle: 'normal',
+          stroke: '#000000',
+          strokeThickness: 1
+        }).setOrigin(0.5);
+        subtitleText.setDepth(1001);
+
+        // Helper function to create gradient buttons
+        const createEndlessButton = (x, y, text, cost, action) => {
+          const btnWidth = isMobile ? 140 : 160;
+          const btnHeight = 45;
+
+          const btnBg = this.add.graphics();
+          btnBg.fillGradientStyle(
+            parseInt(theme.button.color.replace('#', '0x')),
+            parseInt(theme.button.color.replace('#', '0x')),
+            parseInt(theme.button.color.replace('#', '0x')),
+            parseInt(theme.button.color.replace('#', '0x'))
+          );
+          btnBg.fillRoundedRect(x - btnWidth / 2, y - btnHeight / 2, btnWidth, btnHeight, 12);
+          btnBg.setDepth(1001);
+
+          const btn = this.add.text(x, y - 5, text, {
+            fontFamily,
+            fontSize: isMobile ? 14 : 16,
+            fill: '#ffffff',
+            fontStyle: 'bold',
+            stroke: '#000000',
+            strokeThickness: 1
+          }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+          btn.setDepth(1002);
+
+          const costText = this.add.text(x, y + 10, cost, {
+            fontFamily,
+            fontSize: isMobile ? 11 : 12,
+            fill: '#ffcccc',
+            fontStyle: 'normal'
           }).setOrigin(0.5);
-          if (type === 'row') {
-            promptText.setText('Click a row to remove (-2 coins, -10 score)');
-            let rowRects = [];
-            for (let r = 0; r < this.gridSize; r++) {
-              let rect = this.add.rectangle(450, this.gridOrigin.y + r * this.cellSize + this.cellSize / 2, this.gridSize * this.cellSize, this.cellSize, 0xff0000, 0.15).setOrigin(0.5).setInteractive();
-              rect.on('pointerdown', () => {
-                import('./powerups.js').then(module => {
-                  let coins = module.getCoins ? module.getCoins() : 0;
-                  if (coins < 2 || this.score < 10) {
-                    alert('Not enough coins or score!');
-                    promptOverlay.destroy();
-                    promptText.destroy();
-                    rowRects.forEach(rr => rr.destroy());
-                    this.showEndlessStuckOverlay();
-                    return;
-                  }
-                  module.spendCoins(2);
-                  this.score -= 10;
-                  if (this.scoreText) this.scoreText.setText('Score: ' + this.score);
-                  for (let c = 0; c < this.gridSize; c++) this.gridState[r][c] = 0;
-                  if (this.updateCoinDisplay) this.updateCoinDisplay();
-                  this.redrawGridBlocks();
-                  promptOverlay.destroy();
-                  promptText.destroy();
-                  rowRects.forEach(rr => rr.destroy());
-                  if (!this._canAnyMove()) {
-                    this.showEndlessStuckOverlay();
-                  }
-                });
-              });
-              rowRects.push(rect);
-            }
-          } else if (type === 'col') {
-            promptText.setText('Click a column to remove (-2 coins, -10 score)');
-            let colRects = [];
-            for (let c = 0; c < this.gridSize; c++) {
-              let rect = this.add.rectangle(this.gridOrigin.x + c * this.cellSize + this.cellSize / 2, 450, this.cellSize, this.gridSize * this.cellSize, 0x00ff00, 0.15).setOrigin(0.5).setInteractive();
-              rect.on('pointerdown', () => {
-                import('./powerups.js').then(module => {
-                  let coins = module.getCoins ? module.getCoins() : 0;
-                  if (coins < 2 || this.score < 10) {
-                    alert('Not enough coins or score!');
-                    promptOverlay.destroy();
-                    promptText.destroy();
-                    colRects.forEach(cr => cr.destroy());
-                    this.showEndlessStuckOverlay();
-                    return;
-                  }
-                  module.spendCoins(2);
-                  this.score -= 10;
-                  if (this.scoreText) this.scoreText.setText('Score: ' + this.score);
-                  for (let r = 0; r < this.gridSize; r++) this.gridState[r][c] = 0;
-                  if (this.updateCoinDisplay) this.updateCoinDisplay();
-                  this.redrawGridBlocks();
-                  promptOverlay.destroy();
-                  promptText.destroy();
-                  colRects.forEach(cr => cr.destroy());
-                  if (!this._canAnyMove()) {
-                    this.showEndlessStuckOverlay();
-                  }
-                });
-              });
-              colRects.push(rect);
-            }
-            if (type === 'row') {
-              promptText.setText('Click a row to remove');
-              let rowRects = [];
-            for (let r = 0; r < this.gridSize; r++) {
-              let rect = this.add.rectangle(450, this.gridOrigin.y + r * this.cellSize + this.cellSize / 2, this.gridSize * this.cellSize, this.cellSize, 0xff0000, 0.15).setOrigin(0.5).setInteractive();
-              rect.on('pointerdown', () => {
-                // If called from power-up, don't check coins/score, just clear
-                if (arguments.length > 1 && arguments[1] === true) {
-                  for (let c = 0; c < this.gridSize; c++) this.gridState[r][c] = 0;
-                  this.redrawGridBlocks();
-                  promptOverlay.destroy();
-                  promptText.destroy();
-                  rowRects.forEach(rr => rr.destroy());
-                  if (this.updatePowerupDisplay) this.updatePowerupDisplay();
-                  return;
-                }
-                import('./powerups.js').then(module => {
-                  let coins = module.getCoins ? module.getCoins() : 0;
-                  if (coins < 2 || this.score < 10) {
-                    alert('Not enough coins or score!');
-                    promptOverlay.destroy();
-                    promptText.destroy();
-                    rowRects.forEach(rr => rr.destroy());
-                    this.showEndlessStuckOverlay();
-                    return;
-                  }
-                  module.spendCoins(2);
-                  this.score = Math.max(0, this.score - 10);
-                  if (this.scoreText) this.scoreText.setText('Score: ' + this.score);
-                  for (let c = 0; c < this.gridSize; c++) this.gridState[r][c] = 0;
-                  if (this.updateCoinDisplay) this.updateCoinDisplay();
-                  this.redrawGridBlocks();
-                  promptOverlay.destroy();
-                  promptText.destroy();
-                  rowRects.forEach(rr => rr.destroy());
-                  if (!this._canAnyMove()) {
-                    this.showEndlessStuckOverlay();
-                  }
-                });
-              });
-              rowRects.push(rect);
+          costText.setDepth(1002);
+
+          // Button interactions
+          btn.on('pointerover', () => {
+            this.tweens.add({
+              targets: [btn, btnBg, costText],
+              scaleX: 1.05,
+              scaleY: 1.05,
+              duration: 150,
+              ease: 'Power2'
+            });
+          });
+
+          btn.on('pointerout', () => {
+            this.tweens.add({
+              targets: [btn, btnBg, costText],
+              scaleX: 1,
+              scaleY: 1,
+              duration: 150
+            });
+          });
+
+          btn.on('pointerdown', () => {
+            this.tweens.add({
+              targets: [btn, btnBg, costText],
+              scaleX: 0.95,
+              scaleY: 0.95,
+              duration: 100,
+              yoyo: true,
+              onComplete: () => {
+                this.destroyEndlessStuckOverlay();
+                action();
               }
-            }
-          }
+            });
+          });
+
+          return { btn, bg: btnBg, cost: costText };
         };
+
+        // Create buttons with responsive positioning
+        const buttonY = centerY + 15;
+        const buttonSpacing = isMobile ? 120 : 140;
+
+        // Check if in endless mode to determine cost display
+        const isEndless = isEndlessMode && isEndlessMode();
+        const rowCost = isEndless ? '(-50 score)' : '(-5 coins)';
+        const colCost = isEndless ? '(-50 score)' : '(-5 coins)';
+        const blockCost = isEndless ? '(-20 score)' : '(-2 coins)';
+
+        this.removeRowButton = createEndlessButton(
+          centerX - buttonSpacing, buttonY, 'Remove Row', rowCost,
+          () => this.promptRemove('row')
+        );
+
+        this.removeColButton = createEndlessButton(
+          centerX, buttonY, 'Remove Column', colCost,
+          () => this.promptRemove('col')
+        );
+
+        this.removeBlockButton = createEndlessButton(
+          centerX + buttonSpacing, buttonY, 'Remove Block', blockCost,
+          () => this.promptRemove('block')
+        );
+
+        // Cancel button with different styling
+        const cancelBtnBg = this.add.graphics();
+        cancelBtnBg.fillGradientStyle(0x666666, 0x666666, 0x888888, 0x888888);
+        cancelBtnBg.fillRoundedRect(centerX - 60, centerY + 80, 120, 35, 10);
+        cancelBtnBg.setDepth(1001);
+
+        this.closeStuckButton = this.add.text(centerX, centerY + 97, 'Cancel', {
+          fontFamily,
+          fontSize: isMobile ? 16 : 18,
+          fill: '#ffffff',
+          fontStyle: 'bold',
+          stroke: '#000000',
+          strokeThickness: 1
+        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+        this.closeStuckButton.setDepth(1002);
+        // Cancel button hover effects
+        this.closeStuckButton.on('pointerover', () => {
+          this.tweens.add({
+            targets: [this.closeStuckButton, cancelBtnBg],
+            scaleX: 1.05,
+            scaleY: 1.05,
+            duration: 150,
+            ease: 'Power2'
+          });
+        });
+
+        this.closeStuckButton.on('pointerout', () => {
+          this.tweens.add({
+            targets: [this.closeStuckButton, cancelBtnBg],
+            scaleX: 1,
+            scaleY: 1,
+            duration: 150
+          });
+        });
+
+        this.closeStuckButton.on('pointerdown', () => {
+          this.tweens.add({
+            targets: [this.closeStuckButton, cancelBtnBg],
+            scaleX: 0.95,
+            scaleY: 0.95,
+            duration: 100,
+            yoyo: true,
+            onComplete: () => {
+              this.destroyEndlessStuckOverlay();
+            }
+          });
+        });
+
+        // Store elements for cleanup
+        this.endlessStuckCancelBg = cancelBtnBg;
+        this.endlessStuckSubtitle = subtitleText;
       };
       this.destroyEndlessStuckOverlay = () => {
+        // Clean up main overlay elements
         if (this.endlessStuckOverlay) this.endlessStuckOverlay.destroy();
         if (this.endlessStuckText) this.endlessStuckText.destroy();
-        if (this.removeRowButton) this.removeRowButton.destroy();
-        if (this.removeColButton) this.removeColButton.destroy();
-        if (this.removeBlockButton) this.removeBlockButton.destroy();
+        if (this.endlessScoreText) this.endlessScoreText.destroy();
+        if (this.endlessBestText) this.endlessBestText.destroy();
+        if (this.endlessStuckSubtitle) this.endlessStuckSubtitle.destroy();
+
+        // Clean up buttons and their backgrounds
+        if (this.removeRowButton && this.removeRowButton.btn) this.removeRowButton.btn.destroy();
+        if (this.removeRowButton && this.removeRowButton.bg) this.removeRowButton.bg.destroy();
+        if (this.removeRowButton && this.removeRowButton.cost) this.removeRowButton.cost.destroy();
+
+        if (this.removeColButton && this.removeColButton.btn) this.removeColButton.btn.destroy();
+        if (this.removeColButton && this.removeColButton.bg) this.removeColButton.bg.destroy();
+        if (this.removeColButton && this.removeColButton.cost) this.removeColButton.cost.destroy();
+
+        if (this.removeBlockButton && this.removeBlockButton.btn) this.removeBlockButton.btn.destroy();
+        if (this.removeBlockButton && this.removeBlockButton.bg) this.removeBlockButton.bg.destroy();
+        if (this.removeBlockButton && this.removeBlockButton.cost) this.removeBlockButton.cost.destroy();
+
         if (this.closeStuckButton) this.closeStuckButton.destroy();
-        if (this.stuckEscapeOverlay) this.stuckEscapeOverlay.destroy();
-        if (this.stuckRestartButton) this.stuckRestartButton.destroy();
-        if (this.stuckMainMenuButton) this.stuckMainMenuButton.destroy();
+        if (this.endlessStuckCancelBg) this.endlessStuckCancelBg.destroy();
+
+        // Reset references
         this.endlessStuckOverlay = null;
         this.endlessStuckText = null;
+        this.endlessScoreText = null;
+        this.endlessBestText = null;
+        this.endlessStuckSubtitle = null;
         this.removeRowButton = null;
         this.removeColButton = null;
         this.removeBlockButton = null;
         this.closeStuckButton = null;
-        this.stuckEscapeOverlay = null;
-        this.stuckRestartButton = null;
-        this.stuckMainMenuButton = null;
+        this.endlessStuckCancelBg = null;
+      };
+
+      // Prompt for removing rows, columns, or blocks in endless mode
+      this.promptRemove = (type) => {
+        const theme = GameScene.getActiveTheme();
+        const fontFamily = 'Poppins, Montserrat, Arial, sans-serif';
+        const width = this.sys.game.config.width;
+        const height = this.sys.game.config.height;
+        const isMobile = width < 600;
+        const centerX = width / 2;
+        const centerY = height / 2;
+
+        // Create styled prompt overlay with transparency
+        const promptOverlay = this.add.graphics();
+        promptOverlay.fillGradientStyle(
+          parseInt(theme.background.replace('#', '0x')),
+          parseInt(theme.background.replace('#', '0x')),
+          0x1a1a2e,
+          0x16213e
+        );
+        promptOverlay.fillRoundedRect(centerX - 250, centerY - 160, 500, 320, 20);
+        promptOverlay.setAlpha(0.7); // Make it more transparent so users can see behind it
+        promptOverlay.setDepth(1010);
+
+        // Check if in endless mode to determine cost display and type
+        const isEndless = isEndlessMode && isEndlessMode();
+        let promptText = '';
+        if (type === 'row') promptText = isEndless ? 'Click a row to remove (-50 score)' : 'Click a row to remove (-5 coins)';
+        else if (type === 'col') promptText = isEndless ? 'Click a column to remove (-50 score)' : 'Click a column to remove (-5 coins)';
+        else promptText = isEndless ? 'Click a block to remove (-20 score)' : 'Click a block to remove (-2 coins)';
+
+        const promptTextObj = this.add.text(centerX, centerY - 100, promptText, {
+          fontFamily,
+          fontSize: isMobile ? 18 : 22,
+          fill: '#ffd700',
+          fontStyle: 'bold',
+          stroke: '#000000',
+          strokeThickness: 1
+        }).setOrigin(0.5);
+        promptTextObj.setDepth(1011);
+
+        if (type === 'row') {
+          // Create row selection rectangles
+          const rowRects = [];
+          for (let r = 0; r < this.gridSize; r++) {
+            const rect = this.add.rectangle(
+              centerX,
+              this.gridOrigin.y + r * this.cellSize + this.cellSize / 2,
+              this.gridSize * this.cellSize,
+              this.cellSize,
+              0xff0000,
+              0.15
+            ).setOrigin(0.5).setInteractive({ useHandCursor: true });
+            rect.setDepth(1012);
+
+            rect.on('pointerdown', () => {
+              if (isEndless) {
+                // In endless mode, use score instead of coins
+                if (this.score < 50) {
+                  alert('Not enough score!');
+                  promptOverlay.destroy();
+                  promptTextObj.destroy();
+                  rowRects.forEach(rr => rr.destroy());
+                  return;
+                }
+                this.score -= 50;
+                if (this.scoreText) this.scoreText.setText('Score: ' + this.score);
+                for (let c = 0; c < this.gridSize; c++) this.gridState[r][c] = 0;
+                this.redrawGridBlocks();
+                promptOverlay.destroy();
+                promptTextObj.destroy();
+                rowRects.forEach(rr => rr.destroy());
+
+                // Let anyMovePossible handle the endless mode logic
+                this.anyMovePossible();
+              } else {
+                // Regular mode, use coins
+                import('./powerups.js').then(module => {
+                  const coins = module.getCoins ? module.getCoins() : 0;
+                  if (coins < 5) {
+                    alert('Not enough coins!');
+                    promptOverlay.destroy();
+                    promptTextObj.destroy();
+                    rowRects.forEach(rr => rr.destroy());
+                    return;
+                  }
+                  module.spendCoins(5);
+                  for (let c = 0; c < this.gridSize; c++) this.gridState[r][c] = 0;
+                  if (this.updateCoinDisplay) this.updateCoinDisplay();
+                  this.redrawGridBlocks();
+                  promptOverlay.destroy();
+                  promptTextObj.destroy();
+                  rowRects.forEach(rr => rr.destroy());
+
+                  if (!this._canAnyMove()) {
+                    this.showEndlessStuckOverlay();
+                  }
+                });
+              }
+            });
+            rowRects.push(rect);
+          }
+        } else if (type === 'col') {
+          // Create column selection rectangles
+          const colRects = [];
+          for (let c = 0; c < this.gridSize; c++) {
+            const rect = this.add.rectangle(
+              this.gridOrigin.x + c * this.cellSize + this.cellSize / 2,
+              centerY,
+              this.cellSize,
+              this.gridSize * this.cellSize,
+              0x00ff00,
+              0.15
+            ).setOrigin(0.5).setInteractive({ useHandCursor: true });
+            rect.setDepth(1012);
+
+            rect.on('pointerdown', () => {
+              if (isEndless) {
+                // In endless mode, use score instead of coins
+                if (this.score < 50) {
+                  alert('Not enough score!');
+                  promptOverlay.destroy();
+                  promptTextObj.destroy();
+                  colRects.forEach(cr => cr.destroy());
+                  return;
+                }
+                this.score -= 50;
+                if (this.scoreText) this.scoreText.setText('Score: ' + this.score);
+                for (let r = 0; r < this.gridSize; r++) this.gridState[r][c] = 0;
+                this.redrawGridBlocks();
+                promptOverlay.destroy();
+                promptTextObj.destroy();
+                colRects.forEach(cr => cr.destroy());
+
+                // Let anyMovePossible handle the endless mode logic
+                this.anyMovePossible();
+              } else {
+                // Regular mode, use coins
+                import('./powerups.js').then(module => {
+                  const coins = module.getCoins ? module.getCoins() : 0;
+                  if (coins < 5) {
+                    alert('Not enough coins!');
+                    promptOverlay.destroy();
+                    promptTextObj.destroy();
+                    colRects.forEach(cr => cr.destroy());
+                    return;
+                  }
+                  module.spendCoins(5);
+                  for (let r = 0; r < this.gridSize; r++) this.gridState[r][c] = 0;
+                  if (this.updateCoinDisplay) this.updateCoinDisplay();
+                  this.redrawGridBlocks();
+                  promptOverlay.destroy();
+                  promptTextObj.destroy();
+                  colRects.forEach(cr => cr.destroy());
+
+                  if (!this._canAnyMove()) {
+                    this.showEndlessStuckOverlay();
+                  }
+                });
+              }
+            });
+            colRects.push(rect);
+          }
+        } else if (type === 'block') {
+          // Block removal - click on grid
+          const pointerHandler = (pointer) => {
+            const gridX = Math.floor((pointer.x - this.gridOrigin.x) / this.cellSize);
+            const gridY = Math.floor((pointer.y - this.gridOrigin.y) / this.cellSize);
+
+            if (gridX < 0 || gridX >= this.gridSize || gridY < 0 || gridY >= this.gridSize) {
+              promptOverlay.destroy();
+              promptTextObj.destroy();
+              this.input.off('pointerdown', pointerHandler);
+              return;
+            }
+
+            if (isEndless) {
+              // In endless mode, use score instead of coins
+              if (this.score < 20) {
+                alert('Not enough score!');
+                promptOverlay.destroy();
+                promptTextObj.destroy();
+                this.input.off('pointerdown', pointerHandler);
+                return;
+              }
+              this.score -= 20;
+              if (this.scoreText) this.scoreText.setText('Score: ' + this.score);
+              this.gridState[gridY][gridX] = 0;
+              this.redrawGridBlocks();
+              promptOverlay.destroy();
+              promptTextObj.destroy();
+              this.input.off('pointerdown', pointerHandler);
+
+              // Let anyMovePossible handle the endless mode logic
+              this.anyMovePossible();
+            } else {
+            // Regular mode, use coins
+              import('./powerups.js').then(module => {
+                const coins = module.getCoins ? module.getCoins() : 0;
+                if (coins < 2) {
+                  alert('Not enough coins!');
+                  promptOverlay.destroy();
+                  promptTextObj.destroy();
+                  this.input.off('pointerdown', pointerHandler);
+                  return;
+                }
+                module.spendCoins(2);
+                this.gridState[gridY][gridX] = 0;
+                if (this.updateCoinDisplay) this.updateCoinDisplay();
+                this.redrawGridBlocks();
+                promptOverlay.destroy();
+                promptTextObj.destroy();
+                this.input.off('pointerdown', pointerHandler);
+              });
+            }
+          };
+
+          this.input.once('pointerdown', pointerHandler);
+        }
       };
       // Prompt for which row/col/block to remove
       this.promptRowColBlock = (type) => {
@@ -1017,6 +1354,11 @@ export class GameScene extends Phaser.Scene {
     this.drawGrid();
     this.tray.drawTray();
     this.tray.renderTrayShapes();
+
+    // Add resize event listener for responsive layout updates
+    this.scale.on('resize', (gameSize, baseSize, displaySize, resolution) => {
+      this.updateResponsiveLayout();
+    });
   }
   // Remove duplicate static/class property declarations outside the class body
 
@@ -1135,16 +1477,20 @@ export class GameScene extends Phaser.Scene {
       this.optionsText.destroy();
       this.optionsText = null;
     }
-    // Enhanced styling for options text with responsive font size
-    const optionsFontSize = this.sys.game.config.width < 600 ? 16 : 18;
-    this.optionsText = this.add.text(450, 90, text, {
+    // Enhanced styling for options text with responsive font size and proper positioning
+    const isMobileOptions = this.sys.game.config.width < 600;
+    const optionsFontSize = isMobileOptions ? 14 : 16;
+    const optionsY = isMobileOptions ? this.sys.game.config.height - 40 : 90; // Move to bottom on mobile
+    const optionsX = isMobileOptions ? this.sys.game.config.width / 2 : 450;
+
+    this.optionsText = this.add.text(optionsX, optionsY, text, {
       fontSize: optionsFontSize,
       color: '#ffffff',
       fontFamily: 'Poppins, Arial, sans-serif',
       fontStyle: 'bold',
-      backgroundColor: 'rgba(26, 26, 46, 0.8)',
-      padding: { left: 16, right: 16, top: 8, bottom: 8 },
-      shadow: { offsetX: 1, offsetY: 1, color: theme.button.color, blur: 4, stroke: true }
+      backgroundColor: 'rgba(26, 26, 46, 0.9)',
+      padding: { left: 12, right: 12, top: 6, bottom: 6 },
+      shadow: { offsetX: 1, offsetY: 1, color: theme.button.color, blur: 3, stroke: true }
     }).setOrigin(0.5);
     this.children.bringToTop(this.optionsText);
 
@@ -1261,16 +1607,276 @@ export class GameScene extends Phaser.Scene {
     return true;
   }
 
-  showGameOverOverlay() {
-    // Prevent game over overlay in endless mode
-    if (isEndlessMode && isEndlessMode()) {
-      // Instead, show stuck overlay if not already shown
-      if (this.showEndlessStuckOverlay) this.showEndlessStuckOverlay();
-      return;
-    }
-    // ...existing code for normal/daily/puzzle modes...
+  // Show endless mode game over when no moves are available and no powerups are affordable
+  showEndlessGameOverOverlay() {
     const theme = GameScene.getActiveTheme();
+    const fontFamily = 'Poppins, Montserrat, Arial, sans-serif';
+    if (this.endlessGameOverOverlay) return;
+
+    // Update endless mode stats
+    STATS.totalEndlessGames++;
+    if (this.score > (STATS.bestScoreEndless || 0)) {
+      STATS.bestScoreEndless = this.score;
+    }
+    STATS.lastPlayed = new Date().toISOString();
+    saveStats(STATS);
+
+    if (this.sfxGameOver) this.sfxGameOver.play();
+
+    const width = this.sys.game.config.width;
+    const height = this.sys.game.config.height;
+    const isMobile = width < 600;
+    const isSmallMobile = width < 400;
+    const centerX = width / 2;
+    const centerY = height / 2;
+
+    // Create modern gradient overlay background
+    this.endlessGameOverOverlay = this.add.graphics();
+    this.endlessGameOverOverlay.fillGradientStyle(
+      parseInt(theme.background.replace('#', '0x')),
+      parseInt(theme.background.replace('#', '0x')),
+      0x1a1a2e,
+      0x16213e
+    );
+
+    const overlayWidth = isMobile ? width - 40 : 600;
+    const overlayHeight = isMobile ? height - 80 : 400;
+    this.endlessGameOverOverlay.fillRoundedRect(
+      centerX - overlayWidth / 2,
+      centerY - overlayHeight / 2,
+      overlayWidth,
+      overlayHeight,
+      20
+    );
+    this.endlessGameOverOverlay.setAlpha(0.98);
+    this.endlessGameOverOverlay.setDepth(1000);
+
+    // Entrance animation
+    this.endlessGameOverOverlay.setScale(0.8);
+    this.endlessGameOverOverlay.setAlpha(0);
+    this.tweens.add({
+      targets: this.endlessGameOverOverlay,
+      scaleX: 1,
+      scaleY: 1,
+      alpha: 0.98,
+      duration: 500,
+      ease: 'Back.Out'
+    });
+
+    // Endless Game Over title
+    const titleFontSize = isMobile ? (isSmallMobile ? 42 : 48) : 64;
+    this.endlessGameOverText = this.add.text(centerX, centerY - 120, 'Endless Game Over!', {
+      fontFamily,
+      fontSize: titleFontSize,
+      fill: '#ffffff',
+      fontStyle: 'bold',
+      stroke: theme.button.color,
+      strokeThickness: 4,
+      shadow: {
+        offsetX: 3,
+        offsetY: 3,
+        color: theme.button.color,
+        blur: 10
+      }
+    }).setOrigin(0.5);
+    this.endlessGameOverText.setDepth(1001);
+
+    // Show final score and best score
+    const bestEndless = STATS.bestScoreEndless || 0;
+    const isNewRecord = this.score >= bestEndless;
+    const scoreColor = isNewRecord ? '#ffdd44' : '#ffffff';
+    const scoreFontSize = isMobile ? (isSmallMobile ? 22 : 26) : 32;
+
+    const scoreText = isNewRecord ? `Final Score: ${this.score} (NEW RECORD!)` : `Final Score: ${this.score}`;
+    this.endlessScoreDisplay = this.add.text(centerX, centerY - 70, scoreText, {
+      fontFamily,
+      fontSize: scoreFontSize,
+      fill: scoreColor,
+      fontStyle: isNewRecord ? 'bold' : 'normal',
+      stroke: '#000000',
+      strokeThickness: 2,
+      shadow: {
+        offsetX: 2,
+        offsetY: 2,
+        color: isNewRecord ? '#ffaa00' : '#333333',
+        blur: 8
+      }
+    }).setOrigin(0.5);
+    this.endlessScoreDisplay.setDepth(1001);
+
+    this.endlessBestDisplay = this.add.text(centerX, centerY - 35, `Best: ${bestEndless}`, {
+      fontFamily,
+      fontSize: isMobile ? (isSmallMobile ? 16 : 18) : 22,
+      fill: '#cccccc',
+      fontStyle: 'normal',
+      stroke: '#000000',
+      strokeThickness: 1
+    }).setOrigin(0.5);
+    this.endlessBestDisplay.setDepth(1001);
+
+    // Create gradient buttons for restart and main menu
+    const buttonY = centerY + 40;
+    const buttonSpacing = isMobile ? 120 : 140;
+    const btnWidth = isMobile ? 110 : 130;
+    const btnHeight = 45;
+
+    // Restart button
+    this.endlessRestartButtonBg = this.add.graphics();
+    this.endlessRestartButtonBg.fillGradientStyle(
+      parseInt(theme.button.color.replace('#', '0x')),
+      parseInt(theme.button.color.replace('#', '0x')),
+      parseInt(theme.button.color.replace('#', '0x')),
+      parseInt(theme.button.color.replace('#', '0x'))
+    );
+    this.endlessRestartButtonBg.fillRoundedRect(
+      centerX - buttonSpacing - btnWidth / 2,
+      buttonY - btnHeight / 2,
+      btnWidth,
+      btnHeight,
+      12
+    );
+    this.endlessRestartButtonBg.setDepth(1001);
+
+    this.endlessRestartButton = this.add.text(centerX - buttonSpacing, buttonY, 'Restart', {
+      fontFamily,
+      fontSize: isMobile ? 16 : 20,
+      fill: '#ffffff',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 1
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    this.endlessRestartButton.setDepth(1002);
+
+    // Main Menu button
+    this.endlessMainMenuButtonBg = this.add.graphics();
+    this.endlessMainMenuButtonBg.fillGradientStyle(
+      parseInt(theme.button.color.replace('#', '0x')),
+      parseInt(theme.button.color.replace('#', '0x')),
+      parseInt(theme.button.color.replace('#', '0x')),
+      parseInt(theme.button.color.replace('#', '0x'))
+    );
+    this.endlessMainMenuButtonBg.fillRoundedRect(
+      centerX + buttonSpacing - btnWidth / 2,
+      buttonY - btnHeight / 2,
+      btnWidth,
+      btnHeight,
+      12
+    );
+    this.endlessMainMenuButtonBg.setDepth(1001);
+
+    this.endlessMainMenuButton = this.add.text(centerX + buttonSpacing, buttonY, 'Main Menu', {
+      fontFamily,
+      fontSize: isMobile ? 16 : 20,
+      fill: '#ffffff',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 1
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    this.endlessMainMenuButton.setDepth(1002);
+
+    // Button interactions
+    this.endlessRestartButton.on('pointerover', () => {
+      this.tweens.add({
+        targets: [this.endlessRestartButton, this.endlessRestartButtonBg],
+        scaleX: 1.05,
+        scaleY: 1.05,
+        duration: 150,
+        ease: 'Power2'
+      });
+    });
+
+    this.endlessRestartButton.on('pointerout', () => {
+      this.tweens.add({
+        targets: [this.endlessRestartButton, this.endlessRestartButtonBg],
+        scaleX: 1,
+        scaleY: 1,
+        duration: 150
+      });
+    });
+
+    this.endlessRestartButton.on('pointerdown', () => {
+      this.tweens.add({
+        targets: [this.endlessRestartButton, this.endlessRestartButtonBg],
+        scaleX: 0.95,
+        scaleY: 0.95,
+        duration: 100,
+        yoyo: true,
+        onComplete: () => this.restartGame()
+      });
+    });
+
+    this.endlessMainMenuButton.on('pointerover', () => {
+      this.tweens.add({
+        targets: [this.endlessMainMenuButton, this.endlessMainMenuButtonBg],
+        scaleX: 1.05,
+        scaleY: 1.05,
+        duration: 150,
+        ease: 'Power2'
+      });
+    });
+
+    this.endlessMainMenuButton.on('pointerout', () => {
+      this.tweens.add({
+        targets: [this.endlessMainMenuButton, this.endlessMainMenuButtonBg],
+        scaleX: 1,
+        scaleY: 1,
+        duration: 150
+      });
+    });
+
+    this.endlessMainMenuButton.on('pointerdown', () => {
+      this.tweens.add({
+        targets: [this.endlessMainMenuButton, this.endlessMainMenuButtonBg],
+        scaleX: 0.95,
+        scaleY: 0.95,
+        duration: 100,
+        yoyo: true,
+        onComplete: () => {
+          this.scene.start('MainMenu');
+        }
+      });
+    });
+
+    // Entrance animations for buttons
+    [this.endlessRestartButtonBg, this.endlessRestartButton, this.endlessMainMenuButtonBg, this.endlessMainMenuButton].forEach((element, index) => {
+      element.setAlpha(0);
+      element.setScale(0.8);
+      this.tweens.add({
+        targets: element,
+        alpha: 1,
+        scaleX: 1,
+        scaleY: 1,
+        duration: 300,
+        delay: 400 + index * 100,
+        ease: 'Back.Out'
+      });
+    });
+  }
+
+  showGameOverOverlay() {
+    // Handle endless mode differently
+    if (isEndlessMode && isEndlessMode()) {
+      // Check if player can afford any powerups
+      const canAffordRow = this.score >= 50;
+      const canAffordCol = this.score >= 50;
+      const canAffordBlock = this.score >= 20;
+
+      if (!canAffordRow && !canAffordCol && !canAffordBlock) {
+        // Player can't afford any powerups, show endless game over
+        this.showEndlessGameOverOverlay();
+        return;
+      } else {
+        // Player can still afford powerups, show stuck overlay
+        if (this.showEndlessStuckOverlay) this.showEndlessStuckOverlay();
+        return;
+      }
+    }
+
+    const theme = GameScene.getActiveTheme();
+    const fontFamily = 'Poppins, Montserrat, Arial, sans-serif';
     if (this.gameOverOverlay) return;
+
+    // Update stats
     if (this.sfxGameOver) this.sfxGameOver.play();
     STATS.totalGames++;
     if (GameScene.DIFFICULTY === 'easy') {
@@ -1280,41 +1886,388 @@ export class GameScene extends Phaser.Scene {
     }
     STATS.lastPlayed = new Date().toISOString();
     saveStats(STATS);
-    this.gameOverOverlay = this.add.rectangle(450, 450, 700, 400, theme.overlay, theme.overlayAlpha).setOrigin(0.5);
-    Effects.showGlowEffect(this, 450, 450, theme.button.color, 400, 2500);
-    Effects.showConfettiBurst ? Effects.showConfettiBurst(this, 450, 450, theme.button.color, 60, 30, 2500) : Effects.showParticleBurst(this, 450, 450, theme.button.color, 60, 30, 2500);
+
+    // Get responsive dimensions
+    const width = this.sys.game.config.width;
+    const height = this.sys.game.config.height;
+    const isMobile = width < 600;
+    const isSmallMobile = width < 400;
+    const centerX = width / 2;
+    const centerY = height / 2;
+
+    // Create modern gradient overlay background
+    this.gameOverOverlay = this.add.graphics();
+    this.gameOverOverlay.fillGradientStyle(
+      parseInt(theme.background.replace('#', '0x')),
+      parseInt(theme.background.replace('#', '0x')),
+      0x1a1a2e,
+      0x16213e
+    );
+
+    const overlayWidth = isMobile ? width - 40 : Math.min(600, width - 100);
+    const overlayHeight = isMobile ? height - 100 : Math.min(500, height - 150);
+    this.gameOverOverlay.fillRoundedRect(
+      centerX - overlayWidth / 2,
+      centerY - overlayHeight / 2,
+      overlayWidth,
+      overlayHeight,
+      20
+    );
+    this.gameOverOverlay.setAlpha(0.98);
+    this.gameOverOverlay.setDepth(1000); // Ensure it's on top
+
+    // Add dramatic entrance animation
+    this.gameOverOverlay.setScale(0.8);
+    this.gameOverOverlay.setAlpha(0);
+    this.tweens.add({
+      targets: this.gameOverOverlay,
+      scaleX: 1,
+      scaleY: 1,
+      alpha: 0.98,
+      duration: 500,
+      ease: 'Back.Out'
+    });
+
+    // Game Over title with modern styling
+    const titleFontSize = isMobile ? (isSmallMobile ? 48 : 56) : 72;
+    this.gameOverText = this.add.text(centerX, centerY - 80, 'Game Over!', {
+      fontFamily,
+      fontSize: titleFontSize,
+      fill: '#ffffff',
+      fontStyle: 'bold',
+      stroke: theme.button.color,
+      strokeThickness: 4,
+      shadow: {
+        offsetX: 3,
+        offsetY: 3,
+        color: theme.button.color,
+        blur: 15,
+        stroke: false,
+        fill: true
+      }
+    }).setOrigin(0.5);
+    this.gameOverText.setDepth(1001);
+
+    // Title entrance animation
+    this.gameOverText.setScale(0.5);
+    this.gameOverText.setAlpha(0);
+    this.tweens.add({
+      targets: this.gameOverText,
+      scaleX: 1,
+      scaleY: 1,
+      alpha: 1,
+      duration: 600,
+      delay: 200,
+      ease: 'Bounce.Out'
+    });
+
+    // Score display with enhanced styling
+    const scoreFontSize = isMobile ? (isSmallMobile ? 20 : 24) : 32;
+    const currentScoreText = `Final Score: ${this.score}`;
+    const bestScore = GameScene.DIFFICULTY === 'easy' ? STATS.bestScoreEasy : STATS.bestScoreDifficult;
+    const bestScoreText = `Best: ${bestScore}`;
+    const isNewRecord = this.score >= bestScore;
+
+    this.currentScoreText = this.add.text(centerX, centerY - 20, currentScoreText, {
+      fontFamily,
+      fontSize: scoreFontSize,
+      fill: isNewRecord ? '#ffd700' : '#ffffff',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 2,
+      shadow: {
+        offsetX: 2,
+        offsetY: 2,
+        color: 'rgba(0,0,0,0.5)',
+        blur: 8
+      }
+    }).setOrigin(0.5);
+    this.currentScoreText.setDepth(1001);
+
+    this.bestScoreText = this.add.text(centerX, centerY + 15, bestScoreText, {
+      fontFamily,
+      fontSize: scoreFontSize - 4,
+      fill: '#cccccc',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 1
+    }).setOrigin(0.5);
+    this.bestScoreText.setDepth(1001);
+
+    // New record celebration
+    if (isNewRecord && this.score > 0) {
+      const newRecordText = this.add.text(centerX, centerY + 45, '🎉 NEW RECORD! 🎉', {
+        fontFamily,
+        fontSize: isMobile ? 18 : 24,
+        fill: '#ffd700',
+        fontStyle: 'bold',
+        stroke: '#ff6b6b',
+        strokeThickness: 2
+      }).setOrigin(0.5);
+      newRecordText.setDepth(1001);
+
+      // Pulsing animation for new record
+      this.tweens.add({
+        targets: newRecordText,
+        scaleX: 1.1,
+        scaleY: 1.1,
+        duration: 800,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.InOut'
+      });
+    }
+
+    // Create gradient button backgrounds for Restart button
+    this.restartButtonBg = this.add.graphics();
+    const btnWidth = isMobile ? 200 : 240;
+    const btnHeight = isMobile ? 50 : 60;
+    const btnY = centerY + 100;
+
+    this.restartButtonBg.fillGradientStyle(
+      parseInt(theme.button.color.replace('#', '0x')),
+      parseInt(theme.button.color.replace('#', '0x')),
+      parseInt(theme.button.color.replace('#', '0x')),
+      parseInt(theme.button.color.replace('#', '0x'))
+    );
+    this.restartButtonBg.fillRoundedRect(
+      centerX - btnWidth / 2,
+      btnY - btnHeight / 2,
+      btnWidth,
+      btnHeight,
+      15
+    );
+    this.restartButtonBg.setDepth(1001);
+
+    // Restart button with modern styling
+    const restartFontSize = isMobile ? (isSmallMobile ? 20 : 24) : 32;
+    this.restartButton = this.add.text(centerX, btnY, 'Restart Game', {
+      fontFamily,
+      fontSize: restartFontSize,
+      fill: '#ffffff',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 2,
+      shadow: {
+        offsetX: 1,
+        offsetY: 1,
+        color: 'rgba(0,0,0,0.8)',
+        blur: 4
+      }
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    this.restartButton.setDepth(1002);
+
+    // Add Main Menu button
+    this.mainMenuButtonBg = this.add.graphics();
+    const mainMenuBtnY = btnY + 70;
+
+    this.mainMenuButtonBg.fillGradientStyle(
+      0x666666, 0x666666, 0x888888, 0x888888
+    );
+    this.mainMenuButtonBg.fillRoundedRect(
+      centerX - btnWidth / 2,
+      mainMenuBtnY - btnHeight / 2,
+      btnWidth,
+      btnHeight,
+      15
+    );
+    this.mainMenuButtonBg.setDepth(1001);
+
+    this.mainMenuButton = this.add.text(centerX, mainMenuBtnY, 'Main Menu', {
+      fontFamily,
+      fontSize: restartFontSize,
+      fill: '#ffffff',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 2,
+      shadow: {
+        offsetX: 1,
+        offsetY: 1,
+        color: 'rgba(0,0,0,0.8)',
+        blur: 4
+      }
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    this.mainMenuButton.setDepth(1002);
+
+    // Button animations and interactions
+    this.restartButton.on('pointerover', () => {
+      this.tweens.add({
+        targets: [this.restartButton, this.restartButtonBg],
+        scaleX: 1.05,
+        scaleY: 1.05,
+        duration: 150,
+        ease: 'Power2'
+      });
+    });
+
+    this.restartButton.on('pointerout', () => {
+      this.tweens.add({
+        targets: [this.restartButton, this.restartButtonBg],
+        scaleX: 1,
+        scaleY: 1,
+        duration: 150
+      });
+    });
+
+    this.restartButton.on('pointerdown', () => {
+      this.tweens.add({
+        targets: [this.restartButton, this.restartButtonBg],
+        scaleX: 0.95,
+        scaleY: 0.95,
+        duration: 100,
+        yoyo: true,
+        onComplete: () => this.restartGame()
+      });
+    });
+
+    this.mainMenuButton.on('pointerover', () => {
+      this.tweens.add({
+        targets: [this.mainMenuButton, this.mainMenuButtonBg],
+        scaleX: 1.05,
+        scaleY: 1.05,
+        duration: 150,
+        ease: 'Power2'
+      });
+    });
+
+    this.mainMenuButton.on('pointerout', () => {
+      this.tweens.add({
+        targets: [this.mainMenuButton, this.mainMenuButtonBg],
+        scaleX: 1,
+        scaleY: 1,
+        duration: 150
+      });
+    });
+
+    this.mainMenuButton.on('pointerdown', () => {
+      this.tweens.add({
+        targets: [this.mainMenuButton, this.mainMenuButtonBg],
+        scaleX: 0.95,
+        scaleY: 0.95,
+        duration: 100,
+        yoyo: true,
+        onComplete: () => {
+          // Handle stats for ending games when going to main menu
+          if (isEndlessMode && isEndlessMode()) {
+            // Only update stats if not already updated by endless game over overlay
+            if (!this.endlessGameOverOverlay) {
+              STATS.totalEndlessGames++;
+              if (this.score > (STATS.bestScoreEndless || 0)) {
+                STATS.bestScoreEndless = this.score;
+              }
+              STATS.lastPlayed = new Date().toISOString();
+              saveStats(STATS);
+            }
+          }
+          this.scene.start('MainMenu');
+        }
+      });
+    });
+
+    // Entrance animations for buttons
+    [this.restartButtonBg, this.restartButton, this.mainMenuButtonBg, this.mainMenuButton].forEach((element, index) => {
+      element.setAlpha(0);
+      element.setScale(0.8);
+      this.tweens.add({
+        targets: element,
+        alpha: 1,
+        scaleX: 1,
+        scaleY: 1,
+        duration: 400,
+        delay: 400 + index * 100,
+        ease: 'Back.Out'
+      });
+    });
+
+    // Score text animations
+    [this.currentScoreText, this.bestScoreText].forEach((element, index) => {
+      element.setAlpha(0);
+      element.setY(element.y + 20);
+      this.tweens.add({
+        targets: element,
+        alpha: 1,
+        y: element.y - 20,
+        duration: 500,
+        delay: 300 + index * 100,
+        ease: 'Power2.Out'
+      });
+    });
+
+    // Enhanced visual effects
+    Effects.showGlowEffect && Effects.showGlowEffect(this, centerX, centerY, theme.button.color, 400, 2500);
+    Effects.showConfettiBurst ?
+      Effects.showConfettiBurst(this, centerX, centerY, theme.button.color, 60, 30, 2500) :
+      Effects.showParticleBurst && Effects.showParticleBurst(this, centerX, centerY, theme.button.color, 60, 30, 2500);
+
     if (this.cameras && this.cameras.main) {
       this.cameras.main.shake(800, 0.01);
     }
-    this.gameOverText = this.add.text(450, 400, 'Game Over!', { fontFamily: 'Arial', fontSize: 72, color: theme.text, fontStyle: 'bold' }).setOrigin(0.5);
-    this.restartButton = this.add.text(450, 520, 'Restart', { fontFamily: 'Arial', fontSize: 40, color: theme.button.color, backgroundColor: theme.button.background, padding: { left: 32, right: 32, top: 16, bottom: 16 } }).setOrigin(0.5).setInteractive();
-    this.restartButton.on('pointerdown', () => {
-      this.restartGame();
-    });
-    this.time.delayedCall(50, () => {
-      this.children.bringToTop(this.gameOverOverlay);
-      this.children.bringToTop(this.gameOverText);
-      this.children.bringToTop(this.restartButton);
-    });
   }
 
   hideGameOverOverlay() {
     if (this.gameOverOverlay) this.gameOverOverlay.destroy();
     if (this.gameOverText) this.gameOverText.destroy();
     if (this.restartButton) this.restartButton.destroy();
+    if (this.restartButtonBg) this.restartButtonBg.destroy();
+    if (this.mainMenuButton) this.mainMenuButton.destroy();
+    if (this.mainMenuButtonBg) this.mainMenuButtonBg.destroy();
+    if (this.currentScoreText) this.currentScoreText.destroy();
+    if (this.bestScoreText) this.bestScoreText.destroy();
+
     this.gameOverOverlay = null;
     this.gameOverText = null;
     this.restartButton = null;
+    this.restartButtonBg = null;
+    this.mainMenuButton = null;
+    this.mainMenuButtonBg = null;
+    this.currentScoreText = null;
+    this.bestScoreText = null;
+  }
+
+  hideEndlessGameOverOverlay() {
+    if (this.endlessGameOverOverlay) this.endlessGameOverOverlay.destroy();
+    if (this.endlessGameOverText) this.endlessGameOverText.destroy();
+    if (this.endlessScoreDisplay) this.endlessScoreDisplay.destroy();
+    if (this.endlessBestDisplay) this.endlessBestDisplay.destroy();
+    if (this.endlessRestartButton) this.endlessRestartButton.destroy();
+    if (this.endlessRestartButtonBg) this.endlessRestartButtonBg.destroy();
+    if (this.endlessMainMenuButton) this.endlessMainMenuButton.destroy();
+    if (this.endlessMainMenuButtonBg) this.endlessMainMenuButtonBg.destroy();
+
+    this.endlessGameOverOverlay = null;
+    this.endlessGameOverText = null;
+    this.endlessScoreDisplay = null;
+    this.endlessBestDisplay = null;
+    this.endlessRestartButton = null;
+    this.endlessRestartButtonBg = null;
+    this.endlessMainMenuButton = null;
+    this.endlessMainMenuButtonBg = null;
   }
 
   restartGame() {
-    // If restarting after game over, increment totalGames and save
-    STATS.totalGames++;
-    saveStats(STATS);
+    // Handle stats for ending games
+    if (isEndlessMode && isEndlessMode()) {
+      // Only update stats if not already updated by endless game over overlay
+      if (!this.endlessGameOverOverlay) {
+        STATS.totalEndlessGames++;
+        if (this.score > (STATS.bestScoreEndless || 0)) {
+          STATS.bestScoreEndless = this.score;
+        }
+        STATS.lastPlayed = new Date().toISOString();
+        saveStats(STATS);
+      }
+    } else {
+      // Regular game restart
+      STATS.totalGames++;
+      STATS.lastPlayed = new Date().toISOString();
+      saveStats(STATS);
+    }
+
     // Reset optionsText reference to avoid accessing destroyed object
     this.optionsText = null;
     this.updateOptionsDisplay();
     this.hideGameOverOverlay();
+    this.hideEndlessGameOverOverlay();
     this.gridState = Array.from({ length: this.gridSize }, () => Array(this.gridSize).fill(0));
     this.tray.trayShapes = [getRandomShape(), getRandomShape(), getRandomShape()];
     this.score = 0;

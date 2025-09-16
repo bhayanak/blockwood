@@ -71,23 +71,35 @@ export class MainMenu extends Phaser.Scene {
         );
         bgGradient.fillRect(0, 0, width, height);
 
-        // Animated floating particles
-        for (let i = 0; i < (isMobile ? 15 : 25); i++) {
+        // Enhanced animated floating particles - more visible
+        const particleColors = [0xffffff, 0xff6b6b, 0x4ecdc4, 0x45b7d1, 0xf9ca24, 0xf0932b];
+        for (let i = 0; i < (isMobile ? 20 : 35); i++) {
             const particle = this.add.circle(
                 Phaser.Math.Between(0, width),
                 Phaser.Math.Between(0, height),
-                Phaser.Math.Between(2, 6),
-                parseInt(theme.button.color.replace('#', '0x')),
-                0.3
+                Phaser.Math.Between(3, 8),
+                particleColors[Math.floor(Math.random() * particleColors.length)],
+                0.6
             );
 
+            // Floating upward animation
             this.tweens.add({
                 targets: particle,
-                y: particle.y - Phaser.Math.Between(100, 300),
-                alpha: { from: 0.3, to: 0 },
-                duration: Phaser.Math.Between(3000, 6000),
+                y: particle.y - Phaser.Math.Between(200, 400),
+                alpha: { from: 0.6, to: 0.1 },
+                duration: Phaser.Math.Between(4000, 8000),
                 repeat: -1,
                 delay: Phaser.Math.Between(0, 3000)
+            });
+
+            // Gentle horizontal drift
+            this.tweens.add({
+                targets: particle,
+                x: particle.x + Phaser.Math.Between(-50, 50),
+                duration: Phaser.Math.Between(3000, 6000),
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.easeInOut'
             });
         }
 
@@ -122,27 +134,61 @@ export class MainMenu extends Phaser.Scene {
             ease: 'Sine.easeInOut'
         });
 
-        // Enhanced title with gradient effect and better visibility
-        const titleY = isMobile ? height * 0.25 : height * 0.28;
-        const titleFontSize = isMobile ? Math.round(width * 0.08) : 42;
+        // Enhanced responsive configuration for all screen sizes
+        const isVerySmall = width < 450;
+        const isWideScreen = width > 1200;
+        const fontScale = isWideScreen ? Math.max(1.2, width * 0.0015) : 1;
 
-        // Create title with enhanced stroke and gradient effect
+        // Enhanced title with multiple glow layers and effects
+        const titleY = isMobile ? height * 0.25 : height * 0.28;
+        const titleFontSize = isMobile ? Math.round(width * 0.08) : (isWideScreen ? Math.round(42 * fontScale) : 42);
+
+        // Background glow layers for depth
+        const titleGlow1 = this.add.text(centerX, titleY, 'BlockQuest', {
+            fontFamily: 'Poppins, sans-serif',
+            fontSize: titleFontSize,
+            fontStyle: 'bold',
+            fill: theme.button.color,
+            alpha: 0.3
+        }).setOrigin(0.5).setScale(1.1);
+
+        const titleGlow2 = this.add.text(centerX, titleY, 'BlockQuest', {
+            fontFamily: 'Poppins, sans-serif',
+            fontSize: titleFontSize,
+            fontStyle: 'bold',
+            fill: '#ffffff',
+            alpha: 0.2
+        }).setOrigin(0.5).setScale(1.05);
+
+        // Main title with enhanced effects
         this.titleText = this.add.text(centerX, titleY, 'BlockQuest', {
             fontFamily: 'Poppins, sans-serif',
             fontSize: titleFontSize,
             fontStyle: 'bold',
             fill: '#ffffff',
             stroke: theme.button.color,
-            strokeThickness: 4,
+            strokeThickness: 6,
             shadow: {
-                offsetX: 2,
-                offsetY: 2,
-                color: theme.button.color,
-                blur: 20,
+                offsetX: 3,
+                offsetY: 3,
+                color: '#000000',
+                blur: 15,
                 stroke: true,
                 fill: true
             }
         }).setOrigin(0.5);
+
+        // Animate all title elements together
+        [titleGlow1, titleGlow2, this.titleText].forEach(text => {
+            this.tweens.add({
+                targets: text,
+                y: text.y - 3,
+                duration: 2000,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.easeInOut'
+            });
+        });
 
         // Enhanced title animation with scale and glow pulsing
         this.tweens.add({
@@ -172,12 +218,12 @@ export class MainMenu extends Phaser.Scene {
             if (mode === 'puzzle') return 'Puzzle';
             return mode.charAt(0).toUpperCase() + mode.slice(1);
         };
-        // Beautiful button configuration
+        // Enhanced responsive button configuration for all screen sizes
         const btnStartY = isMobile ? height * 0.38 : height * 0.42;
-        const btnFontSize = isMobile ? Math.round(width * 0.035) : 18;
-        const btnPadding = isMobile ? 8 : 12;
-        const btnWidth = isMobile ? width * 0.4 : 180;
-        const btnHeight = isMobile ? 35 : 42;
+        const btnFontSize = isVerySmall ? Math.round(width * 0.03) : (isMobile ? Math.round(width * 0.035) : Math.round(18 * fontScale));
+        const btnPadding = isMobile ? 8 : (isWideScreen ? 16 : 12);
+        const btnWidth = isVerySmall ? width * 0.35 : (isMobile ? width * 0.4 : (isWideScreen ? Math.min(280, width * 0.2) : 180));
+        const btnHeight = isVerySmall ? 32 : (isMobile ? 35 : (isWideScreen ? Math.round(42 * fontScale) : 42));
 
         // Create beautiful button style with gradients
         const createButton = (x, y, text, primaryColor, secondaryColor) => {
@@ -213,12 +259,31 @@ export class MainMenu extends Phaser.Scene {
             return { bg: btnBg, glow: btnGlow, text: btnText, hitArea };
         };
 
-        // Button layout - 2x4 grid for better mobile experience
+        // Button layout - 2x4 grid with responsive spacing
         const cols = isMobile ? 2 : 2;
         const rows = 4;
-        const spacingX = isMobile ? width * 0.25 : 200;
-        const spacingY = isMobile ? height * 0.08 : 55;
-        const startX = centerX - (cols - 1) * spacingX / 2;
+
+        // Ensure buttons fit within screen bounds with adequate padding
+        const sidePadding = isVerySmall ? 10 : 20; // Less padding on very small screens
+        const maxButtonWidth = btnWidth;
+        const availableWidth = width - (sidePadding * 2);
+
+        // Calculate spacing to center buttons properly
+        let spacingX;
+        if (isVerySmall) {
+            // For very small screens, use minimal spacing and ensure centering
+            const totalButtonWidth = maxButtonWidth * cols;
+            const remainingSpace = availableWidth - totalButtonWidth;
+            spacingX = Math.max(10, remainingSpace / (cols + 1)); // Min 10px gap
+        } else {
+            spacingX = isMobile ? width * 0.25 : (isWideScreen ? Math.min(320, width * 0.22) : 200);
+        }
+
+        const spacingY = isVerySmall ? height * 0.06 : (isMobile ? height * 0.08 : 55);
+
+        // Calculate startX to center the button grid
+        const totalGridWidth = (cols - 1) * spacingX + maxButtonWidth;
+        const startX = (width - totalGridWidth) / 2 + maxButtonWidth / 2;
 
         // Button colors for visual variety
         const buttonColors = [
@@ -303,10 +368,12 @@ export class MainMenu extends Phaser.Scene {
                 });
             });
         });
-        // Beautiful START button at the bottom
-        const startY = isMobile ? height * 0.85 : height * 0.82;
-        const startBtnWidth = isMobile ? width * 0.6 : 220;
-        const startBtnHeight = isMobile ? 45 : 55;
+        // Beautiful START button closer to other buttons
+        // Calculate position after the last row of buttons (4 rows total, 0-indexed so row 3)
+        const lastRowY = btnStartY + 3 * spacingY;
+        const startY = lastRowY + (isVerySmall ? 35 : (isMobile ? 45 : 55));
+        const startBtnWidth = isVerySmall ? width * 0.5 : (isMobile ? width * 0.6 : (isWideScreen ? Math.min(320, width * 0.25) : 220));
+        const startBtnHeight = isVerySmall ? 40 : (isMobile ? 45 : 55);
 
         // Start button background with animated gradient
         const startBg = this.add.graphics();
@@ -332,7 +399,7 @@ export class MainMenu extends Phaser.Scene {
         // Start button text
         const startText = this.add.text(centerX, startY, 'START GAME', {
             fontFamily: 'Poppins, sans-serif',
-            fontSize: isMobile ? 20 : 24,
+            fontSize: isMobile ? 20 : (isWideScreen ? Math.round(24 * fontScale) : 24),
             fontStyle: 'bold',
             color: '#ffffff',
             shadow: { offsetX: 2, offsetY: 2, color: '#000000', blur: 4 }
@@ -388,13 +455,53 @@ export class MainMenu extends Phaser.Scene {
     }
 
     showPowerUpsMenu() {
+        const theme = THEMES[GameScene.activeThemeIdx || 0] || THEMES[0]; // Get theme with fallback
         import('./powerups.js').then(module => {
             const { POWERUP_TYPES, getInventory, getCoins, buyPowerup, usePowerup } = module;
             let inventory = getInventory ? getInventory() : {};
             let coins = getCoins ? getCoins() : 0;
-            const overlay = this.add.rectangle(450, 450, 480, 420, 0x222222, 0.85).setOrigin(0.5);
-            const title = this.add.text(450, 300, 'Power-Ups', { fontFamily: 'Arial', fontSize: 36, color: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
-            const coinsText = this.add.text(450, 340, `Coins: ${coins}`, { fontSize: 24, color: '#ffd700', backgroundColor: '#333', padding: { left: 18, right: 18, top: 8, bottom: 8 } }).setOrigin(0.5);
+
+            // Create themed overlay background
+            const overlay = this.add.graphics();
+            overlay.fillGradientStyle(
+                parseInt(theme.background.replace('#', '0x')),
+                parseInt(theme.background.replace('#', '0x')),
+                0x1a1a2e,
+                0x16213e
+            );
+            overlay.fillRoundedRect(210, 240, 480, 420, 15);
+            overlay.setAlpha(0.95);
+
+            // Disable main menu buttons while overlay is open
+            this.disableMainMenuButtons();
+
+            const title = this.add.text(450, 300, 'Power-Ups', {
+                fontFamily: 'Poppins, sans-serif',
+                fontSize: 36,
+                fill: '#ffffff',
+                fontStyle: 'bold',
+                stroke: theme.button.color,
+                strokeThickness: 3,
+                shadow: {
+                    offsetX: 2,
+                    offsetY: 2,
+                    color: theme.button.color,
+                    blur: 10
+                }
+            }).setOrigin(0.5);
+            // Coins display with gradient background
+            const coinsBg = this.add.graphics();
+            coinsBg.fillGradientStyle(0xffd700, 0xffd700, 0xffed4e, 0xffed4e);
+            coinsBg.fillRoundedRect(450 - 80, 340 - 20, 160, 40, 10);
+
+            const coinsText = this.add.text(450, 340, `Coins: ${coins}`, {
+                fontFamily: 'Poppins, sans-serif',
+                fontSize: 20,
+                fill: '#000000',
+                stroke: '#ffffff',
+                strokeThickness: 1,
+                fontStyle: 'bold'
+            }).setOrigin(0.5);
             let y = 400;
             const powerupButtons = [];
             const buyButtons = [];
@@ -402,15 +509,29 @@ export class MainMenu extends Phaser.Scene {
             Object.keys(POWERUP_TYPES).forEach(type => {
                 const count = inventory[type] || 0;
                 const label = `${typeLabels[type] || POWERUP_TYPES[type]} (${count})`;
+
+                // Create gradient button background for powerup
+                const btnBg = this.add.graphics();
+                const btnWidth = 180;
+                const btnHeight = 40;
+                const primaryColor = count > 0 ? parseInt(theme.button.color.replace('#', '0x')) : 0x444444;
+                const secondaryColor = count > 0 ? parseInt(theme.button.color.replace('#', '0x')) : 0x666666;
+
+                btnBg.fillGradientStyle(primaryColor, primaryColor, secondaryColor, secondaryColor);
+                btnBg.fillRoundedRect(300 - btnWidth / 2, y - btnHeight / 2, btnWidth, btnHeight, 12);
+                btnBg.setAlpha(count > 0 ? 1.0 : 0.5);
+
                 const btn = this.add.text(300, y, label, {
-                    fontSize: 26,
-                    color: count > 0 ? '#fff' : '#888',
-                    backgroundColor: count > 0 ? '#0af' : '#333',
-                    padding: { left: 18, right: 18, top: 8, bottom: 8 }
-                }).setOrigin(0.5);
-                btn.setInteractive({ useHandCursor: true });
+                    fontFamily: 'Poppins, sans-serif',
+                    fontSize: 20,
+                    fill: count > 0 ? '#ffffff' : '#cccccc',
+                    stroke: '#000000',
+                    strokeThickness: 2,
+                    fontStyle: 'bold'
+                }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
                 if (count === 0) {
-                    btn.setAlpha(0.5);
+                    btn.setAlpha(0.7);
                     btn.disableInteractive();
                 } else {
                     btn.setAlpha(1);
@@ -420,19 +541,30 @@ export class MainMenu extends Phaser.Scene {
                             const newCount = inventory[type] || 0;
                             btn.setText(`${typeLabels[type] || POWERUP_TYPES[type]} (${newCount})`);
                             if (newCount === 0) {
-                                btn.setAlpha(0.5);
+                                btn.setAlpha(0.7);
+                                btnBg.setAlpha(0.5);
                                 btn.disableInteractive();
                             }
                         }
                     });
                 }
-                powerupButtons.push(btn);
-                // Buy button
+                powerupButtons.push({ btn, bg: btnBg });
+
+                // Create gradient button background for buy button
+                const buyBtnBg = this.add.graphics();
+                const buyBtnWidth = 100;
+                const buyBtnHeight = 35;
+
+                buyBtnBg.fillGradientStyle(0x22aa22, 0x22aa22, 0x44cc44, 0x44cc44);
+                buyBtnBg.fillRoundedRect(500 - buyBtnWidth / 2, y - buyBtnHeight / 2, buyBtnWidth, buyBtnHeight, 10);
+
                 const buyBtn = this.add.text(500, y, 'Buy (5)', {
-                    fontSize: 20,
-                    color: '#fff',
-                    backgroundColor: '#0a0',
-                    padding: { left: 12, right: 12, top: 4, bottom: 4 }
+                    fontFamily: 'Poppins, sans-serif',
+                    fontSize: 18,
+                    fill: '#ffffff',
+                    stroke: '#000000',
+                    strokeThickness: 2,
+                    fontStyle: 'bold'
                 }).setOrigin(0.5).setInteractive();
                 buyBtn.on('pointerdown', () => {
                     if (buyPowerup(type, 5)) {
@@ -440,67 +572,192 @@ export class MainMenu extends Phaser.Scene {
                         coins = getCoins();
                         btn.setText(`${typeLabels[type] || POWERUP_TYPES[type]} (${inventory[type] || 0})`);
                         coinsText.setText(`Coins: ${coins}`);
-                        btn.setAlpha(inventory[type] > 0 ? 1 : 0.5);
+                        btn.setAlpha(inventory[type] > 0 ? 1 : 0.7);
+                        btnBg.setAlpha(inventory[type] > 0 ? 1.0 : 0.5);
                         if (inventory[type] > 0) btn.setInteractive({ useHandCursor: true });
                         else btn.disableInteractive();
                     } else {
-                        buyBtn.setBackgroundColor('#a00');
-                        this.time.delayedCall(400, () => buyBtn.setBackgroundColor('#0a0'));
+                        // Flash red for failed purchase
+                        buyBtnBg.clear();
+                        buyBtnBg.fillGradientStyle(0xaa2222, 0xaa2222, 0xcc4444, 0xcc4444);
+                        buyBtnBg.fillRoundedRect(500 - buyBtnWidth / 2, y - buyBtnHeight / 2, buyBtnWidth, buyBtnHeight, 10);
+                        this.time.delayedCall(400, () => {
+                            buyBtnBg.clear();
+                            buyBtnBg.fillGradientStyle(0x22aa22, 0x22aa22, 0x44cc44, 0x44cc44);
+                            buyBtnBg.fillRoundedRect(500 - buyBtnWidth / 2, y - buyBtnHeight / 2, buyBtnWidth, buyBtnHeight, 10);
+                        });
                     }
                 });
-                buyButtons.push(buyBtn);
+                buyButtons.push({ btn: buyBtn, bg: buyBtnBg });
                 y += 56;
             });
             // Add close button
-            const closeBtn = this.add.text(450, 580, 'Close', { fontSize: 24, color: '#fff', backgroundColor: '#222', padding: { left: 24, right: 24, top: 12, bottom: 12 } }).setOrigin(0.5).setInteractive();
+            const closeBtn = this.add.text(450, 580, 'Close', {
+                fontFamily: 'Poppins, sans-serif',
+                fontSize: 24,
+                fill: '#ffffff',
+                stroke: '#000000',
+                strokeThickness: 2,
+                backgroundColor: theme.button.color,
+                padding: { left: 24, right: 24, top: 12, bottom: 12 }
+            }).setOrigin(0.5).setInteractive();
             closeBtn.on('pointerdown', () => {
                 overlay.destroy();
                 title.destroy();
+                coinsBg.destroy();
                 coinsText.destroy();
-                powerupButtons.forEach(t => t.destroy());
-                buyButtons.forEach(b => b.destroy());
+                powerupButtons.forEach(t => {
+                    if (t.btn) t.btn.destroy();
+                    if (t.bg) t.bg.destroy();
+                });
+                buyButtons.forEach(b => {
+                    if (b.btn) b.btn.destroy();
+                    if (b.bg) b.bg.destroy();
+                });
                 closeBtn.destroy();
+                // Re-enable main menu buttons
+                this.enableMainMenuButtons();
             });
             this.children.bringToTop(overlay);
             this.children.bringToTop(title);
+            this.children.bringToTop(coinsBg);
             this.children.bringToTop(coinsText);
-            powerupButtons.forEach(t => this.children.bringToTop(t));
-            buyButtons.forEach(b => this.children.bringToTop(b));
+            powerupButtons.forEach(t => {
+                this.children.bringToTop(t.bg);
+                this.children.bringToTop(t.btn);
+            });
+            buyButtons.forEach(b => {
+                this.children.bringToTop(b.bg);
+                this.children.bringToTop(b.btn);
+            });
             this.children.bringToTop(closeBtn);
         });
     }
 
     showAdventureMenu() {
+        const theme = THEMES[GameScene.activeThemeIdx || 0] || THEMES[0]; // Get theme with fallback
         import('./adventure.js').then(module => {
             const { ADVENTURE_CHAPTERS, getAdventureProgress, isChapterUnlocked, isChapterCompleted } = module;
             const progress = getAdventureProgress ? getAdventureProgress() : {};
-            const overlay = this.add.rectangle(450, 450, 520, 420, 0x222222, 0.85).setOrigin(0.5);
-            const title = this.add.text(450, 260, 'Adventure Mode', { fontFamily: 'Arial', fontSize: 36, color: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
+
+            // Create themed overlay background
+            const overlay = this.add.graphics();
+            overlay.fillGradientStyle(
+                parseInt(theme.background.replace('#', '0x')),
+                parseInt(theme.background.replace('#', '0x')),
+                0x1a1a2e,
+                0x16213e
+            );
+            overlay.fillRoundedRect(190, 240, 520, 420, 15);
+            overlay.setAlpha(0.95);
+
+            // Disable main menu buttons while overlay is open
+            this.disableMainMenuButtons();
+
+            const title = this.add.text(450, 260, 'Adventure Mode', {
+                fontFamily: 'Poppins, sans-serif',
+                fontSize: 36,
+                fill: '#ffffff',
+                fontStyle: 'bold',
+                stroke: theme.button.color,
+                strokeThickness: 3,
+                shadow: {
+                    offsetX: 2,
+                    offsetY: 2,
+                    color: theme.button.color,
+                    blur: 10
+                }
+            }).setOrigin(0.5);
             let y = 320;
             const chapterTexts = [];
             ADVENTURE_CHAPTERS.forEach((chapter, idx) => {
                 const unlocked = isChapterUnlocked ? isChapterUnlocked(idx) : false;
                 const completed = isChapterCompleted ? isChapterCompleted(idx) : false;
-                let label = `${chapter.name} ${unlocked ? '[Unlocked]' : '[Locked]'}${completed ? ' [Completed]' : ''}`;
-                const color = completed ? '#0f0' : (unlocked ? '#0ff' : '#888');
-                const txt = this.add.text(450, y, label, { fontSize: 24, color, backgroundColor: '#333', padding: { left: 18, right: 18, top: 8, bottom: 8 } }).setOrigin(0.5);
-                chapterTexts.push(txt);
-                y += 38;
+                let label = `${chapter.name}`;
+                if (!unlocked) label += ' 🔒';
+                else if (completed) label += ' ✅';
+
+                // Create gradient button background
+                const btnBg = this.add.graphics();
+                const btnWidth = 400;
+                const btnHeight = 35;
+
+                let primaryColor, secondaryColor;
+                if (completed) {
+                    primaryColor = 0x22aa22;
+                    secondaryColor = 0x44cc44;
+                } else if (unlocked) {
+                    primaryColor = parseInt(theme.button.color.replace('#', '0x'));
+                    secondaryColor = parseInt(theme.button.color.replace('#', '0x'));
+                } else {
+                    primaryColor = 0x666666;
+                    secondaryColor = 0x888888;
+                }
+
+                btnBg.fillGradientStyle(primaryColor, primaryColor, secondaryColor, secondaryColor);
+                btnBg.fillRoundedRect(450 - btnWidth / 2, y - btnHeight / 2, btnWidth, btnHeight, 12);
+                btnBg.setAlpha(unlocked ? 1.0 : 0.7);
+
+                const txt = this.add.text(450, y, label, {
+                    fontFamily: 'Poppins, sans-serif',
+                    fontSize: 20,
+                    fill: unlocked ? '#ffffff' : '#cccccc',
+                    stroke: '#000000',
+                    strokeThickness: 2,
+                    fontStyle: 'bold'
+                }).setOrigin(0.5).setInteractive();
+
+                if (unlocked) {
+                    txt.on('pointerdown', () => {
+                        // Start adventure chapter
+                        this.scene.start('GameScene', {
+                            mode: 'adventure',
+                            chapterIdx: idx
+                        });
+                    });
+                }
+
+                chapterTexts.push({ btn: txt, bg: btnBg });
+                y += 45;
             });
             // Progress text
-            const progressText = this.add.text(450, 560, `Progress: ${progress.completedChapters ? progress.completedChapters.length : 0}/${ADVENTURE_CHAPTERS.length} chapters completed`, { fontSize: 20, color: '#fff', backgroundColor: '#222', padding: { left: 18, right: 18, top: 6, bottom: 6 } }).setOrigin(0.5);
+            const progressText = this.add.text(450, 560, `Progress: ${progress.completedChapters ? progress.completedChapters.length : 0}/${ADVENTURE_CHAPTERS.length} chapters completed`, {
+                fontFamily: 'Poppins, sans-serif',
+                fontSize: 20,
+                fill: '#ffffff',
+                stroke: '#000000',
+                strokeThickness: 1,
+                backgroundColor: theme.button.color,
+                padding: { left: 18, right: 18, top: 6, bottom: 6 }
+            }).setOrigin(0.5);
             // Add close button
-            const closeBtn = this.add.text(450, 600, 'Close', { fontSize: 24, color: '#fff', backgroundColor: '#222', padding: { left: 24, right: 24, top: 12, bottom: 12 } }).setOrigin(0.5).setInteractive();
+            const closeBtn = this.add.text(450, 600, 'Close', {
+                fontFamily: 'Poppins, sans-serif',
+                fontSize: 24,
+                fill: '#ffffff',
+                stroke: '#000000',
+                strokeThickness: 2,
+                backgroundColor: theme.button.color,
+                padding: { left: 24, right: 24, top: 12, bottom: 12 }
+            }).setOrigin(0.5).setInteractive();
             closeBtn.on('pointerdown', () => {
                 overlay.destroy();
                 title.destroy();
-                chapterTexts.forEach(t => t.destroy());
+                chapterTexts.forEach(t => {
+                    if (t.btn) t.btn.destroy();
+                    if (t.bg) t.bg.destroy();
+                });
                 progressText.destroy();
                 closeBtn.destroy();
+                // Re-enable main menu buttons
+                this.enableMainMenuButtons();
             });
             this.children.bringToTop(overlay);
             this.children.bringToTop(title);
-            chapterTexts.forEach(t => this.children.bringToTop(t));
+            chapterTexts.forEach(t => {
+                this.children.bringToTop(t.bg);
+                this.children.bringToTop(t.btn);
+            });
             this.children.bringToTop(progressText);
             this.children.bringToTop(closeBtn);
         });
@@ -555,7 +812,28 @@ export class MainMenu extends Phaser.Scene {
         return mode.charAt(0).toUpperCase() + mode.slice(1);
     }
 
+    disableMainMenuButtons() {
+        if (this.menuButtons) {
+            this.menuButtons.forEach(menuBtn => {
+                menuBtn.hitArea.disableInteractive();
+                menuBtn.bg.setAlpha(0.5);
+                menuBtn.text.setAlpha(0.5);
+            });
+        }
+    }
+
+    enableMainMenuButtons() {
+        if (this.menuButtons) {
+            this.menuButtons.forEach(menuBtn => {
+                menuBtn.hitArea.setInteractive({ useHandCursor: true });
+                menuBtn.bg.setAlpha(1);
+                menuBtn.text.setAlpha(1);
+            });
+        }
+    }
+
     showPuzzlePackMenu() {
+        const theme = THEMES[GameScene.activeThemeIdx || 0] || THEMES[0]; // Get theme with fallback
         import('./puzzles.js').then(module => {
             const packs = module.PUZZLE_PACKS;
             const completed = module.loadCompletedPuzzles();
@@ -564,83 +842,162 @@ export class MainMenu extends Phaser.Scene {
             let selectedPackIdx = null;
             let selectedPuzzleId = null;
             // Overlay elements
-            const overlay = this.add.rectangle(450, 450, 600, 500, 0x222222, 0.65).setOrigin(0.5);
-            const title = this.add.text(450, 220, 'Puzzle Packs', { fontFamily: 'Arial', fontSize: 38, color: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
-            // Pack buttons
+            const overlay = this.add.graphics();
+            overlay.fillGradientStyle(
+                parseInt(theme.background.replace('#', '0x')),
+                parseInt(theme.background.replace('#', '0x')),
+                0x1a1a2e,
+                0x16213e
+            );
+            overlay.fillRoundedRect(150, 200, 600, 500, 15);
+            overlay.setAlpha(0.95);
+
+            // Disable main menu buttons while overlay is open
+            this.disableMainMenuButtons();
+
+            const title = this.add.text(450, 220, 'Puzzle Packs', {
+                fontFamily: 'Poppins, sans-serif',
+                fontSize: 38,
+                fill: '#ffffff',
+                fontStyle: 'bold',
+                stroke: theme.button.color,
+                strokeThickness: 3,
+                shadow: {
+                    offsetX: 2,
+                    offsetY: 2,
+                    color: theme.button.color,
+                    blur: 10
+                }
+            }).setOrigin(0.5);
+            // Pack buttons with main menu styling
             const packButtons = [];
+            const centerX = 450;
             packs.forEach((pack, idx) => {
-                const y = 280 + idx * 44;
+                const y = 300 + idx * 55;
                 const done = pack.puzzles.filter(pid => completed.includes(pid)).length;
                 const total = pack.puzzles.length;
                 let label = `${pack.name} (${done}/${total})`;
-                let color = '#fff';
                 let locked = !pack.unlocked;
-                if (locked) {
-                    label += ' [Locked]';
-                    color = '#888';
-                } else if (done === total) {
-                    label += ' [Completed]';
-                    color = '#0f0';
-                }
-                const btn = this.add.text(220, y, label, {
-                    fontSize: 24,
-                    color,
-                    backgroundColor: selectedPackIdx === idx ? '#0ff' : '#333',
-                    padding: { left: 18, right: 18, top: 6, bottom: 6 }
+                if (locked) label += ' 🔒';
+                else if (done === total) label += ' ✅';
+
+                // Create gradient button background
+                const btnBg = this.add.graphics();
+                const btnWidth = 300;
+                const btnHeight = 45;
+                const isSelected = selectedPackIdx === idx;
+
+                btnBg.fillGradientStyle(
+                    parseInt(theme.button.color.replace('#', '0x')),
+                    parseInt(theme.button.color.replace('#', '0x')),
+                    isSelected ? 0xffffff : parseInt(theme.button.color.replace('#', '0x')),
+                    isSelected ? 0xffffff : parseInt(theme.button.color.replace('#', '0x'))
+                );
+                btnBg.fillRoundedRect(centerX - btnWidth / 2, y - btnHeight / 2, btnWidth, btnHeight, 12);
+                btnBg.setAlpha(locked ? 0.7 : 1.0); // Make buttons fully visible
+
+                const btn = this.add.text(centerX, y, label, {
+                    fontFamily: 'Poppins, sans-serif',
+                    fontSize: 20,
+                    fill: locked ? '#888888' : '#ffffff',
+                    fontStyle: 'bold',
+                    stroke: '#000000',
+                    strokeThickness: 2
                 }).setOrigin(0.5).setInteractive();
                 if (!locked) {
                     btn.on('pointerdown', () => {
                         // Update selection state
                         selectedPackIdx = idx;
                         selectedPuzzleId = null;
-                        // Update pack button highlights
-                        packButtons.forEach((b, bidx) => b.setBackgroundColor(selectedPackIdx === bidx ? '#0ff' : '#333'));
+                        // Update pack button appearances
+                        packButtons.forEach((pb, pbIdx) => {
+                            const isNowSelected = pbIdx === idx;
+                            pb.bg.clear();
+                            pb.bg.fillGradientStyle(
+                                parseInt(theme.button.color.replace('#', '0x')),
+                                parseInt(theme.button.color.replace('#', '0x')),
+                                isNowSelected ? 0xffffff : parseInt(theme.button.color.replace('#', '0x')),
+                                isNowSelected ? 0xffffff : parseInt(theme.button.color.replace('#', '0x'))
+                            );
+                            pb.bg.fillRoundedRect(centerX - btnWidth / 2, 300 + pbIdx * 55 - btnHeight / 2, btnWidth, btnHeight, 12);
+                        });
                         // Update puzzle list
                         updatePuzzleList();
                     });
                 }
-                packButtons.push(btn);
+                packButtons.push({ btn, bg: btnBg });
                 this.children.bringToTop(btn);
             });
-            // Puzzle list elements
+            // Puzzle list elements with main menu styling
             let puzzleButtons = [];
             const updatePuzzleList = () => {
                 // Remove old puzzle buttons
-                puzzleButtons.forEach(pb => pb.destroy());
+                puzzleButtons.forEach(pb => {
+                    pb.btn.destroy();
+                    pb.bg.destroy();
+                });
                 puzzleButtons = [];
                 if (selectedPackIdx === null) return;
                 const pack = packs[selectedPackIdx];
+
+                // Show puzzle list on the right side
+                const puzzleStartX = 600;
                 pack.puzzles.forEach((pid, pidx) => {
-                    const py = 280 + pidx * 36;
+                    const py = 320 + pidx * 45;
                     const isDone = completed.includes(pid);
-                    const pLabel = `Puzzle ${pidx + 1}` + (isDone ? ' [Completed]' : '');
-                    const pColor = isDone ? '#0f0' : '#fff';
-                    const bgColor = selectedPuzzleId === pid ? '#0ff' : '#222';
-                    const pBtn = this.add.text(450, py, pLabel, {
-                        fontSize: 22,
-                        color: pColor,
-                        backgroundColor: bgColor,
-                        padding: { left: 14, right: 14, top: 4, bottom: 4 }
+                    const pLabel = `Puzzle ${pidx + 1}` + (isDone ? ' ✅' : '');
+                    const isSelected = selectedPuzzleId === pid;
+
+                    // Create gradient button background for puzzles
+                    const pBtnBg = this.add.graphics();
+                    const pBtnWidth = 200;
+                    const pBtnHeight = 35;
+
+                    pBtnBg.fillGradientStyle(
+                        isDone ? 0x22aa22 : parseInt(theme.button.color.replace('#', '0x')),
+                        isDone ? 0x22aa22 : parseInt(theme.button.color.replace('#', '0x')),
+                        isSelected ? 0xffffff : (isDone ? 0x22aa22 : parseInt(theme.button.color.replace('#', '0x'))),
+                        isSelected ? 0xffffff : (isDone ? 0x22aa22 : parseInt(theme.button.color.replace('#', '0x')))
+                    );
+                    pBtnBg.fillRoundedRect(puzzleStartX - pBtnWidth / 2, py - pBtnHeight / 2, pBtnWidth, pBtnHeight, 8);
+                    pBtnBg.setAlpha(isSelected ? 1 : 0.9);
+
+                    const pBtn = this.add.text(puzzleStartX, py, pLabel, {
+                        fontFamily: 'Poppins, sans-serif',
+                        fontSize: 18,
+                        fill: '#ffffff',
+                        fontStyle: 'bold',
+                        stroke: '#000000',
+                        strokeThickness: 1
                     }).setOrigin(0.5).setInteractive();
-                    if (!isDone) {
-                        pBtn.on('pointerdown', () => {
-                            selectedPuzzleId = pid;
-                            puzzleButtons.forEach((b, bidx) => b.setBackgroundColor(pack.puzzles[bidx] === selectedPuzzleId ? '#0ff' : '#222'));
-                        });
-                    }
-                    puzzleButtons.push(pBtn);
+                    // Make all puzzles clickable (both completed and uncompleted)
+                    pBtn.on('pointerdown', () => {
+                        selectedPuzzleId = pid;
+                        updatePuzzleList(); // Refresh puzzle list with new selection
+                    });
+                    puzzleButtons.push({ btn: pBtn, bg: pBtnBg });
+                    this.children.bringToTop(pBtnBg);
                     this.children.bringToTop(pBtn);
                 });
             };
-            // Start Game button
+
+            // Initialize puzzle list if a pack is already selected
+            updatePuzzleList();
+
+            // Start Game button with main menu styling
+            const startBtnBg = this.add.graphics();
+            startBtnBg.fillGradientStyle(0x22aa22, 0x22aa22, 0x44cc44, 0x44cc44);
+            startBtnBg.fillRoundedRect(450 - 120, 650 - 25, 240, 50, 12);
+            startBtnBg.setAlpha(0.7);
+
             const startBtn = this.add.text(450, 650, 'Start Game', {
-                fontSize: 28,
-                color: '#fff',
-                backgroundColor: '#0a0',
-                fontStyle: 'bold',
-                padding: { left: 32, right: 32, top: 12, bottom: 12 }
+                fontFamily: 'Poppins, sans-serif',
+                fontSize: 24,
+                fill: '#ffffff',
+                stroke: '#000000',
+                strokeThickness: 2,
+                fontStyle: 'bold'
             }).setOrigin(0.5).setInteractive();
-            startBtn.setAlpha(0.7);
             startBtn.on('pointerdown', () => {
                 if (selectedPackIdx !== null && selectedPuzzleId !== null) {
                     this.scene.start('GameScene', {
@@ -651,11 +1008,22 @@ export class MainMenu extends Phaser.Scene {
                     // Clean up overlay
                     overlay.destroy();
                     title.destroy();
-                    packButtons.forEach(b => b.destroy());
-                    puzzleButtons.forEach(pb => pb.destroy());
+                    packButtons.forEach(b => {
+                        if (b.btn) b.btn.destroy();
+                        if (b.bg) b.bg.destroy();
+                    });
+                    puzzleButtons.forEach(pb => {
+                        if (pb.btn) pb.btn.destroy();
+                        if (pb.bg) pb.bg.destroy();
+                    });
                     startBtn.destroy();
+                    startBtnBg.destroy();
                     resetBtn.destroy();
+                    resetBtnBg.destroy();
                     closeBtn.destroy();
+                    closeBtnBg.destroy();
+                    // Re-enable main menu buttons
+                    this.enableMainMenuButtons();
                 }
             });
             // Enable/disable start button based on selection
@@ -665,58 +1033,107 @@ export class MainMenu extends Phaser.Scene {
                 callback: () => {
                     if (selectedPackIdx !== null && selectedPuzzleId !== null) {
                         startBtn.setAlpha(1);
+                        startBtnBg.setAlpha(1);
                     } else {
                         startBtn.setAlpha(0.7);
+                        startBtnBg.setAlpha(0.7);
                     }
                 }
             });
-            // Reset Progress button
+            // Reset Progress button with main menu styling
+            const resetBtnBg = this.add.graphics();
+            resetBtnBg.fillGradientStyle(0xcc2222, 0xcc2222, 0xff4444, 0xff4444);
+            resetBtnBg.fillRoundedRect(220 - 80, 700 - 22, 160, 44, 10);
+
             const resetBtn = this.add.text(220, 700, 'Reset Progress', {
-                fontSize: 22,
-                color: '#fff',
-                backgroundColor: '#a00',
-                fontStyle: 'bold',
-                padding: { left: 18, right: 18, top: 10, bottom: 10 }
+                fontFamily: 'Poppins, sans-serif',
+                fontSize: 18,
+                fill: '#ffffff',
+                stroke: '#000000',
+                strokeThickness: 2,
+                fontStyle: 'bold'
             }).setOrigin(0.5).setInteractive();
             resetBtn.on('pointerdown', () => {
                 resetCompleted([]);
                 overlay.destroy();
                 title.destroy();
-                packButtons.forEach(b => b.destroy());
-                puzzleButtons.forEach(pb => pb.destroy());
+                packButtons.forEach(b => {
+                    if (b.btn) b.btn.destroy();
+                    if (b.bg) b.bg.destroy();
+                });
+                puzzleButtons.forEach(pb => {
+                    if (pb.btn) pb.btn.destroy();
+                    if (pb.bg) pb.bg.destroy();
+                });
                 startBtn.destroy();
+                startBtnBg.destroy();
                 resetBtn.destroy();
+                resetBtnBg.destroy();
                 closeBtn.destroy();
+                closeBtnBg.destroy();
+                // Re-enable main menu buttons temporarily (showPuzzlePackMenu will disable them again)
+                this.enableMainMenuButtons();
                 this.showPuzzlePackMenu();
             });
-            // Close button
+            // Close button with main menu styling
+            const closeBtnBg = this.add.graphics();
+            closeBtnBg.fillGradientStyle(
+                parseInt(theme.button.color.replace('#', '0x')),
+                parseInt(theme.button.color.replace('#', '0x')),
+                parseInt(theme.button.color.replace('#', '0x')),
+                parseInt(theme.button.color.replace('#', '0x'))
+            );
+            closeBtnBg.fillRoundedRect(700 - 60, 700 - 22, 120, 44, 10);
+
             const closeBtn = this.add.text(700, 700, 'Close', {
-                fontSize: 22,
-                color: '#fff',
-                backgroundColor: '#222',
-                fontStyle: 'bold',
-                padding: { left: 24, right: 24, top: 10, bottom: 10 }
+                fontFamily: 'Poppins, sans-serif',
+                fontSize: 20,
+                fill: '#ffffff',
+                stroke: '#000000',
+                strokeThickness: 2,
+                fontStyle: 'bold'
             }).setOrigin(0.5).setInteractive();
             closeBtn.on('pointerdown', () => {
                 overlay.destroy();
                 title.destroy();
-                packButtons.forEach(b => b.destroy());
-                puzzleButtons.forEach(pb => pb.destroy());
+                packButtons.forEach(b => {
+                    b.btn.destroy();
+                    b.bg.destroy();
+                });
+                puzzleButtons.forEach(pb => {
+                    pb.btn.destroy();
+                    pb.bg.destroy();
+                });
                 startBtn.destroy();
+                startBtnBg.destroy();
                 resetBtn.destroy();
+                resetBtnBg.destroy();
                 closeBtn.destroy();
+                closeBtnBg.destroy();
+                // Re-enable main menu buttons
+                this.enableMainMenuButtons();
             });
             this.children.bringToTop(overlay);
             this.children.bringToTop(title);
-            packButtons.forEach(b => this.children.bringToTop(b));
-            puzzleButtons.forEach(pb => this.children.bringToTop(pb));
+            packButtons.forEach(b => {
+                this.children.bringToTop(b.bg);
+                this.children.bringToTop(b.btn);
+            });
+            puzzleButtons.forEach(pb => {
+                this.children.bringToTop(pb.bg);
+                this.children.bringToTop(pb.btn);
+            });
+            this.children.bringToTop(startBtnBg);
             this.children.bringToTop(startBtn);
+            this.children.bringToTop(resetBtnBg);
             this.children.bringToTop(resetBtn);
+            this.children.bringToTop(closeBtnBg);
             this.children.bringToTop(closeBtn);
         });
     }
 
     showStatsMenu() {
+        const theme = THEMES[GameScene.activeThemeIdx || 0] || THEMES[0]; // Get theme with fallback
         // Use ES module import for stats and coins
         Promise.all([
             import('./stats.js'),
@@ -724,24 +1141,63 @@ export class MainMenu extends Phaser.Scene {
         ]).then(([statsModule, powerupsModule]) => {
             const stats = statsModule.loadStats();
             const coins = powerupsModule.getCoins ? powerupsModule.getCoins() : 0;
-            const overlay = this.add.rectangle(450, 450, 420, 400, 0x222222, 0.85).setOrigin(0.5);
-            const title = this.add.text(450, 300, 'Statistics', { fontFamily: 'Arial', fontSize: 36, color: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
+            // Create themed overlay background
+            const overlay = this.add.graphics();
+            overlay.fillGradientStyle(
+                parseInt(theme.background.replace('#', '0x')),
+                parseInt(theme.background.replace('#', '0x')),
+                0x1a1a2e,
+                0x16213e
+            );
+            overlay.fillRoundedRect(240, 250, 420, 400, 15);
+            overlay.setAlpha(0.95);
+
+            // Disable main menu buttons while overlay is open
+            this.disableMainMenuButtons();
+
+            const title = this.add.text(450, 300, 'Statistics', {
+                fontFamily: 'Poppins, sans-serif',
+                fontSize: 36,
+                fill: '#ffffff',
+                fontStyle: 'bold',
+                stroke: theme.button.color,
+                strokeThickness: 3,
+                shadow: {
+                    offsetX: 2,
+                    offsetY: 2,
+                    color: theme.button.color,
+                    blur: 10
+                }
+            }).setOrigin(0.5);
             // Improved stats logic (from game scene)
-            let statTextStr = `Best Score (Easy): ${stats.bestScoreEasy || 0}\nBest Score (Difficult): ${stats.bestScoreDifficult || 0}\nTotal Games: ${stats.totalGames || 0}\nTotal Lines Cleared: ${stats.totalLines || 0}\nPuzzles Solved: ${stats.puzzlesSolved || 0}\nLongest Streak: ${stats.longestStreak || 0}\nCurrent Streak: ${stats.currentStreak || 0}\nCoins: ${coins}`;
+            let statTextStr = `Best Score (Easy): ${stats.bestScoreEasy || 0}\nBest Score (Difficult): ${stats.bestScoreDifficult || 0}\nBest Score (Endless): ${stats.bestScoreEndless || 0}\nTotal Games: ${stats.totalGames || 0}\nTotal Endless Games: ${stats.totalEndlessGames || 0}\nTotal Lines Cleared: ${stats.totalLines || 0}\nPuzzles Solved: ${stats.puzzlesSolved || 0}\nLongest Streak: ${stats.longestStreak || 0}\nCurrent Streak: ${stats.currentStreak || 0}\nCoins: ${coins}`;
             const statText = this.add.text(450, 400, statTextStr, {
+                fontFamily: 'Poppins, sans-serif',
                 fontSize: 22,
-                color: '#fff',
-                backgroundColor: '#333',
+                fill: '#ffffff',
+                stroke: '#000000',
+                strokeThickness: 1,
+                backgroundColor: theme.button.color,
                 padding: { left: 18, right: 18, top: 8, bottom: 8 },
                 align: 'center'
             }).setOrigin(0.5);
             // Add close button
-            const closeBtn = this.add.text(450, 520, 'Close', { fontSize: 24, color: '#fff', backgroundColor: '#222', padding: { left: 24, right: 24, top: 12, bottom: 12 } }).setOrigin(0.5).setInteractive();
+            const closeBtn = this.add.text(450, 520, 'Close', {
+                fontFamily: 'Poppins, sans-serif',
+                fontSize: 24,
+                fill: '#ffffff',
+                stroke: '#000000',
+                strokeThickness: 2,
+                backgroundColor: theme.button.color,
+                padding: { left: 24, right: 24, top: 12, bottom: 12 }
+            }).setOrigin(0.5).setInteractive();
             closeBtn.on('pointerdown', () => {
                 overlay.destroy();
                 title.destroy();
                 statText.destroy();
                 closeBtn.destroy();
+                // Re-enable main menu buttons
+                this.enableMainMenuButtons();
             });
             this.children.bringToTop(overlay);
             this.children.bringToTop(title);

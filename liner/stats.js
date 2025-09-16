@@ -2,7 +2,9 @@
 export const DEFAULT_STATS = {
   bestScoreEasy: 0,
   bestScoreDifficult: 0,
+  bestScoreEndless: 0,
   totalGames: 0,
+  totalEndlessGames: 0,
   totalLines: 0,
   puzzlesSolved: 0,
   longestStreak: 0,
