@@ -52,17 +52,51 @@ export class GameScene extends Phaser.Scene {
     if (this.puzzlePackCloseButton) { this.puzzlePackCloseButton.destroy(); this.puzzlePackCloseButton = null; }
     this.puzzlePackButtons = [];
     const theme = GameScene.getActiveTheme();
-    this.puzzlePackOverlay = this.add.rectangle(450, 450, 500, 400, theme.overlay, theme.overlayAlpha).setOrigin(0.5);
-    this.puzzlePackTitle = this.add.text(450, 300, 'Puzzle Packs', { fontFamily: 'Arial', fontSize: 36, color: theme.text, fontStyle: 'bold' }).setOrigin(0.5);
+    const width = this.sys.game.config.width;
+    const centerX = width / 2;
+    const isMobile = width < 600;
+
+    // Modern styled overlay with gradient background
+    this.puzzlePackOverlay = this.add.rectangle(centerX, 450, isMobile ? width - 40 : 500, 400, 0x1a1a2e, 0.95).setOrigin(0.5);
+    this.puzzlePackOverlay.setStrokeStyle(3, 0x16213e);
+    this.add.graphics()
+      .fillGradientStyle(0x2c3e50, 0x34495e, 0x2c3e50, 0x34495e)
+      .fillRoundedRect(centerX - (isMobile ? (width - 40) / 2 : 250), 252, isMobile ? width - 44 : 496, 396, 12);
+
+    this.puzzlePackTitle = this.add.text(centerX, 300, 'Puzzle Packs', {
+      fontFamily: 'Poppins, Arial, sans-serif',
+      fontSize: isMobile ? 28 : 36,
+      color: '#ffffff',
+      fontStyle: 'bold',
+      shadow: { offsetX: 2, offsetY: 2, color: theme.button.color, blur: 6, stroke: true }
+    }).setOrigin(0.5);
     const unlockedPacks = getUnlockedPacks();
     let y = 360;
+    const buttonColors = [
+      { primary: 0xe91e63, secondary: 0xf06292 }, // Pink
+      { primary: 0x00bcd4, secondary: 0x4dd0e1 }, // Cyan
+      { primary: 0x4caf50, secondary: 0x81c784 }  // Green
+    ];
+
     unlockedPacks.forEach((pack, idx) => {
       const label = pack.unlocked ? pack.name : `${pack.name} (Locked)`;
-      const btn = this.add.text(450, y, label, {
-        fontSize: 24,
-        color: pack.unlocked ? theme.button.color : '#888',
-        backgroundColor: pack.unlocked ? theme.button.background : '#333',
-        padding: { left: 16, right: 16, top: 8, bottom: 8 }
+      const colors = buttonColors[idx % buttonColors.length];
+
+      // Create gradient background for pack button
+      if (pack.unlocked) {
+        const btnBg = this.add.rectangle(centerX, y, isMobile ? width - 100 : 300, 40, colors.primary, 1).setOrigin(0.5);
+        btnBg.setStrokeStyle(2, colors.secondary);
+        this.add.graphics()
+          .fillGradientStyle(colors.primary, colors.secondary, colors.primary, colors.secondary)
+          .fillRoundedRect(centerX - (isMobile ? (width - 100) / 2 : 150), y - 18, isMobile ? width - 104 : 296, 36, 8);
+      }
+
+      const btn = this.add.text(centerX, y, label, {
+        fontSize: isMobile ? 18 : 22,
+        fontFamily: 'Poppins, Arial, sans-serif',
+        color: pack.unlocked ? '#ffffff' : '#888',
+        fontStyle: 'bold',
+        shadow: pack.unlocked ? { offsetX: 1, offsetY: 1, color: 'rgba(0,0,0,0.3)', blur: 2, stroke: false } : undefined
       }).setOrigin(0.5).setInteractive();
       if (pack.unlocked) {
         btn.on('pointerdown', () => {
@@ -72,14 +106,19 @@ export class GameScene extends Phaser.Scene {
       this.puzzlePackButtons.push(btn);
       y += 50;
     });
-    // Add Close button above Reset Progress for visibility
-    this.puzzlePackCloseButton = this.add.text(450, 650, 'Close', {
-      fontSize: 22,
-      color: '#fff',
-      backgroundColor: '#222',
+    // Add Close button with modern styling
+    const closeBg = this.add.rectangle(centerX, 580, 120, 36, 0x6610f2, 1).setOrigin(0.5);
+    closeBg.setStrokeStyle(2, 0x8d3cff);
+    this.add.graphics()
+      .fillGradientStyle(0x6610f2, 0x8d3cff, 0x6610f2, 0x8d3cff)
+      .fillRoundedRect(centerX - 58, 564, 116, 32, 8);
+
+    this.puzzlePackCloseButton = this.add.text(centerX, 580, 'Close', {
+      fontSize: isMobile ? 18 : 20,
+      fontFamily: 'Poppins, Arial, sans-serif',
+      color: '#ffffff',
       fontStyle: 'bold',
-      padding: { left: 24, right: 24, top: 10, bottom: 10 },
-      shadow: { offsetX: 2, offsetY: 2, color: '#000', blur: 4, stroke: true }
+      shadow: { offsetX: 1, offsetY: 1, color: 'rgba(0,0,0,0.3)', blur: 2, stroke: false }
     }).setOrigin(0.5).setInteractive();
     this.puzzlePackCloseButton.on('pointerdown', () => {
       if (this.puzzlePackOverlay) { this.puzzlePackOverlay.destroy(); this.puzzlePackOverlay = null; }
@@ -88,13 +127,19 @@ export class GameScene extends Phaser.Scene {
       if (this.resetProgressButton) { this.resetProgressButton.destroy(); this.resetProgressButton = null; }
       if (this.puzzlePackCloseButton) { this.puzzlePackCloseButton.destroy(); this.puzzlePackCloseButton = null; }
     });
-    // Add Reset Progress button at the bottom, always visible
-    this.resetProgressButton = this.add.text(450, 700, 'Reset Progress', {
-      fontSize: 22,
-      color: '#fff',
-      backgroundColor: '#c00',
+    // Add Reset Progress button with modern red gradient styling
+    const resetBg = this.add.rectangle(centerX, 620, 160, 36, 0xdc3545, 1).setOrigin(0.5);
+    resetBg.setStrokeStyle(2, 0xff6b6b);
+    this.add.graphics()
+      .fillGradientStyle(0xdc3545, 0xff6b6b, 0xdc3545, 0xff6b6b)
+      .fillRoundedRect(centerX - 78, 604, 156, 32, 8);
+
+    this.resetProgressButton = this.add.text(centerX, 620, 'Reset Progress', {
+      fontSize: isMobile ? 16 : 18,
+      fontFamily: 'Poppins, Arial, sans-serif',
+      color: '#ffffff',
       fontStyle: 'bold',
-      padding: { left: 24, right: 24, top: 10, bottom: 10 }
+      shadow: { offsetX: 1, offsetY: 1, color: 'rgba(0,0,0,0.3)', blur: 2, stroke: false }
     }).setOrigin(0.5).setInteractive();
     this.resetProgressButton.on('pointerdown', () => {
       resetPuzzleProgress();
@@ -288,55 +333,153 @@ export class GameScene extends Phaser.Scene {
     const packIdx = typeof data.packIdx === 'number' ? data.packIdx : undefined;
     const puzzleId = typeof data.puzzleId === 'number' ? data.puzzleId : undefined;
 
+    // Enhanced responsive UI helpers with better font sizing
+    const width = this.sys.game.config.width;
+    const height = this.sys.game.config.height;
+    const isMobile = width < 600;
+    const isSmallMobile = width < 400;
+    const scoreFontSize = isMobile ? Math.round(width * 0.035) : 24;
+    const highScoreFontSize = isMobile ? Math.round(width * 0.025) : 18;
+    const coinFontSize = isMobile ? Math.round(width * 0.03) : 20;
+    const speakerFontSize = isMobile ? Math.round(width * 0.03) : 24;
+    const leftPad = isMobile ? (isSmallMobile ? 8 : 12) : 40;
+    const topPad = isMobile ? (isSmallMobile ? 8 : 10) : 30;
+    const coinRight = isMobile ? width - 12 : 860;
+    const speakerRight = isMobile ? width - 60 : 800;
+
+    // Responsive grid and tray positioning
     this.gridSize = 10;
-    this.cellSize = 60;
-    this.gridOrigin = { x: 120, y: 120 };
-    this.trayOrigin = { x: 120, y: 780 };
+    this.cellSize = isMobile ? (isSmallMobile ? 45 : 50) : 60;
+    const gridWidth = this.gridSize * this.cellSize;
+    const gridHeight = this.gridSize * this.cellSize;
+
+    // Center the grid horizontally and position it below the UI elements
+    this.gridOrigin = {
+      x: Math.max(20, (width - gridWidth) / 2),
+      y: isMobile ? 180 : 140
+    };
+
+    // Position tray below the grid with some spacing
+    this.trayOrigin = {
+      x: this.gridOrigin.x,
+      y: this.gridOrigin.y + gridHeight + (isMobile ? 40 : 60)
+    };
     this.gridState = Array.from({ length: this.gridSize }, () => Array(this.gridSize).fill(0));
     this.tray = new Tray(this, { gridSize: this.gridSize, cellSize: this.cellSize, trayOrigin: this.trayOrigin });
-  this.score = 0;
-  // Use bestScoreEasy or bestScoreDifficult from stats
-  this.highScore = (GameScene.DIFFICULTY === 'easy' ? STATS.bestScoreEasy : STATS.bestScoreDifficult) || 0;
-  this.gridGraphics = this.add.graphics();
-  // Set vibrant background
-  this.cameras.main.setBackgroundColor(theme.background);
-  // Score and high score text
-  this.scoreText = this.add.text(40, 30, 'Score: 0', { fontFamily, fontSize: 32, color: theme.text, fontStyle: 'bold', shadow: { offsetX: 2, offsetY: 2, color: theme.background, blur: 8, stroke: true } });
-  this.highScoreText = this.add.text(40, 70, 'High Score: ' + this.highScore, { fontFamily, fontSize: 24, color: theme.text, fontStyle: 'bold', shadow: { offsetX: 1, offsetY: 1, color: theme.background, blur: 6, stroke: true } });
+    this.score = 0;
+    // Use bestScoreEasy or bestScoreDifficult from stats
+    this.highScore = (GameScene.DIFFICULTY === 'easy' ? STATS.bestScoreEasy : STATS.bestScoreDifficult) || 0;
+    this.gridGraphics = this.add.graphics();
+    // Set vibrant background with subtle animated particles
+    this.cameras.main.setBackgroundColor(theme.background);
 
-  // --- Speaker Icon for Audio Toggle ---
-  this.isAudioOn = true;
-  this.speakerIcon = this.add.text(800, 40, '🔊', {
-    fontFamily,
-    fontSize: 32,
-    color: theme.text,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    padding: { left: 10, right: 10, top: 6, bottom: 6 },
-    borderRadius: 16
-  }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
-  this.speakerIcon.on('pointerdown', () => {
-    this.isAudioOn = !this.isAudioOn;
-    this.speakerIcon.setText(this.isAudioOn ? '🔊' : '🔇');
-    // Mute/unmute all game audio
+    // Add subtle floating particles for visual appeal
+    this.backgroundParticles = [];
+    for (let i = 0; i < 15; i++) {
+      const particle = this.add.circle(
+        Phaser.Math.Between(0, width),
+        Phaser.Math.Between(0, 900),
+        Phaser.Math.Between(2, 6),
+        0xffffff,
+        0.1
+      );
+      this.backgroundParticles.push(particle);
+
+      // Animate particles floating upward
+      this.tweens.add({
+        targets: particle,
+        y: particle.y - 100,
+        duration: Phaser.Math.Between(3000, 6000),
+        ease: 'Power1',
+        repeat: -1,
+        yoyo: true,
+        delay: Phaser.Math.Between(0, 2000)
+      });
+
+      // Add horizontal drift
+      this.tweens.add({
+        targets: particle,
+        x: particle.x + Phaser.Math.Between(-30, 30),
+        duration: Phaser.Math.Between(2000, 4000),
+        ease: 'Sine.easeInOut',
+        repeat: -1,
+        yoyo: true,
+        delay: Phaser.Math.Between(0, 1000)
+      });
+    }
+    // Score and high score text with modern design
+    const scoreContainer = this.add.rectangle(leftPad + (isMobile ? 120 : 140), topPad + (scoreFontSize / 2) + 8, isMobile ? 240 : 280, scoreFontSize + 16, 0x1a1a2e, 0.9).setOrigin(0.5);
+    scoreContainer.setStrokeStyle(2, 0x16213e);
+    this.add.graphics()
+      .fillGradientStyle(0x7209b7, 0xa663cc, 0x7209b7, 0xa663cc)
+      .fillRoundedRect(leftPad + (isMobile ? 120 : 140) - (isMobile ? 118 : 138), topPad + 6, isMobile ? 236 : 276, scoreFontSize + 12, 8);
+
+    this.scoreText = this.add.text(leftPad + (isMobile ? 120 : 140), topPad + (scoreFontSize / 2) + 8, 'Score: 0', {
+      fontFamily,
+      fontSize: scoreFontSize,
+      color: '#ffffff',
+      fontStyle: 'bold',
+      shadow: { offsetX: 1, offsetY: 1, color: 'rgba(0,0,0,0.4)', blur: 2, stroke: false }
+    }).setOrigin(0.5);
+
+    const highScoreY = topPad + scoreFontSize + 30;
+    const highScoreContainer = this.add.rectangle(leftPad + (isMobile ? 120 : 140), highScoreY + (highScoreFontSize / 2) + 6, isMobile ? 240 : 280, highScoreFontSize + 12, 0x0f3460, 0.9).setOrigin(0.5);
+    highScoreContainer.setStrokeStyle(2, 0x16537e);
+    this.add.graphics()
+      .fillGradientStyle(0x2196f3, 0x64b5f6, 0x2196f3, 0x64b5f6)
+      .fillRoundedRect(leftPad + (isMobile ? 120 : 140) - (isMobile ? 118 : 138), highScoreY + 2, isMobile ? 236 : 276, highScoreFontSize + 8, 6);
+
+    this.highScoreText = this.add.text(leftPad + (isMobile ? 120 : 140), highScoreY + (highScoreFontSize / 2) + 6, 'High Score: ' + this.highScore, {
+      fontFamily,
+      fontSize: highScoreFontSize,
+      color: '#ffffff',
+      fontStyle: 'bold',
+      shadow: { offsetX: 1, offsetY: 1, color: 'rgba(0,0,0,0.3)', blur: 2, stroke: false }
+    }).setOrigin(0.5);
+
+    // --- Speaker Icon for Audio Toggle with modern design ---
+    this.isAudioOn = true;
+    const speakerBg = this.add.rectangle(speakerRight - (speakerFontSize / 2) - 8, topPad + (speakerFontSize / 2) + 8, speakerFontSize + 16, speakerFontSize + 16, 0x1a1a2e, 0.9).setOrigin(1, 0);
+    speakerBg.setStrokeStyle(2, 0x16213e);
+    this.add.graphics()
+      .fillGradientStyle(0xff6b35, 0xff8f65, 0xff6b35, 0xff8f65)
+      .fillRoundedRect(speakerRight - speakerFontSize - 14, topPad + 2, speakerFontSize + 12, speakerFontSize + 12, 8);
+
+    this.speakerIcon = this.add.text(speakerRight - (speakerFontSize / 2) - 8, topPad + (speakerFontSize / 2) + 8, '🔊', {
+      fontFamily,
+      fontSize: speakerFontSize,
+      color: '#ffffff',
+      fontStyle: 'bold'
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    this.speakerIcon.on('pointerdown', () => {
+      this.isAudioOn = !this.isAudioOn;
+      this.speakerIcon.setText(this.isAudioOn ? '🔊' : '🔇');
+      // Mute/unmute all game audio
+      if (this.sound) {
+        this.sound.mute = !this.isAudioOn;
+      }
+    });
+    // Set initial mute state (in case of reload)
     if (this.sound) {
       this.sound.mute = !this.isAudioOn;
     }
-  });
-  // Set initial mute state (in case of reload)
-  if (this.sound) {
-    this.sound.mute = !this.isAudioOn;
-  }
-    // Coin display (modern gold, never clips grid)
+    // Coin display with modern golden design
     import('./powerups.js').then(module => {
-      this.coinText = this.add.text(860, 40, '⭑ ' + (module.getCoins ? module.getCoins() : 0), {
+      const coinX = isMobile ? width - 16 : 860;
+      const coinY = isMobile ? topPad + scoreFontSize + 70 : 90;
+      const coinContainer = this.add.rectangle(coinX - 60, coinY + 14, 120, coinFontSize + 12, 0x1a1a2e, 0.9).setOrigin(1, 0);
+      coinContainer.setStrokeStyle(2, 0x16213e);
+      this.add.graphics()
+        .fillGradientStyle(0xffd700, 0xffed4e, 0xffc107, 0xffab00)
+        .fillRoundedRect(coinX - 118, coinY + 2, 116, coinFontSize + 8, 8);
+
+      this.coinText = this.add.text(coinX - 60, coinY + 14, '⭑ ' + (module.getCoins ? module.getCoins() : 0), {
         fontFamily,
-        fontSize: 28,
-        color: '#FFD700',
+        fontSize: coinFontSize,
+        color: '#1a1a2e',
         fontStyle: 'bold',
-        backgroundColor: 'rgba(255,255,255,0.08)',
-        padding: { left: 18, right: 18, top: 8, bottom: 8 },
-        borderRadius: 16
-      }).setOrigin(1, 0);
+        shadow: { offsetX: 1, offsetY: 1, color: '#ffffff', blur: 2, stroke: true }
+      }).setOrigin(0.5);
       this.children.bringToTop(this.coinText);
       this.children.bringToTop(this.speakerIcon);
       this.updateCoinDisplay = () => {
@@ -344,31 +487,83 @@ export class GameScene extends Phaser.Scene {
           this.coinText.setText('⭑ ' + (mod.getCoins ? mod.getCoins() : 0));
         });
       };
-      // Power-up UI panel: Row (N), Swap (N), Undo (N) as modern buttons
-      const panelBg = this.add.rectangle(820, 220, 200, 170, theme.overlay, theme.overlayAlpha).setOrigin(0.5);
+      // Power-up UI panel with vibrant modern design
+      const panelX = isMobile ? width - 110 : 820;
+      const panelY = isMobile ? 280 : 220;
+      const panelBg = this.add.rectangle(panelX, panelY, isMobile ? 180 : 200, 170, 0x1a1a2e, 0.95).setOrigin(0.5);
+      panelBg.setStrokeStyle(3, 0x16213e);
+
       const typeLabels = { CLEAR_ROW: 'Row', SWAP_TRAY: 'Swap', EXTRA_UNDO: 'Undo' };
-      const yStart = 180;
+      const buttonColors = [
+        { primary: 0xe91e63, secondary: 0xf06292 }, // Pink
+        { primary: 0x00bcd4, secondary: 0x4dd0e1 }, // Cyan  
+        { primary: 0x4caf50, secondary: 0x81c784 }  // Green
+      ];
+      const yStart = panelY - 60;
       const yStep = 44;
       this.powerupButtons = {};
+
       Object.keys(module.POWERUP_TYPES).forEach((type, idx) => {
         const count = module.getPowerupCount(type);
         const label = `${typeLabels[type] || type} (${count})`;
-        const btn = this.add.text(820, yStart + idx * yStep, label, {
+        const colors = buttonColors[idx];
+
+        // Create gradient background for each button
+        const btnBg = this.add.rectangle(panelX, yStart + idx * yStep, isMobile ? 160 : 180, 36, colors.primary, count > 0 ? 1 : 0.4).setOrigin(0.5);
+        btnBg.setStrokeStyle(2, colors.secondary);
+        this.add.graphics()
+          .fillGradientStyle(colors.primary, colors.secondary, colors.primary, colors.secondary)
+          .fillRoundedRect(panelX - (isMobile ? 78 : 88), yStart + idx * yStep - 16, isMobile ? 156 : 176, 32, 6);
+
+        const btn = this.add.text(panelX, yStart + idx * yStep, label, {
           fontFamily,
-          fontSize: 22,
-          color: count > 0 ? theme.button.background : '#aaa',
-          backgroundColor: count > 0 ? theme.button.color : '#eee',
+          fontSize: isMobile ? 18 : 20,
+          color: '#ffffff',
           fontStyle: 'bold',
-          padding: { left: 22, right: 22, top: 10, bottom: 10 },
-          borderRadius: 16
+          shadow: { offsetX: 1, offsetY: 1, color: 'rgba(0,0,0,0.3)', blur: 2, stroke: false }
         }).setOrigin(0.5);
         btn.setInteractive({ useHandCursor: true });
+        // Add hover effects
+        btn.on('pointerover', () => {
+          if (count > 0) {
+            btn.setScale(1.05);
+            this.tweens.add({
+              targets: btn,
+              scaleX: 1.05,
+              scaleY: 1.05,
+              duration: 150,
+              ease: 'Power2'
+            });
+          }
+        });
+
+        btn.on('pointerout', () => {
+          btn.setScale(1);
+          this.tweens.add({
+            targets: btn,
+            scaleX: 1,
+            scaleY: 1,
+            duration: 150,
+            ease: 'Power2'
+          });
+        });
+
         if (count === 0) {
           btn.setAlpha(0.5);
           btn.disableInteractive();
         } else {
           btn.setAlpha(1);
           btn.on('pointerdown', () => {
+            // Add click animation
+            this.tweens.add({
+              targets: btn,
+              scaleX: 0.95,
+              scaleY: 0.95,
+              duration: 100,
+              yoyo: true,
+              ease: 'Power2'
+            });
+
             import('./powerups.js').then(mod => {
               if (mod.getPowerupCount(type) > 0) {
                 mod.usePowerup(type);
@@ -376,8 +571,21 @@ export class GameScene extends Phaser.Scene {
                 if (type === 'CLEAR_ROW') {
                   this.powerupRowActive = true;
                   if (this.powerupPromptOverlay) this.powerupPromptOverlay.destroy();
-                  this.powerupPromptOverlay = this.add.rectangle(450, 450, 500, 80, theme.overlay, 0.92).setOrigin(0.5);
-                  this.powerupPromptText = this.add.text(450, 450, 'Click a row to clear (Power-Up)', { fontFamily, fontSize: 22, color: theme.button.color, backgroundColor: theme.overlay, padding: { left: 12, right: 12, top: 6, bottom: 6 } }).setOrigin(0.5);
+
+                  // Modern prompt design
+                  this.powerupPromptOverlay = this.add.rectangle(width / 2, 450, 500, 80, 0x1a1a2e, 0.95).setOrigin(0.5);
+                  this.powerupPromptOverlay.setStrokeStyle(3, 0x16213e);
+                  this.add.graphics()
+                    .fillGradientStyle(0x9c27b0, 0xba68c8, 0x9c27b0, 0xba68c8)
+                    .fillRoundedRect(width / 2 - 248, 412, 496, 76, 8);
+
+                  this.powerupPromptText = this.add.text(width / 2, 450, 'Click a row to clear (Power-Up)', {
+                    fontFamily,
+                    fontSize: 22,
+                    color: '#ffffff',
+                    fontStyle: 'bold',
+                    shadow: { offsetX: 2, offsetY: 2, color: '#000000', blur: 4, stroke: true }
+                  }).setOrigin(0.5);
                   this.children.bringToTop(this.powerupPromptOverlay);
                   this.children.bringToTop(this.powerupPromptText);
                 } else if (type === 'SWAP_TRAY') {
@@ -394,22 +602,30 @@ export class GameScene extends Phaser.Scene {
             });
           });
         }
-        this.powerupButtons[type] = btn;
+        this.powerupButtons[type] = { text: btn, background: btnBg };
       });
       this.updatePowerupDisplay = () => {
         import('./powerups.js').then(mod => {
           Object.keys(module.POWERUP_TYPES).forEach(type => {
             const count = mod.getPowerupCount(type);
-            const btn = this.powerupButtons[type];
-            btn.setText(`${typeLabels[type] || type} (${count})`);
-            btn.setAlpha(count > 0 ? 1 : 0.5);
-            if (count > 0) btn.setInteractive({ useHandCursor: true });
-            else btn.disableInteractive();
+            const btnObj = this.powerupButtons[type];
+            if (btnObj && btnObj.text) {
+              btnObj.text.setText(`${typeLabels[type] || type} (${count})`);
+              btnObj.text.setAlpha(count > 0 ? 1 : 0.5);
+              if (btnObj.background) {
+                btnObj.background.setAlpha(count > 0 ? 1 : 0.4);
+              }
+              if (count > 0) btnObj.text.setInteractive({ useHandCursor: true });
+              else btnObj.text.disableInteractive();
+            }
           });
         });
       };
       this.children.bringToTop(panelBg);
-      Object.values(this.powerupButtons).forEach(btn => this.children.bringToTop(btn));
+      Object.values(this.powerupButtons).forEach(btnObj => {
+        if (btnObj.background) this.children.bringToTop(btnObj.background);
+        if (btnObj.text) this.children.bringToTop(btnObj.text);
+      });
 
       // Listen for grid clicks for power-up row clear
       this.input.on('pointerdown', pointer => {
@@ -919,12 +1135,16 @@ export class GameScene extends Phaser.Scene {
       this.optionsText.destroy();
       this.optionsText = null;
     }
+    // Enhanced styling for options text with responsive font size
+    const optionsFontSize = this.sys.game.config.width < 600 ? 16 : 18;
     this.optionsText = this.add.text(450, 90, text, {
-      fontSize: 24,
-      color: theme.text,
-      fontFamily: 'Arial',
-      backgroundColor: 'rgba(0,0,0,0)',
-      padding: { left: 12, right: 12, top: 6, bottom: 6 }
+      fontSize: optionsFontSize,
+      color: '#ffffff',
+      fontFamily: 'Poppins, Arial, sans-serif',
+      fontStyle: 'bold',
+      backgroundColor: 'rgba(26, 26, 46, 0.8)',
+      padding: { left: 16, right: 16, top: 8, bottom: 8 },
+      shadow: { offsetX: 1, offsetY: 1, color: theme.button.color, blur: 4, stroke: true }
     }).setOrigin(0.5);
     this.children.bringToTop(this.optionsText);
 

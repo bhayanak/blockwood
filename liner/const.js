@@ -3,7 +3,7 @@ export const THEMES = [
   {
     name: 'Vibrant',
     blockColors: [0xff6b6b, 0x48e6e6, 0x6b8cff, 0x7fffd4, 0xffd86b, 0x9dff6b, 0xff6bff, 0x6bffb2],
-    background: '#222',
+    background: '#232946',
     gridLine: 0xffffff,
     gridLineAlpha: 0.2,
     highlight: 0x48e6e6,

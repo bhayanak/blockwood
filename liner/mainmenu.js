@@ -54,50 +54,115 @@ export class MainMenu extends Phaser.Scene {
                 });
             }
         });
-        // Vibrant animated background
-        this.cameras.main.setBackgroundColor(theme.background);
-        // Animated particles for background effect
-        this.add.particles({
-            key: 'logo',
-            x: 450,
-            y: 200,
-            speed: { min: -100, max: 100 },
-            scale: { start: 0.4, end: 0 },
-            blendMode: 'ADD',
-            lifespan: 1200,
-            frequency: 80
-        });
-        // Animated glow effect behind logo
-        const glow = this.add.graphics();
-        glow.fillStyle(theme.button.color ? parseInt(theme.button.color.replace('#', '0x')) : 0x00ffff, 0.22);
-        glow.fillCircle(450, 170, 90);
+        // Responsive layout setup
+        const width = this.sys.game.config.width;
+        const height = this.sys.game.config.height;
+        const isMobile = width < 600 || height < 700;
+        const centerX = width / 2;
+
+        // Create stunning animated background
+        const bgGradient = this.add.graphics();
+        bgGradient.fillGradientStyle(
+            parseInt(theme.background.replace('#', '0x')),
+            parseInt(theme.background.replace('#', '0x')),
+            0x1a1a2e,
+            0x16213e,
+            1
+        );
+        bgGradient.fillRect(0, 0, width, height);
+
+        // Animated floating particles
+        for (let i = 0; i < (isMobile ? 15 : 25); i++) {
+            const particle = this.add.circle(
+                Phaser.Math.Between(0, width),
+                Phaser.Math.Between(0, height),
+                Phaser.Math.Between(2, 6),
+                parseInt(theme.button.color.replace('#', '0x')),
+                0.3
+            );
+
+            this.tweens.add({
+                targets: particle,
+                y: particle.y - Phaser.Math.Between(100, 300),
+                alpha: { from: 0.3, to: 0 },
+                duration: Phaser.Math.Between(3000, 6000),
+                repeat: -1,
+                delay: Phaser.Math.Between(0, 3000)
+            });
+        }
+
+        // Smaller, better positioned logo
+        const logoY = isMobile ? height * 0.12 : height * 0.15;
+        const logoScale = isMobile ? 0.15 : 0.25;
+
+        // Subtle glow behind logo
+        const logoGlow = this.add.circle(centerX, logoY, isMobile ? 35 : 50,
+            parseInt(theme.button.color.replace('#', '0x')), 0.15);
         this.tweens.add({
-            targets: glow,
-            alpha: { from: 0.22, to: 0.5 },
-            duration: 1200,
+            targets: logoGlow,
+            scaleX: { from: 1, to: 1.2 },
+            scaleY: { from: 1, to: 1.2 },
+            alpha: { from: 0.15, to: 0.25 },
+            duration: 2000,
             yoyo: true,
             repeat: -1
         });
-        // Logo (smaller, always visible)
-        this.logo = this.add.image(450, 140, 'logo')
-            .setScale(0.45)
-            .setAlpha(0.98)
-            .setOrigin(0.5, 0.5)
-            .setInteractive();
-        // Animated title text (smaller, always visible)
-        this.titleText = this.add.text(450, 220, 'BlockQuest', {
-            fontFamily,
-            fontSize: 48,
-            color: theme.button.color,
+
+        this.logo = this.add.image(centerX, logoY, 'logo')
+            .setScale(logoScale)
+            .setOrigin(0.5, 0.5);
+
+        // Add floating animation to logo
+        this.tweens.add({
+            targets: this.logo,
+            y: { from: logoY, to: logoY - 8 },
+            duration: 2500,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
+
+        // Enhanced title with gradient effect and better visibility
+        const titleY = isMobile ? height * 0.25 : height * 0.28;
+        const titleFontSize = isMobile ? Math.round(width * 0.08) : 42;
+
+        // Create title with enhanced stroke and gradient effect
+        this.titleText = this.add.text(centerX, titleY, 'BlockQuest', {
+            fontFamily: 'Poppins, sans-serif',
+            fontSize: titleFontSize,
             fontStyle: 'bold',
-            shadow: { offsetX: 2, offsetY: 2, color: theme.background, blur: 10, stroke: true }
+            fill: '#ffffff',
+            stroke: theme.button.color,
+            strokeThickness: 4,
+            shadow: {
+                offsetX: 2,
+                offsetY: 2,
+                color: theme.button.color,
+                blur: 20,
+                stroke: true,
+                fill: true
+            }
         }).setOrigin(0.5);
+
+        // Enhanced title animation with scale and glow pulsing
         this.tweens.add({
             targets: this.titleText,
-            scale: { from: 1, to: 1.07 },
-            duration: 900,
+            scale: { from: 1, to: 1.08 },
+            duration: 1800,
             yoyo: true,
-            repeat: -1
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
+
+        // Add color cycling to title stroke
+        this.time.addEvent({
+            delay: 3000,
+            callback: () => {
+                const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '#f0932b', '#eb4d4b'];
+                const randomColor = colors[Math.floor(Math.random() * colors.length)];
+                this.titleText.setStroke(randomColor, 4);
+            },
+            loop: true
         });
         // Helper to get mode label
         const getModeLabel = () => {
@@ -107,92 +172,217 @@ export class MainMenu extends Phaser.Scene {
             if (mode === 'puzzle') return 'Puzzle';
             return mode.charAt(0).toUpperCase() + mode.slice(1);
         };
-        // Button style helper
-        const btnStyle = {
-            fontFamily,
-            fontSize: 28,
-            color: theme.button.color,
-            backgroundColor: theme.button.background,
-            padding: { left: 22, right: 22, top: 10, bottom: 10 },
-            borderRadius: 16
+        // Beautiful button configuration
+        const btnStartY = isMobile ? height * 0.38 : height * 0.42;
+        const btnFontSize = isMobile ? Math.round(width * 0.035) : 18;
+        const btnPadding = isMobile ? 8 : 12;
+        const btnWidth = isMobile ? width * 0.4 : 180;
+        const btnHeight = isMobile ? 35 : 42;
+
+        // Create beautiful button style with gradients
+        const createButton = (x, y, text, primaryColor, secondaryColor) => {
+            // Button background with gradient
+            const btnBg = this.add.graphics();
+            btnBg.fillGradientStyle(
+                parseInt(primaryColor.replace('#', '0x')),
+                parseInt(secondaryColor.replace('#', '0x')),
+                parseInt(primaryColor.replace('#', '0x')),
+                parseInt(secondaryColor.replace('#', '0x'))
+            );
+            btnBg.fillRoundedRect(x - btnWidth / 2, y - btnHeight / 2, btnWidth, btnHeight, 12);
+
+            // Button glow effect
+            const btnGlow = this.add.graphics();
+            btnGlow.fillStyle(parseInt(primaryColor.replace('#', '0x')), 0.3);
+            btnGlow.fillRoundedRect(x - btnWidth / 2 - 2, y - btnHeight / 2 - 2, btnWidth + 4, btnHeight + 4, 14);
+            btnGlow.setVisible(false);
+
+            // Button text
+            const btnText = this.add.text(x, y, text, {
+                fontFamily: 'Poppins, sans-serif',
+                fontSize: btnFontSize,
+                fontStyle: 'bold',
+                color: '#ffffff',
+                shadow: { offsetX: 1, offsetY: 1, color: '#000000', blur: 2 }
+            }).setOrigin(0.5);
+
+            // Make interactive
+            const hitArea = this.add.rectangle(x, y, btnWidth, btnHeight, 0x000000, 0);
+            hitArea.setInteractive({ useHandCursor: true });
+
+            return { bg: btnBg, glow: btnGlow, text: btnText, hitArea };
         };
-        // Puzzle Packs button
-        this.puzzlePacksButton = this.add.text(200, 600, 'Puzzle Packs', btnStyle).setOrigin(0.5).setInteractive();
-        this.puzzlePacksButton.on('pointerdown', () => { this.showPuzzlePackMenu(); });
-        // Stats button
-        this.statsButton = this.add.text(700, 600, 'Stats', btnStyle).setOrigin(0.5).setInteractive();
-        this.statsButton.on('pointerdown', () => { this.showStatsMenu(); });
-        // Power-Ups button
-        this.powerUpsButton = this.add.text(200, 700, 'Power-Ups', btnStyle).setOrigin(0.5).setInteractive();
-        this.powerUpsButton.on('pointerdown', () => { this.showPowerUpsMenu(); });
-        // Adventure button
-        this.adventureButton = this.add.text(700, 700, 'Adventure', btnStyle).setOrigin(0.5).setInteractive();
-        this.adventureButton.on('pointerdown', () => { this.showAdventureMenu(); });
-        // Fade-in effect for new buttons
-        [this.puzzlePacksButton, this.statsButton, this.powerUpsButton, this.adventureButton].forEach(el => {
-            el.setAlpha(0);
-            this.tweens.add({
-                targets: el,
-                alpha: { from: 0, to: 1 },
-                duration: 900,
-                delay: 200
+
+        // Button layout - 2x4 grid for better mobile experience
+        const cols = isMobile ? 2 : 2;
+        const rows = 4;
+        const spacingX = isMobile ? width * 0.25 : 200;
+        const spacingY = isMobile ? height * 0.08 : 55;
+        const startX = centerX - (cols - 1) * spacingX / 2;
+
+        // Button colors for visual variety
+        const buttonColors = [
+            { primary: '#FF6B9D', secondary: '#C44569' }, // Pink
+            { primary: '#4ECDC4', secondary: '#26A69A' }, // Teal
+            { primary: '#45B7D1', secondary: '#2980B9' }, // Blue
+            { primary: '#96CEB4', secondary: '#6C7B7F' }, // Green
+            { primary: '#FFEAA7', secondary: '#FDCB6E' }, // Yellow
+            { primary: '#A29BFE', secondary: '#6C5CE7' }, // Purple
+            { primary: '#FD79A8', secondary: '#E84393' }, // Magenta
+            { primary: '#00CEC9', secondary: '#00B894' }  // Cyan
+        ];
+
+        // Create main menu buttons
+        const buttons = [
+            { text: 'Puzzle Packs', action: () => this.showPuzzlePackMenu() },
+            { text: 'Adventure', action: () => this.showAdventureMenu() },
+            { text: 'Stats', action: () => this.showStatsMenu() },
+            { text: 'Power-Ups', action: () => this.showPowerUpsMenu() },
+            { text: 'Mode: Normal', action: () => this.toggleMode() },
+            { text: 'Difficulty: Easy', action: () => this.toggleDifficulty() },
+            { text: 'Theme: Vibrant', action: () => this.nextTheme() },
+            { text: 'Endless: Off', action: () => this.toggleEndless() }
+        ];
+
+        this.menuButtons = [];
+        buttons.forEach((btn, index) => {
+            const row = Math.floor(index / cols);
+            const col = index % cols;
+            const x = startX + col * spacingX;
+            const y = btnStartY + row * spacingY;
+            const colorSet = buttonColors[index % buttonColors.length];
+
+            const button = createButton(x, y, btn.text, colorSet.primary, colorSet.secondary);
+            this.menuButtons.push({ ...button, action: btn.action, index });
+
+            // Button animations
+            button.hitArea.on('pointerover', () => {
+                button.glow.setVisible(true);
+                this.tweens.add({
+                    targets: [button.bg, button.text],
+                    scaleX: 1.05,
+                    scaleY: 1.05,
+                    duration: 150,
+                    ease: 'Back.Out'
+                });
+            });
+
+            button.hitArea.on('pointerout', () => {
+                button.glow.setVisible(false);
+                this.tweens.add({
+                    targets: [button.bg, button.text],
+                    scaleX: 1,
+                    scaleY: 1,
+                    duration: 150
+                });
+            });
+
+            button.hitArea.on('pointerdown', () => {
+                this.tweens.add({
+                    targets: [button.bg, button.text],
+                    scaleX: 0.95,
+                    scaleY: 0.95,
+                    duration: 100,
+                    yoyo: true,
+                    onComplete: btn.action
+                });
+            });
+
+            // Entrance animation
+            [button.bg, button.text].forEach(obj => {
+                obj.setAlpha(0);
+                obj.setScale(0.8);
+                this.tweens.add({
+                    targets: obj,
+                    alpha: 1,
+                    scaleX: 1,
+                    scaleY: 1,
+                    duration: 600,
+                    delay: index * 100,
+                    ease: 'Back.Out'
+                });
             });
         });
-        // Mode selector
-        this.modeButton = this.add.text(300, 420, 'Mode: ' + getModeLabel(), btnStyle).setOrigin(0.5).setInteractive();
-        this.modeButton.on('pointerdown', () => {
-            GameScene.GAME_MODE = Modes.getNextMode(GameScene.GAME_MODE);
-            this.modeButton.setText('Mode: ' + getModeLabel());
-        });
-        // Difficulty selector
-        this.difficultyButton = this.add.text(600, 420, 'Difficulty: ' + (GameScene.DIFFICULTY === 'easy' ? 'Easy' : 'Difficult'), btnStyle).setOrigin(0.5).setInteractive();
-        this.difficultyButton.on('pointerdown', () => {
-            GameScene.DIFFICULTY = GameScene.DIFFICULTY === 'easy' ? 'difficult' : 'easy';
-            this.difficultyButton.setText('Difficulty: ' + (GameScene.DIFFICULTY === 'easy' ? 'Easy' : 'Difficult'));
-        });
-        // Theme selector
-        this.themeButton = this.add.text(300, 500, 'Theme: ' + THEMES[GameScene.activeThemeIdx].name, btnStyle).setOrigin(0.5).setInteractive();
-        this.themeButton.on('pointerdown', () => {
-            GameScene.activeThemeIdx = (GameScene.activeThemeIdx + 1) % THEMES.length;
-            this.themeButton.setText('Theme: ' + THEMES[GameScene.activeThemeIdx].name);
-            // Refresh menu to apply new theme
-            this.scene.restart();
-        });
-        // Endless Mode toggle
-        this.endlessButton = this.add.text(600, 500, 'Endless Mode: ' + (isEndlessMode() ? 'On' : 'Off'), btnStyle).setOrigin(0.5).setInteractive();
-        this.endlessButton.on('pointerdown', () => {
-            if (isEndlessMode()) { disableEndlessMode(); } else { enableEndlessMode(); }
-            this.endlessButton.setText('Endless Mode: ' + (isEndlessMode() ? 'On' : 'Off'));
-        });
-        // Start button (bigger, theme accent)
-        const startBtnStyle = {
-            fontFamily,
-            fontSize: 44,
-            color: theme.text,
-            backgroundColor: theme.button.color,
-            fontStyle: 'bold',
-            padding: { left: 38, right: 38, top: 18, bottom: 18 },
-            borderRadius: 22,
-            shadow: { offsetX: 2, offsetY: 2, color: theme.background, blur: 10, stroke: true }
-        };
-        this.startButton = this.add.text(450, 650, 'Start', startBtnStyle).setOrigin(0.5).setInteractive();
-        this.startButton.on('pointerdown', () => { this.scene.start('GameScene'); });
+        // Beautiful START button at the bottom
+        const startY = isMobile ? height * 0.85 : height * 0.82;
+        const startBtnWidth = isMobile ? width * 0.6 : 220;
+        const startBtnHeight = isMobile ? 45 : 55;
+
+        // Start button background with animated gradient
+        const startBg = this.add.graphics();
+        startBg.fillGradientStyle(0xFF6B35, 0xF7931E, 0xFF6B35, 0xF7931E);
+        startBg.fillRoundedRect(centerX - startBtnWidth / 2, startY - startBtnHeight / 2, startBtnWidth, startBtnHeight, 16);
+
+        // Start button glow
+        const startGlow = this.add.graphics();
+        startGlow.fillStyle(0xFF6B35, 0.4);
+        startGlow.fillRoundedRect(centerX - startBtnWidth / 2 - 3, startY - startBtnHeight / 2 - 3, startBtnWidth + 6, startBtnHeight + 6, 18);
+
+        // Animated glow effect
         this.tweens.add({
-            targets: this.startButton,
-            alpha: { from: 1, to: 0.8 },
-            duration: 700,
+            targets: startGlow,
+            alpha: { from: 0.4, to: 0.7 },
+            scaleX: { from: 1, to: 1.05 },
+            scaleY: { from: 1, to: 1.05 },
+            duration: 1000,
             yoyo: true,
             repeat: -1
         });
-        // Fade-in effect for all menu elements
-        [this.logo, this.titleText, this.modeButton, this.difficultyButton, this.themeButton, this.endlessButton, this.startButton].forEach(el => {
-            el.setAlpha(0);
+
+        // Start button text
+        const startText = this.add.text(centerX, startY, 'START GAME', {
+            fontFamily: 'Poppins, sans-serif',
+            fontSize: isMobile ? 20 : 24,
+            fontStyle: 'bold',
+            color: '#ffffff',
+            shadow: { offsetX: 2, offsetY: 2, color: '#000000', blur: 4 }
+        }).setOrigin(0.5);
+
+        // Start button interaction
+        const startHitArea = this.add.rectangle(centerX, startY, startBtnWidth, startBtnHeight, 0x000000, 0);
+        startHitArea.setInteractive({ useHandCursor: true });
+
+        startHitArea.on('pointerover', () => {
             this.tweens.add({
-                targets: el,
-                alpha: { from: 0, to: 1 },
-                duration: 900,
-                delay: 200
+                targets: [startBg, startText],
+                scaleX: 1.08,
+                scaleY: 1.08,
+                duration: 200,
+                ease: 'Back.Out'
             });
+        });
+
+        startHitArea.on('pointerout', () => {
+            this.tweens.add({
+                targets: [startBg, startText],
+                scaleX: 1,
+                scaleY: 1,
+                duration: 200
+            });
+        });
+
+        startHitArea.on('pointerdown', () => {
+            this.tweens.add({
+                targets: [startBg, startText],
+                scaleX: 0.95,
+                scaleY: 0.95,
+                duration: 100,
+                yoyo: true,
+                onComplete: () => this.scene.start('GameScene')
+            });
+        });
+        // Removed duplicate START button - only using the one in the grid
+        // Fade-in effect for main elements (logo and title only - buttons have their own entrance animations)
+        [this.logo, this.titleText].forEach(el => {
+            if (el && el.setAlpha) {
+                el.setAlpha(0);
+                this.tweens.add({
+                    targets: el,
+                    alpha: { from: 0, to: 1 },
+                    duration: 900,
+                    delay: 200
+                });
+            }
         });
         // Add more glossy/animated effects as needed
     }
@@ -314,6 +504,55 @@ export class MainMenu extends Phaser.Scene {
             this.children.bringToTop(progressText);
             this.children.bringToTop(closeBtn);
         });
+    }
+
+    // Helper methods for button actions
+    toggleMode() {
+        GameScene.GAME_MODE = Modes.getNextMode(GameScene.GAME_MODE);
+        const modeButton = this.menuButtons.find(btn => btn.index === 4);
+        if (modeButton) {
+            const modeLabel = this.getModeLabel();
+            modeButton.text.setText(`Mode: ${modeLabel}`);
+        }
+    }
+
+    toggleDifficulty() {
+        GameScene.DIFFICULTY = GameScene.DIFFICULTY === 'easy' ? 'difficult' : 'easy';
+        const diffButton = this.menuButtons.find(btn => btn.index === 5);
+        if (diffButton) {
+            const diffLabel = GameScene.DIFFICULTY === 'easy' ? 'Easy' : 'Difficult';
+            diffButton.text.setText(`Difficulty: ${diffLabel}`);
+        }
+    }
+
+    nextTheme() {
+        GameScene.activeThemeIdx = (GameScene.activeThemeIdx + 1) % THEMES.length;
+        const themeButton = this.menuButtons.find(btn => btn.index === 6);
+        if (themeButton) {
+            themeButton.text.setText(`Theme: ${THEMES[GameScene.activeThemeIdx].name}`);
+        }
+        // Refresh menu to apply new theme
+        this.scene.restart();
+    }
+
+    toggleEndless() {
+        if (isEndlessMode()) {
+            disableEndlessMode();
+        } else {
+            enableEndlessMode();
+        }
+        const endlessButton = this.menuButtons.find(btn => btn.index === 7);
+        if (endlessButton) {
+            endlessButton.text.setText(`Endless: ${isEndlessMode() ? 'On' : 'Off'}`);
+        }
+    }
+
+    getModeLabel() {
+        const mode = GameScene.GAME_MODE;
+        if (mode === 'normal') return 'Normal';
+        if (mode === 'daily') return 'Daily';
+        if (mode === 'puzzle') return 'Puzzle';
+        return mode.charAt(0).toUpperCase() + mode.slice(1);
     }
 
     showPuzzlePackMenu() {

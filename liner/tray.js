@@ -56,16 +56,22 @@ export class Tray {
     this.traySlotPositions = [];
     let trayY = this.trayOrigin.y;
     let trayX = this.trayOrigin.x;
-    let spacing = 48;
+
+    // Use smaller spacing and sizes for mobile
+    const width = this.scene.sys.game.config.width;
+    const isMobile = width < 600;
+    const trayCellSize = isMobile ? Math.max(30, this.cellSize * 0.6) : Math.max(40, this.cellSize * 0.7);
+    const spacing = isMobile ? 20 : 32;
+
     for (let i = 0; i < 3; i++) {
       // Use default size for empty slots, or actual shape size if present
       let shape = this.trayShapes[i];
       let shapeWidth = shape && shape.pattern ? shape.pattern[0].length : 2;
       let shapeHeight = shape && shape.pattern ? shape.pattern.length : 2;
-      let slotWidth = shapeWidth * this.cellSize + 16;
-      let slotHeight = shapeHeight * this.cellSize + 16;
+      let slotWidth = shapeWidth * trayCellSize + 12;
+      let slotHeight = shapeHeight * trayCellSize + 12;
       this.traySlotPositions.push({
-        x: trayX + i * (this.cellSize * 4 + spacing),
+        x: trayX + i * (trayCellSize * 4 + spacing),
         width: slotWidth,
         height: slotHeight
       });
@@ -89,23 +95,28 @@ export class Tray {
       const slot = slotPositions[i] || { x: this.trayOrigin.x + i * (this.cellSize * 4 + 48), width: shapeWidth * this.cellSize + 16, height: shapeHeight * this.cellSize + 16 };
       const slotX = slot.x;
       const slotY = this.trayOrigin.y;
+      // Use smaller cell size for tray shapes (especially on mobile)
+      const width = this.scene.sys.game.config.width;
+      const isMobile = width < 600;
+      const trayCellSize = isMobile ? Math.max(30, this.cellSize * 0.6) : Math.max(40, this.cellSize * 0.7);
+
       // Center shape in slot
-      const offsetX = slotX + (slot.width - shapeWidth * this.cellSize) / 2;
-      const offsetY = slotY + (slot.height - shapeHeight * this.cellSize) / 2;
+      const offsetX = slotX + (slot.width - shapeWidth * trayCellSize) / 2;
+      const offsetY = slotY + (slot.height - shapeHeight * trayCellSize) / 2;
       const group = this.scene.add.container(offsetX, offsetY);
       let shapeBlocks = [];
       for (let r = 0; r < shapeHeight; r++) {
         for (let c = 0; c < shapeWidth; c++) {
           if (pattern[r][c]) {
-            const x = c * this.cellSize;
-            const y = r * this.cellSize;
+            const x = c * trayCellSize;
+            const y = r * trayCellSize;
             const block = this.scene.add.graphics();
             block.fillStyle(color, 1);
-            block.fillRect(x, y, this.cellSize - 6, this.cellSize - 6);
-            block.lineStyle(3, 0xffffff, 0.25);
-            block.strokeRect(x, y, this.cellSize - 6, this.cellSize - 6);
-            block.lineStyle(6, 0x222222, 0.15);
-            block.strokeRect(x + 4, y + 4, this.cellSize - 14, this.cellSize - 14);
+            block.fillRect(x, y, trayCellSize - 4, trayCellSize - 4);
+            block.lineStyle(2, 0xffffff, 0.25);
+            block.strokeRect(x, y, trayCellSize - 4, trayCellSize - 4);
+            block.lineStyle(3, 0x222222, 0.15);
+            block.strokeRect(x + 2, y + 2, trayCellSize - 8, trayCellSize - 8);
             block.alpha = 0;
             group.add(block);
             shapeBlocks.push(block);
