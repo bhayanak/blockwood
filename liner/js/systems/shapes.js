@@ -310,6 +310,13 @@ export class ShapeGenerator {
     }
 
     /**
+     * Generate a random shape (alias for generateShape for backward compatibility)
+     */
+    generateRandomShape(colorIndex = null) {
+        return this.generateShape(colorIndex);
+    }
+
+    /**
      * Generate multiple shapes
      */
     generateShapes(count, colorIndices = null) {

@@ -6,8 +6,8 @@ class AudioManager {
     constructor() {
         this.sounds = {};
         this.enabled = storage.isAudioEnabled();
-        this.masterVolume = AUDIO.MASTER_VOLUME;
-        this.sfxVolume = AUDIO.SFX_VOLUME;
+        this.masterVolume = storage.get('masterVolume', AUDIO.MASTER_VOLUME);
+        this.sfxVolume = storage.get('sfxVolume', AUDIO.SFX_VOLUME);
         this.initialized = false;
     }
 
@@ -169,9 +169,16 @@ class AudioManager {
      * Preload audio assets (call this in scene preload)
      */
     preloadAssets(scene) {
-        scene.load.audio('place', 'assets/place.wav');
-        scene.load.audio('clear', 'assets/clear.wav');
-        scene.load.audio('gameover', 'assets/gameover.wav');
+        // Check if assets are already loaded to avoid duplicates
+        if (!scene.cache.audio.exists('place')) {
+            scene.load.audio('place', 'assets/place.wav');
+        }
+        if (!scene.cache.audio.exists('clear')) {
+            scene.load.audio('clear', 'assets/clear.wav');
+        }
+        if (!scene.cache.audio.exists('gameover')) {
+            scene.load.audio('gameover', 'assets/gameover.wav');
+        }
     }
 
     /**

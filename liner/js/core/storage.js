@@ -52,6 +52,20 @@ class StorageManager {
     }
 
     /**
+     * Generic get method for any key
+     */
+    get(key, defaultValue = null) {
+        return this.loadData(key, defaultValue);
+    }
+
+    /**
+     * Generic set method for any key
+     */
+    set(key, value) {
+        return this.saveData(key, value);
+    }
+
+    /**
      * Load complete game state
      */
     loadGameState() {
@@ -298,6 +312,62 @@ class StorageManager {
         }
         this.gameState.progress.puzzles[puzzleId] = true;
         this.saveGameState();
+    }
+
+    /**
+     * Get purchased power-ups
+     */
+    getPowerUps() {
+        return this.gameState.powerUps || {};
+    }
+
+    /**
+     * Check if user owns a power-up
+     */
+    hasPowerUp(powerUpId) {
+        return this.gameState.powerUps?.[powerUpId] || false;
+    }
+
+    /**
+     * Purchase a power-up
+     */
+    purchasePowerUp(powerUpId, cost) {
+        // Check if user has enough coins
+        const currentCoins = this.getCoins();
+        if (currentCoins < cost) {
+            return false;
+        }
+
+        // Deduct coins and add power-up
+        this.setCoins(currentCoins - cost);
+        if (!this.gameState.powerUps) {
+            this.gameState.powerUps = {};
+        }
+        this.gameState.powerUps[powerUpId] = true;
+        this.saveGameState();
+        return true;
+    }
+
+    /**
+     * Get current coins
+     */
+    getCoins() {
+        return this.gameState.coins || 0;
+    }
+
+    /**
+     * Set coins amount
+     */
+    setCoins(amount) {
+        this.gameState.coins = Math.max(0, amount);
+        this.saveGameState();
+    }
+
+    /**
+     * Add coins
+     */
+    addCoins(amount) {
+        this.setCoins(this.getCoins() + amount);
     }
 
     /**

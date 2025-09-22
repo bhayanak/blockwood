@@ -3,10 +3,12 @@ import { GAME_CONFIG } from './core/constants.js';
 import { storage } from './core/storage.js';
 import { audioManager } from './core/audio.js';
 import { themeManager } from './core/themes.js';
+import { LoadingScene } from './scenes/LoadingScene.js';
 import { MenuScene } from './scenes/MenuScene.js';
 import { GameScene } from './scenes/GameScene.js';
 import { PuzzleScene } from './scenes/PuzzleScene.js';
 import { AdventureScene } from './scenes/AdventureScene.js';
+import { performanceManager } from './core/performance.js';
 
 /**
  * BlockQuest Game Class
@@ -29,6 +31,7 @@ class BlockQuestGame {
         const config = {
             ...GAME_CONFIG,
             scene: [
+                LoadingScene,
                 MenuScene,
                 GameScene,
                 PuzzleScene,
@@ -54,6 +57,9 @@ class BlockQuestGame {
         document.addEventListener('visibilitychange', () => {
             this.handleVisibilityChange();
         });
+
+        // Setup performance monitoring (debug mode)
+        this.setupPerformanceMonitoring();
 
         console.log('BlockQuest initialized');
     }
@@ -189,6 +195,105 @@ class BlockQuestGame {
      */
     isInitialized() {
         return this.initialized;
+    }
+
+    /**
+     * Setup performance monitoring
+     */
+    setupPerformanceMonitoring() {
+        this.performanceStats = {
+            fps: 0,
+            memory: 0,
+            showDebug: false
+        };
+
+        // Toggle debug info with F12 key
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'F12') {
+                event.preventDefault();
+                this.togglePerformanceDebug();
+            }
+        });
+
+        // Update performance stats
+        this.updatePerformanceStats();
+    }
+
+    /**
+     * Toggle performance debug display
+     */
+    togglePerformanceDebug() {
+        this.performanceStats.showDebug = !this.performanceStats.showDebug;
+
+        if (this.performanceStats.showDebug) {
+            this.createPerformanceDisplay();
+        } else {
+            this.removePerformanceDisplay();
+        }
+    }
+
+    /**
+     * Create performance display overlay
+     */
+    createPerformanceDisplay() {
+        if (document.getElementById('performance-debug')) return;
+
+        const debugDiv = document.createElement('div');
+        debugDiv.id = 'performance-debug';
+        debugDiv.style.cssText = `
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            border-radius: 5px;
+            z-index: 10000;
+            pointer-events: none;
+        `;
+        document.body.appendChild(debugDiv);
+    }
+
+    /**
+     * Remove performance display
+     */
+    removePerformanceDisplay() {
+        const debugDiv = document.getElementById('performance-debug');
+        if (debugDiv) {
+            debugDiv.remove();
+        }
+    }
+
+    /**
+     * Update performance statistics
+     */
+    updatePerformanceStats() {
+        if (this.game && this.game.loop) {
+            this.performanceStats.fps = Math.round(this.game.loop.actualFps);
+        }
+
+        // Memory usage (if available)
+        if (performance.memory) {
+            this.performanceStats.memory = Math.round(performance.memory.usedJSHeapSize / 1024 / 1024);
+        }
+
+        // Update debug display
+        if (this.performanceStats.showDebug) {
+            const debugDiv = document.getElementById('performance-debug');
+            if (debugDiv) {
+                debugDiv.innerHTML = `
+                    FPS: ${this.performanceStats.fps}<br>
+                    Memory: ${this.performanceStats.memory} MB<br>
+                    Theme: ${themeManager.getCurrentTheme().name}<br>
+                    Audio: ${audioManager.isEnabled() ? 'ON' : 'OFF'}
+                `;
+            }
+        }
+
+        // Schedule next update
+        setTimeout(() => this.updatePerformanceStats(), 1000);
     }
 
     /**

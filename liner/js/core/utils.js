@@ -2,6 +2,15 @@
 import { GRID } from './constants.js';
 
 /**
+ * Convert pixel coordinates to grid position
+ */
+export function pixelToGrid(pixelX, pixelY) {
+    const col = Math.floor((pixelX - GRID.START_X) / (GRID.CELL_SIZE + GRID.MARGIN));
+    const row = Math.floor((pixelY - GRID.START_Y) / (GRID.CELL_SIZE + GRID.MARGIN));
+    return { row: row, col: col };
+}
+
+/**
  * Generate a random integer between min and max (inclusive)
  */
 export function randomInt(min, max) {
@@ -38,40 +47,34 @@ export function getTodaysSeed() {
 /**
  * Convert grid coordinates to pixel coordinates
  */
-export function gridToPixel(gridX, gridY) {
+export function gridToPixel(row, col) {
     return {
-        x: GRID.START_X + gridX * (GRID.CELL_SIZE + GRID.MARGIN),
-        y: GRID.START_Y + gridY * (GRID.CELL_SIZE + GRID.MARGIN)
+        x: GRID.START_X + col * (GRID.CELL_SIZE + GRID.MARGIN),
+        y: GRID.START_Y + row * (GRID.CELL_SIZE + GRID.MARGIN)
     };
 }
 
 /**
  * Convert pixel coordinates to grid coordinates
  */
-export function pixelToGrid(pixelX, pixelY) {
-    const gridX = Math.floor((pixelX - GRID.START_X) / (GRID.CELL_SIZE + GRID.MARGIN));
-    const gridY = Math.floor((pixelY - GRID.START_Y) / (GRID.CELL_SIZE + GRID.MARGIN));
-    return { x: gridX, y: gridY };
-}
-
 /**
  * Check if a position is within grid bounds
  */
-export function isInBounds(x, y) {
-    return x >= 0 && x < GRID.COLS && y >= 0 && y < GRID.ROWS;
+export function isInBounds(col, row) {
+    return col >= 0 && col < GRID.COLS && row >= 0 && row < GRID.ROWS;
 }
 
 /**
  * Check if a shape can be placed at a given position on the grid
  */
-export function canPlaceShape(grid, shape, startX, startY) {
-    for (let y = 0; y < shape.length; y++) {
-        for (let x = 0; x < shape[y].length; x++) {
-            if (shape[y][x] === 1) {
-                const gridX = startX + x;
-                const gridY = startY + y;
+export function canPlaceShape(grid, shape, startRow, startCol) {
+    for (let row = 0; row < shape.length; row++) {
+        for (let col = 0; col < shape[row].length; col++) {
+            if (shape[row][col] === 1) {
+                const gridRow = startRow + row;
+                const gridCol = startCol + col;
                 
-                if (!isInBounds(gridX, gridY) || grid[gridY][gridX] !== 0) {
+                if (!isInBounds(gridCol, gridRow) || grid[gridRow][gridCol] !== 0) {
                     return false;
                 }
             }
@@ -83,18 +86,20 @@ export function canPlaceShape(grid, shape, startX, startY) {
 /**
  * Place a shape on the grid
  */
-export function placeShape(grid, shape, startX, startY, color = 1) {
-    for (let y = 0; y < shape.length; y++) {
-        for (let x = 0; x < shape[y].length; x++) {
-            if (shape[y][x] === 1) {
-                const gridX = startX + x;
-                const gridY = startY + y;
-                if (isInBounds(gridX, gridY)) {
-                    grid[gridY][gridX] = color;
+export function placeShape(grid, shape, startRow, startCol, color = 1) {
+    const newGrid = grid.map(row => [...row]); // Create a copy
+    for (let row = 0; row < shape.length; row++) {
+        for (let col = 0; col < shape[row].length; col++) {
+            if (shape[row][col] === 1) {
+                const gridRow = startRow + row;
+                const gridCol = startCol + col;
+                if (isInBounds(gridCol, gridRow)) {
+                    newGrid[gridRow][gridCol] = color;
                 }
             }
         }
     }
+    return newGrid;
 }
 
 /**
@@ -138,20 +143,29 @@ export function findCompletedLines(grid) {
 /**
  * Clear completed lines from the grid
  */
-export function clearLines(grid, completedRows, completedCols) {
+export function clearLines(grid, completedLines) {
+    // Create a copy of the grid
+    const newGrid = grid.map(row => [...row]);
+
     // Clear rows
-    completedRows.forEach(row => {
-        for (let x = 0; x < GRID.COLS; x++) {
-            grid[row][x] = 0;
-        }
-    });
+    if (completedLines.rows) {
+        completedLines.rows.forEach(row => {
+            for (let x = 0; x < GRID.COLS; x++) {
+                newGrid[row][x] = 0;
+            }
+        });
+    }
     
     // Clear columns
-    completedCols.forEach(col => {
-        for (let y = 0; y < GRID.ROWS; y++) {
-            grid[y][col] = 0;
-        }
-    });
+    if (completedLines.cols) {
+        completedLines.cols.forEach(col => {
+            for (let y = 0; y < GRID.ROWS; y++) {
+                newGrid[y][col] = 0;
+            }
+        });
+    }
+
+    return newGrid;
 }
 
 /**

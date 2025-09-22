@@ -38,6 +38,17 @@ export class GameGrid {
     }
 
     /**
+     * Create method for external initialization (called by scenes)
+     */
+    create() {
+        // Re-initialize if needed or just ensure everything is ready
+        if (!this.gridGraphics) {
+            this.initialize();
+        }
+        this.render();
+    }
+
+    /**
      * Create the grid background and lines
      */
     createGridGraphics() {
@@ -123,7 +134,7 @@ export class GameGrid {
             for (let x = 0; x < GRID.COLS; x++) {
                 const cell = this.grid[y][x];
                 const graphic = this.cellGraphics[y][x];
-                const pos = gridToPixel(x, y);
+                const pos = gridToPixel(y, x);
 
                 graphic.clear();
 
@@ -164,7 +175,7 @@ export class GameGrid {
                     const cellY = gridY + y;
                     
                     if (isInBounds(cellX, cellY)) {
-                        const pos = gridToPixel(cellX, cellY);
+                        const pos = gridToPixel(cellY, cellX);
                         this.highlightGraphics.fillRect(pos.x, pos.y, GRID.CELL_SIZE, GRID.CELL_SIZE);
                         this.highlightGraphics.strokeRect(pos.x, pos.y, GRID.CELL_SIZE, GRID.CELL_SIZE);
                     }
@@ -209,8 +220,8 @@ export class GameGrid {
     /**
      * Convert grid coordinates to pixel coordinates
      */
-    gridToPixel(gridX, gridY) {
-        return gridToPixel(gridX, gridY);
+    gridToPixel(row, col) {
+        return gridToPixel(row, col);
     }
 
     /**
@@ -232,7 +243,7 @@ export class GameGrid {
         await this.animateClearLines(completedRows, completedCols);
         
         // Clear from grid data
-        clearLines(this.grid, completedRows, completedCols);
+        this.grid = clearLines(this.grid, { rows: completedRows, cols: completedCols });
         
         // Re-render
         this.render();
@@ -252,7 +263,7 @@ export class GameGrid {
             
             // Flash completed rows
             completedRows.forEach(row => {
-                const pos = gridToPixel(0, row);
+                const pos = gridToPixel(row, 0);
                 flashGraphics.fillRect(
                     pos.x, 
                     pos.y, 
@@ -263,7 +274,7 @@ export class GameGrid {
 
             // Flash completed columns
             completedCols.forEach(col => {
-                const pos = gridToPixel(col, 0);
+                const pos = gridToPixel(0, col);
                 flashGraphics.fillRect(
                     pos.x, 
                     pos.y, 
@@ -454,5 +465,109 @@ export class GameGrid {
         });
         
         this.cellGraphics = [];
+    }
+
+    /**
+     * Set initial grid state for puzzles
+     */
+    setInitialState(initialGrid) {
+        this.grid = initialGrid.map(row => [...row]);
+        this.render();
+    }
+
+    /**
+     * Get total lines cleared (for tracking)
+     */
+    getTotalLinesCleared() {
+        return this.totalLinesCleared || 0;
+    }
+
+    /**
+     * Check if a shape can be placed anywhere on the grid
+     */
+    canPlaceShape(shape) {
+        for (let row = 0; row < GRID.ROWS; row++) {
+            for (let col = 0; col < GRID.COLS; col++) {
+                if (canPlaceShape(this.grid, shape.pattern, row, col)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Try to place a shape at pixel coordinates
+     */
+    tryPlaceShape(shape, pixelX, pixelY) {
+        const gridPos = pixelToGrid(pixelX, pixelY);
+
+        if (canPlaceShape(this.grid, shape.pattern, gridPos.row, gridPos.col)) {
+            this.grid = placeShape(this.grid, shape.pattern, gridPos.row, gridPos.col, shape.color || 1);
+            this.render();
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Check and clear completed lines, return cleared line info
+     */
+    checkAndClearLines() {
+        const completedLines = findCompletedLines(this.grid);
+
+        if (completedLines.rows.length > 0 || completedLines.cols.length > 0) {
+            this.grid = clearLines(this.grid, completedLines);
+            this.totalLinesCleared = (this.totalLinesCleared || 0) + completedLines.rows.length + completedLines.cols.length;
+            this.render();
+
+            return [...completedLines.rows.map(r => ({ type: 'row', index: r })),
+            ...completedLines.cols.map(c => ({ type: 'col', index: c }))];
+        }
+
+        return [];
+    }
+
+    /**
+     * Show placement preview
+     */
+    showPlacementPreview(shape, pixelX, pixelY) {
+        const gridPos = pixelToGrid(pixelX, pixelY);
+        const canPlace = canPlaceShape(this.grid, shape.pattern, gridPos.row, gridPos.col);
+
+        this.highlightGraphics.clear();
+
+        // Draw preview blocks
+        shape.pattern.forEach((row, rowIndex) => {
+            row.forEach((cell, colIndex) => {
+                if (cell) {
+                    const cellRow = gridPos.row + rowIndex;
+                    const cellCol = gridPos.col + colIndex;
+
+                    if (isInBounds(cellCol, cellRow)) {
+                        const { x, y } = gridToPixel(cellRow, cellCol);
+                        const color = canPlace ? 0x00ff00 : 0xff0000;
+                        const alpha = 0.5;
+
+                        this.highlightGraphics.fillStyle(color, alpha);
+                        this.highlightGraphics.fillRect(
+                            x,
+                            y,
+                            GRID.CELL_SIZE,
+                            GRID.CELL_SIZE
+                        );
+                    }
+                }
+            });
+        });
+    }
+
+    /**
+     * Hide placement preview
+     */
+    hidePlacementPreview() {
+        if (this.highlightGraphics) {
+            this.highlightGraphics.clear();
+        }
     }
 }

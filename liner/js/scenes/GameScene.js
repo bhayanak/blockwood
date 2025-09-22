@@ -3,11 +3,13 @@ import { GAME_MODES, DIFFICULTY, GRID, TRAY, UI } from '../core/constants.js';
 import { storage } from '../core/storage.js';
 import { themeManager } from '../core/themes.js';
 import { audioManager } from '../core/audio.js';
+import { analyticsManager } from '../core/analytics.js';
 import { GameGrid } from '../systems/grid.js';
 import { ShapeGenerator } from '../systems/shapes.js';
 import { ScoringManager } from '../systems/scoring.js';
 import { PowerUpManager } from '../systems/powerups.js';
-import { hasValidMoves, getTodaysSeed } from '../core/utils.js';
+import { DailyChallenge, markDailyCompleted, isDailyCompleted } from '../systems/DailyChallenge.js';
+import { hasValidMoves, getTodaysSeed, pixelToGrid } from '../core/utils.js';
 
 export class GameScene extends Phaser.Scene {
     constructor(config = { key: 'GameScene' }) {
@@ -18,11 +20,14 @@ export class GameScene extends Phaser.Scene {
         this.shapeGenerator = null;
         this.scoringManager = null;
         this.powerUpManager = null;
+        this.dailyChallenge = null;
         this.trayShapes = [];
         this.gameState = 'playing'; // playing, paused, gameover
         this.ui = {};
         this.draggedShape = null;
         this.gameStartTime = 0;
+        this.shapesPlacedCount = 0;
+        this.initialCoins = 0;
     }
 
     init(data) {
@@ -36,9 +41,17 @@ export class GameScene extends Phaser.Scene {
     }
 
     create() {
+        // Initialize analytics for this game
+        analyticsManager.startGame(this.gameMode, this.difficulty);
+
         // Initialize systems
         this.initializeSystems();
         
+        // Initialize game tracking
+        this.gameStartTime = Date.now();
+        this.shapesPlacedCount = 0;
+        this.initialCoins = storage.getCoins();
+
         // Create UI
         this.createUI();
         
@@ -61,8 +74,9 @@ export class GameScene extends Phaser.Scene {
      * Initialize game systems
      */
     initializeSystems() {
-        // Initialize shape generator
+        // Initialize daily challenge if needed
         if (this.gameMode === GAME_MODES.DAILY) {
+            this.dailyChallenge = new DailyChallenge();
             const seed = getTodaysSeed();
             this.shapeGenerator = new ShapeGenerator(this.difficulty, true, seed);
         } else {
@@ -304,9 +318,8 @@ export class GameScene extends Phaser.Scene {
      * Start drag preview
      */
     startDragPreview(shapeGraphic, pointer) {
-        const gridPos = this.gameGrid.pixelToGrid(pointer.x, pointer.y);
-        this.gameGrid.showPlacementHighlight(shapeGraphic.shape, gridPos.x, gridPos.y,
-            this.gameGrid.canPlaceShape(shapeGraphic.shape, gridPos.x, gridPos.y));
+        const gridPos = pixelToGrid(pointer.x, pointer.y);
+        this.gameGrid.showPlacementPreview(shapeGraphic.shape, pointer.x, pointer.y);
     }
 
     /**
@@ -315,10 +328,7 @@ export class GameScene extends Phaser.Scene {
     updateDragPreview(pointer) {
         if (!this.draggedShape) return;
         
-        const gridPos = this.gameGrid.pixelToGrid(pointer.x, pointer.y);
-        const canPlace = this.gameGrid.canPlaceShape(this.draggedShape.shape, gridPos.x, gridPos.y);
-        
-        this.gameGrid.showPlacementHighlight(this.draggedShape.shape, gridPos.x, gridPos.y, canPlace);
+        this.gameGrid.showPlacementPreview(this.draggedShape.shape, pointer.x, pointer.y);
     }
 
     /**
@@ -326,35 +336,45 @@ export class GameScene extends Phaser.Scene {
      */
     endDragPreview(pointer) {
         if (!this.draggedShape) return;
-        
-        const gridPos = this.gameGrid.pixelToGrid(pointer.x, pointer.y);
+
         const shape = this.draggedShape.shape;
         const shapeIndex = this.draggedShape.shapeIndex;
         
-        if (this.gameGrid.canPlaceShape(shape, gridPos.x, gridPos.y)) {
-            // Place shape
-            this.gameGrid.placeShape(shape, gridPos.x, gridPos.y);
-            
+        if (this.gameGrid.tryPlaceShape(shape, pointer.x, pointer.y)) {
+            // Shape was placed successfully
+            this.shapesPlacedCount++;
+
+            // Track analytics for successful placement
+            const gridPos = pixelToGrid(pointer.x, pointer.y);
+            analyticsManager.trackBlockPlacement(shape.type, gridPos, true);
+
             // Remove from tray
             this.trayShapes[shapeIndex] = null;
             this.draggedShape.destroy();
-            
+
             // Play sound
             audioManager.playPlace();
-            
+
             // Check for completed lines
             this.checkCompletedLines();
-            
-            // Check if tray is empty
-            if (this.trayShapes.every(s => s === null)) {
+
+            // Only refill tray after all shapes are placed (for adventure mode)
+            if (
+                (this.gameMode === GAME_MODES.ADVENTURE && this.trayShapes.every(s => s === null)) ||
+                (this.gameMode !== GAME_MODES.ADVENTURE && this.trayShapes.every(s => s === null))
+            ) {
                 this.generateTrayShapes();
             }
-            
+
             // Check for game over
             this.checkGameOver();
+        } else {
+            // Track failed placement attempt
+            const gridPos = pixelToGrid(pointer.x, pointer.y);
+            analyticsManager.trackBlockPlacement(shape.type, gridPos, false);
         }
-        
-        this.gameGrid.hidePlacementHighlight();
+
+        this.gameGrid.hidePlacementPreview();
         this.draggedShape.setDepth(1);
         this.draggedShape = null;
     }
@@ -369,9 +389,18 @@ export class GameScene extends Phaser.Scene {
             // Calculate score
             const result = this.scoringManager.processCompletedLines(rows, cols);
             
+            // Track analytics for line clears
+            const totalLinesCleared = rows.length + cols.length;
+            analyticsManager.trackLineClear(totalLinesCleared, result.combo);
+
             // Award coins
             this.scoringManager.awardCoins(result.coins);
             
+            // Track coin earnings
+            if (result.coins > 0) {
+                analyticsManager.trackCoinsEarned(result.coins, 'line_clear');
+            }
+
             // Clear lines with animation
             this.gameGrid.clearCompletedLines(rows, cols);
             
@@ -403,6 +432,10 @@ export class GameScene extends Phaser.Scene {
     gameOver() {
         this.gameState = 'gameover';
         
+        // Track analytics for game end
+        const finalScore = this.scoringManager.currentScore;
+        analyticsManager.endGame(finalScore, false); // false = not completed, game over
+
         // Play game over sound
         audioManager.playGameOver();
         
@@ -423,42 +456,210 @@ export class GameScene extends Phaser.Scene {
         const centerY = this.cameras.main.centerY;
         const theme = themeManager.getCurrentTheme();
         
-        // Background overlay
-        const overlay = this.add.rectangle(centerX, centerY, 400, 600, 0x000000, 0.8);
+        // Background overlay with fade-in effect
+        const overlay = this.add.rectangle(centerX, centerY, 400, 600, 0x000000, 0.9);
+        overlay.setAlpha(0);
+        this.tweens.add({
+            targets: overlay,
+            alpha: 0.9,
+            duration: 300,
+            ease: 'Power2'
+        });
+
+        // Main panel
+        const panel = this.add.rectangle(centerX, centerY, 350, 480, 0x1a1a1a)
+            .setStrokeStyle(2, theme.primary);
+        panel.setAlpha(0);
+        this.tweens.add({
+            targets: panel,
+            alpha: 1,
+            duration: 400,
+            delay: 200,
+            ease: 'Back'
+        });
+
+        // Game Over text with animation
+        const gameOverText = this.add.text(centerX, centerY - 180, 'GAME OVER', {
+            fontSize: '28px', fontFamily: 'Arial', color: theme.primary, fontStyle: 'bold'
+        }).setOrigin(0.5);
+        gameOverText.setScale(0);
+        this.tweens.add({
+            targets: gameOverText,
+            scaleX: 1,
+            scaleY: 1,
+            duration: 500,
+            delay: 400,
+            ease: 'Bounce'
+        });
         
-        // Game Over text
-        const gameOverText = this.add.text(centerX, centerY - 100, 'GAME OVER', {
-            fontSize: '24px', fontFamily: 'Arial', color: theme.primary, fontStyle: 'bold'
+        // Score display with enhanced formatting
+        const score = this.scoringManager.currentScore;
+        const scoreText = this.add.text(centerX, centerY - 140, `Final Score`, {
+            fontSize: '16px', fontFamily: 'Arial', color: theme.textSecondary
         }).setOrigin(0.5);
         
-        // Score display
-        const score = this.scoringManager.getCurrentScore();
-        const scoreText = this.add.text(centerX, centerY - 50, `Final Score: ${score.toLocaleString()}`, {
-            fontSize: '18px', fontFamily: 'Arial', color: theme.text
+        const scoreValue = this.add.text(centerX, centerY - 120, score.toLocaleString(), {
+            fontSize: '24px', fontFamily: 'Arial', color: theme.accent, fontStyle: 'bold'
         }).setOrigin(0.5);
         
-        // High score indicator
+        // High score indicator with celebration effect
         if (isNewHighScore) {
-            const newHighText = this.add.text(centerX, centerY - 20, '🎉 NEW HIGH SCORE! 🎉', {
-                fontSize: '16px', fontFamily: 'Arial', color: theme.accent, fontStyle: 'bold'
+            const newHighText = this.add.text(centerX, centerY - 90, '🎉 NEW HIGH SCORE! 🎉', {
+                fontSize: '16px', fontFamily: 'Arial', color: '#FFD700', fontStyle: 'bold'
             }).setOrigin(0.5);
+
+            // Pulsing animation for high score
+            this.tweens.add({
+                targets: newHighText,
+                scaleX: 1.1,
+                scaleY: 1.1,
+                duration: 600,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.easeInOut'
+            });
         }
         
-        // Statistics
-        const stats = this.scoringManager.getStatistics();
-        const statsText = this.add.text(centerX, centerY + 20, 
-            `Lines Cleared: ${stats.totalLinesCleared}\nMax Combo: ${stats.maxCombo}`, {
-            fontSize: '14px', fontFamily: 'Arial', color: theme.textSecondary, align: 'center'
+        // Enhanced statistics panel
+        const stats = this.getGameStatistics();
+        const statsY = centerY - 50;
+
+        this.add.text(centerX, statsY, 'Game Statistics', {
+            fontSize: '16px', fontFamily: 'Arial', color: theme.text, fontStyle: 'bold'
         }).setOrigin(0.5);
+
+        // Statistics in a nice grid format
+        const statLines = [
+            `Lines Cleared: ${stats.linesCleared}`,
+            `Max Combo: ${stats.maxCombo}`,
+            `Shapes Placed: ${stats.shapesPlaced}`,
+            `Play Time: ${this.formatTime(stats.playTime)}`,
+            `Coins Earned: ${stats.coinsEarned}`
+        ];
+
+        statLines.forEach((line, index) => {
+            this.add.text(centerX, statsY + 25 + (index * 18), line, {
+                fontSize: '12px', fontFamily: 'Arial', color: theme.textSecondary
+            }).setOrigin(0.5);
+        });
+
+        // Performance rating
+        const rating = this.calculatePerformanceRating(score, stats);
+        this.add.text(centerX, centerY + 50, `Performance: ${rating}`, {
+            fontSize: '14px', fontFamily: 'Arial', color: theme.accent, fontStyle: 'bold'
+        }).setOrigin(0.5);
+
+        // Daily challenge completion handling
+        if (this.gameMode === GAME_MODES.DAILY && this.dailyChallenge) {
+            this.dailyChallenge.completeChallenge(score, stats);
+            const rewards = this.dailyChallenge.getRewards();
+
+            if (rewards) {
+                // Daily challenge completion text
+                this.add.text(centerX, centerY + 75, '📅 Daily Challenge Complete!', {
+                    fontSize: '14px', fontFamily: 'Arial', color: '#4CAF50', fontStyle: 'bold'
+                }).setOrigin(0.5);
+
+                // Rewards display
+                this.add.text(centerX, centerY + 95, `+${rewards.coins} coins earned`, {
+                    fontSize: '12px', fontFamily: 'Arial', color: theme.accent
+                }).setOrigin(0.5);
+
+                if (rewards.streakBonus > 0) {
+                    this.add.text(centerX, centerY + 110, `Streak Bonus: +${rewards.streakBonus}`, {
+                        fontSize: '10px', fontFamily: 'Arial', color: '#FFD700'
+                    }).setOrigin(0.5);
+                }
+
+                // Award the coins
+                storage.addCoins(rewards.coins);
+            }
+        }
+
+        // Buttons with adjusted spacing for daily challenge content
+        const buttonY = this.gameMode === GAME_MODES.DAILY ? centerY + 135 : centerY + 100;
+        const shareButtonY = this.gameMode === GAME_MODES.DAILY ? centerY + 180 : centerY + 145;
         
-        // Buttons
-        const playAgainButton = this.createButton(centerX - 70, centerY + 80, 120, 40, 'Play Again', () => {
+        const playAgainButton = this.createButton(centerX - 80, buttonY, 140, 35, 'Play Again', () => {
             this.scene.restart();
         });
         
-        const menuButton = this.createButton(centerX + 70, centerY + 80, 120, 40, 'Main Menu', () => {
+        const menuButton = this.createButton(centerX + 80, buttonY, 140, 35, 'Main Menu', () => {
             this.returnToMenu();
         });
+
+        // Share button (future feature)
+        const shareButton = this.createButton(centerX, shareButtonY, 140, 30, 'Share Score', () => {
+            this.shareScore(score, stats);
+        });
+    }
+
+    /**
+     * Get comprehensive game statistics
+     */
+    getGameStatistics() {
+        const playTime = Date.now() - this.gameStartTime;
+        const coinsEarned = storage.getCoins() - this.initialCoins;
+
+        return {
+            linesCleared: this.scoringManager.totalLinesCleared || 0,
+            maxCombo: this.scoringManager.maxCombo || 0,
+            shapesPlaced: this.shapesPlacedCount || 0,
+            playTime: playTime,
+            coinsEarned: Math.max(0, coinsEarned)
+        };
+    }
+
+    /**
+     * Format time in mm:ss format
+     */
+    formatTime(milliseconds) {
+        const seconds = Math.floor(milliseconds / 1000);
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+        return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+    }
+
+    /**
+     * Calculate performance rating based on score and stats
+     */
+    calculatePerformanceRating(score, stats) {
+        const ratings = ['Novice', 'Beginner', 'Intermediate', 'Advanced', 'Expert', 'Master'];
+
+        // Simple rating calculation based on score and efficiency
+        let ratingIndex = 0;
+        if (score > 1000) ratingIndex = 1;
+        if (score > 2500) ratingIndex = 2;
+        if (score > 5000) ratingIndex = 3;
+        if (score > 10000) ratingIndex = 4;
+        if (score > 20000) ratingIndex = 5;
+
+        // Bonus for efficiency (high combo, many lines cleared)
+        if (stats.maxCombo > 3) ratingIndex = Math.min(5, ratingIndex + 1);
+        if (stats.linesCleared > 20) ratingIndex = Math.min(5, ratingIndex + 1);
+
+        return ratings[ratingIndex];
+    }
+
+    /**
+     * Share score functionality (placeholder for future social features)
+     */
+    shareScore(score, stats) {
+        const shareText = `I just scored ${score.toLocaleString()} points in BlockQuest! 🎮\nLines cleared: ${stats.linesCleared}, Max combo: ${stats.maxCombo}\nCan you beat my score?`;
+
+        if (navigator.share) {
+            navigator.share({
+                title: 'BlockQuest High Score',
+                text: shareText,
+                url: window.location.href
+            });
+        } else {
+            // Fallback: copy to clipboard
+            navigator.clipboard.writeText(shareText).then(() => {
+                console.log('Score copied to clipboard!');
+                // Could show a toast message here
+            });
+        }
     }
 
     /**
@@ -468,6 +669,10 @@ export class GameScene extends Phaser.Scene {
         const result = this.powerUpManager.usePowerUp(powerUpType, this.scoringManager.getCurrentScore());
         
         if (result.success) {
+            // Track analytics for power-up usage
+            const cost = result.scoreCost || 0;
+            analyticsManager.trackPowerUpUsage(powerUpType, cost);
+
             // Deduct score cost if in endless mode
             if (result.scoreCost && this.gameMode === GAME_MODES.ENDLESS) {
                 // This would need to be handled by the scoring system
@@ -605,6 +810,12 @@ export class GameScene extends Phaser.Scene {
      * Return to main menu
      */
     returnToMenu() {
+        // End analytics tracking if game is still active
+        if (this.gameState === 'playing') {
+            const finalScore = this.scoringManager.currentScore;
+            analyticsManager.endGame(finalScore, false); // Player quit
+        }
+
         this.scene.start('MenuScene');
     }
 
