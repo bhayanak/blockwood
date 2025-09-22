@@ -1,10 +1,10 @@
 // Grid system for the game board
 import { GRID } from '../core/constants.js';
-import { 
-    gridToPixel, 
-    pixelToGrid, 
-    isInBounds, 
-    canPlaceShape, 
+import {
+    gridToPixel,
+    pixelToGrid,
+    isInBounds,
+    canPlaceShape,
     placeShape,
     findCompletedLines,
     clearLines,
@@ -23,7 +23,7 @@ export class GameGrid {
         this.cellGraphics = [];
         this.highlightGraphics = null;
         this.animationTweens = [];
-        
+
         this.initialize();
     }
 
@@ -88,7 +88,7 @@ export class GameGrid {
         const colors = themeManager.getPhaserColors();
 
         this.gridGraphics.clear();
-        
+
         // Draw grid background
         this.gridGraphics.fillStyle(colors.gridBackground);
         this.gridGraphics.fillRect(
@@ -100,14 +100,14 @@ export class GameGrid {
 
         // Draw grid lines
         this.gridGraphics.lineStyle(1, colors.gridLines, 0.3);
-        
+
         // Vertical lines
         for (let x = 0; x <= GRID.COLS; x++) {
             const pixelX = GRID.START_X + x * (GRID.CELL_SIZE + GRID.MARGIN) - GRID.MARGIN / 2;
             this.gridGraphics.lineBetween(
-                pixelX, 
+                pixelX,
                 GRID.START_Y - GRID.MARGIN,
-                pixelX, 
+                pixelX,
                 GRID.START_Y + GRID.ROWS * (GRID.CELL_SIZE + GRID.MARGIN)
             );
         }
@@ -129,7 +129,7 @@ export class GameGrid {
      */
     render() {
         const colors = themeManager.getPhaserColors();
-        
+
         for (let y = 0; y < GRID.ROWS; y++) {
             for (let x = 0; x < GRID.COLS; x++) {
                 const cell = this.grid[y][x];
@@ -168,7 +168,7 @@ export class GameGrid {
                 if (shape.pattern[y][x] === 1) {
                     const cellX = gridX + x;
                     const cellY = gridY + y;
-                    
+
                     if (isInBounds(cellX, cellY)) {
                         const pos = gridToPixel(cellY, cellX);
                         this.highlightGraphics.fillRect(pos.x, pos.y, GRID.CELL_SIZE, GRID.CELL_SIZE);
@@ -236,10 +236,10 @@ export class GameGrid {
 
         // Animate clearing
         await this.animateClearLines(completedRows, completedCols);
-        
+
         // Clear from grid data
         this.grid = clearLines(this.grid, { rows: completedRows, cols: completedCols });
-        
+
         // Re-render
         this.render();
     }
@@ -255,14 +255,14 @@ export class GameGrid {
 
             // Flash effect
             flashGraphics.fillStyle(0xFFFFFF, 0.8);
-            
+
             // Flash completed rows
             completedRows.forEach(row => {
                 const pos = gridToPixel(row, 0);
                 flashGraphics.fillRect(
-                    pos.x, 
-                    pos.y, 
-                    GRID.COLS * (GRID.CELL_SIZE + GRID.MARGIN) - GRID.MARGIN, 
+                    pos.x,
+                    pos.y,
+                    GRID.COLS * (GRID.CELL_SIZE + GRID.MARGIN) - GRID.MARGIN,
                     GRID.CELL_SIZE
                 );
             });
@@ -271,9 +271,9 @@ export class GameGrid {
             completedCols.forEach(col => {
                 const pos = gridToPixel(0, col);
                 flashGraphics.fillRect(
-                    pos.x, 
-                    pos.y, 
-                    GRID.CELL_SIZE, 
+                    pos.x,
+                    pos.y,
+                    GRID.CELL_SIZE,
                     GRID.ROWS * (GRID.CELL_SIZE + GRID.MARGIN) - GRID.MARGIN
                 );
             });
@@ -386,7 +386,7 @@ export class GameGrid {
      */
     animateShapePlacement(shape, gridX, gridY) {
         const positions = [];
-        
+
         for (let y = 0; y < shape.height; y++) {
             for (let x = 0; x < shape.width; x++) {
                 if (shape.pattern[y][x] === 1) {
@@ -403,7 +403,7 @@ export class GameGrid {
         positions.forEach((pos, index) => {
             const graphic = this.cellGraphics[pos.y][pos.x];
             graphic.setAlpha(0);
-            
+
             this.scene.tweens.add({
                 targets: graphic,
                 alpha: 1,
@@ -445,7 +445,7 @@ export class GameGrid {
         if (this.gridGraphics) {
             this.gridGraphics.destroy();
         }
-        
+
         if (this.highlightGraphics) {
             this.highlightGraphics.destroy();
         }
@@ -458,7 +458,7 @@ export class GameGrid {
                 }
             });
         });
-        
+
         this.cellGraphics = [];
     }
 
@@ -571,7 +571,7 @@ export class GameGrid {
      */
     draw3DBlock(graphic, x, y, size, baseColor) {
         const depth = 4; // 3D depth
-        
+
         // Convert color to integer - handle both hex strings and numbers
         let colorInt;
         if (typeof baseColor === 'string') {
@@ -579,16 +579,16 @@ export class GameGrid {
         } else {
             colorInt = baseColor;
         }
-        
+
         // Create lighter shade for highlight (top/left faces)
         const lightColor = this.lightenColor(colorInt, 0.3);
         // Create darker shade for shadow (bottom/right faces)
         const darkColor = this.darkenColor(colorInt, 0.3);
-        
+
         // Draw main face (front)
         graphic.fillStyle(baseColor);
         graphic.fillRect(x, y, size, size);
-        
+
         // Draw top face (3D effect)
         graphic.fillStyle(lightColor);
         graphic.beginPath();
@@ -598,7 +598,7 @@ export class GameGrid {
         graphic.lineTo(x + size, y);
         graphic.closePath();
         graphic.fillPath();
-        
+
         // Draw right face (3D effect)
         graphic.fillStyle(darkColor);
         graphic.beginPath();
@@ -608,11 +608,11 @@ export class GameGrid {
         graphic.lineTo(x + size, y + size);
         graphic.closePath();
         graphic.fillPath();
-        
+
         // Add subtle highlight on main face
         graphic.fillStyle(lightColor, 0.3);
         graphic.fillRect(x + 2, y + 2, size * 0.3, size * 0.3);
-        
+
         // Add border to main face
         graphic.lineStyle(1, darkColor, 0.8);
         graphic.strokeRect(x, y, size, size);

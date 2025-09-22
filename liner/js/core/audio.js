@@ -45,19 +45,19 @@ class AudioManager {
         }
 
         console.log('🔊 Creating audio sounds...');
-        
+
         this.sounds = {
             place: this.scene.sound.add('place', { volume: this.sfxVolume * this.masterVolume }),
             clear: this.scene.sound.add('clear', { volume: this.sfxVolume * this.masterVolume }),
             gameover: this.scene.sound.add('gameover', { volume: this.sfxVolume * this.masterVolume }),
             combo: this.scene.sound.add('combo', { volume: this.sfxVolume * this.masterVolume }),
             hover: this.scene.sound.add('hover', { volume: this.sfxVolume * this.masterVolume }),
-            bgmusic: this.scene.sound.add('bgmusic', { 
+            bgmusic: this.scene.sound.add('bgmusic', {
                 volume: (this.masterVolume * 0.3), // Lower volume for bg music
-                loop: true 
+                loop: true
             })
         };
-        
+
         console.log('✅ Audio sounds created:', Object.keys(this.sounds));
         console.log('🎵 Background music loaded:', !!this.sounds.bgmusic);
     }
@@ -130,17 +130,17 @@ class AudioManager {
         console.log('🎵 Attempting to start background music...');
         console.log('Audio enabled:', this.enabled);
         console.log('Background music sound exists:', !!this.sounds.bgmusic);
-        
+
         if (!this.enabled) {
             console.log('❌ Audio is disabled - not starting music');
             return;
         }
-        
+
         if (!this.sounds.bgmusic) {
             console.log('❌ Background music sound not loaded');
             return;
         }
-        
+
         if (!this.sounds.bgmusic.isPlaying) {
             try {
                 console.log('▶️ Starting background music...');
@@ -169,11 +169,11 @@ class AudioManager {
     toggle() {
         this.enabled = !this.enabled;
         storage.setAudioEnabled(this.enabled);
-        
+
         if (!this.enabled) {
             this.stopAll();
         }
-        
+
         return this.enabled;
     }
 
@@ -289,13 +289,13 @@ class AudioManager {
     initializeSounds(scene) {
         this.scene = scene;
         this.initialized = true;
-        
+
         // Check if assets are actually loaded before creating sounds
         console.log('🔊 Initializing audio system...');
         console.log('Scene exists:', !!scene);
         console.log('Audio cache - bgmusic:', scene.cache.audio.exists('bgmusic'));
         console.log('Audio cache - place:', scene.cache.audio.exists('place'));
-        
+
         if (scene.cache.audio.exists('bgmusic') && scene.cache.audio.exists('place')) {
             this.createSounds();
         } else {

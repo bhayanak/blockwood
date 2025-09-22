@@ -14,12 +14,14 @@ export class MenuScene extends Phaser.Scene {
         this.menuElements = {};
         this.animationTweens = [];
         this.musicStarted = false;
+        this.currentShopCategory = 'all'; // Initialize shop category
+        this.difficultyButtons = []; // Track all difficulty buttons
     }
 
     preload() {
         // Load audio assets properly
         console.log('📥 Preloading audio assets...');
-        
+
         // Load audio files directly in preload
         this.load.audio('place', 'assets/place.wav');
         this.load.audio('clear', 'assets/clear.wav');
@@ -27,7 +29,7 @@ export class MenuScene extends Phaser.Scene {
         this.load.audio('combo', 'assets/combo.wav');
         this.load.audio('hover', 'assets/hover.wav');
         this.load.audio('bgmusic', 'assets/sfx.wav');
-        
+
         // Logo is already loaded in LoadingScene
         // this.load.image('logo', 'assets/logo.png');
     }
@@ -40,24 +42,24 @@ export class MenuScene extends Phaser.Scene {
         audioManager.scene = this;
         audioManager.initialized = true;
         audioManager.createSounds();
-        
+
         // Don't start background music automatically (Chrome AudioContext restriction)
         // Music will start on first user interaction
-        
+
         // Apply current theme with gradient background
         this.createGradientBackground();
         const colors = themeManager.getPhaserColors();
-        
+
         // Create UI elements
         this.createTitle();
         this.createMainMenu();
         this.createSettingsPanel();
         this.createStatisticsPanel();
         this.createPowerUpShop();
-        
+
         // Set up input handlers
         this.setupInputHandlers();
-        
+
         // Start title animation
         this.startTitleAnimation();
     }
@@ -68,18 +70,18 @@ export class MenuScene extends Phaser.Scene {
     createTitle() {
         const centerX = this.cameras.main.centerX;
         const theme = themeManager.getCurrentTheme();
-        
+
         // Background glow effect
         const glow = this.add.graphics();
         glow.fillGradientStyle(0x000000, 0x000000, theme.primary, theme.secondary, 0.3);
         glow.fillRect(0, 0, this.cameras.main.width, 200);
-        
+
         // Logo with animation - smaller and positioned above title
         if (this.textures.exists('logo')) {
             this.menuElements.logo = this.add.image(centerX, 65, 'logo');
             this.menuElements.logo.setScale(0.3); // Much smaller logo
             this.menuElements.logo.setTint(parseInt(theme.accent.replace('#', '0x')));
-            
+
             // Gentle logo floating animation
             this.tweens.add({
                 targets: this.menuElements.logo,
@@ -90,7 +92,7 @@ export class MenuScene extends Phaser.Scene {
                 repeat: -1
             });
         }
-        
+
         // Title with gradient effect - moved up closer to logo
         this.menuElements.title = this.add.text(centerX, 105, 'BLOCK PUZZLE', {
             fontSize: '42px',
@@ -108,7 +110,7 @@ export class MenuScene extends Phaser.Scene {
             }
         });
         this.menuElements.title.setOrigin(0.5);
-        
+
         // Title pulse animation
         this.tweens.add({
             targets: this.menuElements.title,
@@ -118,7 +120,7 @@ export class MenuScene extends Phaser.Scene {
             yoyo: true,
             repeat: -1
         });
-        
+
         // Animated subtitle
         this.menuElements.subtitle = this.add.text(centerX, 165, '🎮 Epic Puzzle Adventure 🎮', {
             fontSize: '16px',
@@ -127,7 +129,7 @@ export class MenuScene extends Phaser.Scene {
             fontStyle: 'bold'
         });
         this.menuElements.subtitle.setOrigin(0.5);
-        
+
         // Subtitle typing effect
         this.tweens.add({
             targets: this.menuElements.subtitle,
@@ -147,7 +149,7 @@ export class MenuScene extends Phaser.Scene {
         const startY = 220;
         const buttonHeight = 45;
         const buttonSpacing = 10;
-        
+
         // Game mode buttons with better layout and colors
         const modes = [
             { key: GAME_MODES.NORMAL, label: '🎮 CLASSIC', color: '#4CAF50' },
@@ -159,13 +161,13 @@ export class MenuScene extends Phaser.Scene {
         ];
 
         this.menuElements.modeButtons = [];
-        
+
         modes.forEach((mode, index) => {
             const row = Math.floor(index / 2);
             const col = index % 2;
             const x = centerX + (col === 0 ? -100 : 100);
             const y = startY + row * (buttonHeight + buttonSpacing);
-            
+
             let buttonLabel = mode.label;
 
             // Special handling for daily challenge
@@ -179,17 +181,17 @@ export class MenuScene extends Phaser.Scene {
             const button = this.createMenuButton(x, y, 190, buttonHeight, buttonLabel, () => {
                 this.selectGameMode(mode.key);
             });
-            
+
             this.menuElements.modeButtons.push({ button });
         });
 
         // Settings and stats buttons
         const bottomY = startY + Math.ceil(modes.length / 2) * (buttonHeight + buttonSpacing) + 30;
-        
+
         this.menuElements.settingsButton = this.createMenuButton(
             centerX - 70, bottomY, 120, 40, '⚙️ SETTINGS', () => this.showSettings()
         );
-        
+
         this.menuElements.statsButton = this.createMenuButton(
             centerX + 70, bottomY, 120, 40, '📊 STATS', () => this.showStatistics()
         );
@@ -206,10 +208,10 @@ export class MenuScene extends Phaser.Scene {
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
         const theme = themeManager.getCurrentTheme();
-        
+
         // Create gradient background with multiple colors
         const bg = this.add.graphics();
-        
+
         // Create multi-stop gradient
         bg.fillGradientStyle(
             parseInt(theme.primary.replace('#', ''), 16),      // Top-left
@@ -218,9 +220,9 @@ export class MenuScene extends Phaser.Scene {
             parseInt(theme.background.replace('#', ''), 16),   // Bottom-right
             1.0  // Full opacity
         );
-        
+
         bg.fillRect(0, 0, width, height);
-        
+
         // Add some sparkle with smaller gradient overlays
         const overlay = this.add.graphics();
         overlay.fillGradientStyle(
@@ -231,7 +233,7 @@ export class MenuScene extends Phaser.Scene {
             0.3  // Semi-transparent
         );
         overlay.fillRect(0, 0, width, height);
-        
+
         // Send backgrounds to back
         bg.setDepth(-1000);
         overlay.setDepth(-999);
@@ -242,10 +244,11 @@ export class MenuScene extends Phaser.Scene {
      */
     createDifficultyToggle(x, y) {
         this.menuElements.difficultyButton = this.createMenuButton(
-            x, y, 120, 35, 
+            x, y, 120, 35,
             this.selectedDifficulty === 'easy' ? '😊 EASY' : '😈 HARD',
             () => this.toggleDifficulty()
         );
+        this.difficultyButtons.push(this.menuElements.difficultyButton);
     }
 
     /**
@@ -270,15 +273,15 @@ export class MenuScene extends Phaser.Scene {
         // Initially hidden
         this.menuElements.settingsPanel = this.add.container(0, 0);
         this.menuElements.settingsPanel.setVisible(false);
-        
+
         const centerX = this.cameras.main.centerX;
         const centerY = this.cameras.main.centerY;
         const theme = themeManager.getCurrentTheme();
-        
+
         // Responsive background - fit screen better
         const panelWidth = Math.min(400, this.cameras.main.width - 40);
         const panelHeight = Math.min(500, this.cameras.main.height - 80);
-        
+
         // Background with gradient effect
         const bg = this.add.graphics();
         bg.fillGradientStyle(
@@ -288,13 +291,13 @@ export class MenuScene extends Phaser.Scene {
             parseInt(theme.gridBackground.replace('#', ''), 16),
             0.95
         );
-        bg.fillRoundedRect(centerX - panelWidth/2, centerY - panelHeight/2, panelWidth, panelHeight, 15);
+        bg.fillRoundedRect(centerX - panelWidth / 2, centerY - panelHeight / 2, panelWidth, panelHeight, 15);
         bg.lineStyle(3, parseInt(theme.primary.replace('#', ''), 16), 1);
-        bg.strokeRoundedRect(centerX - panelWidth/2, centerY - panelHeight/2, panelWidth, panelHeight, 15);
+        bg.strokeRoundedRect(centerX - panelWidth / 2, centerY - panelHeight / 2, panelWidth, panelHeight, 15);
         this.menuElements.settingsPanel.add(bg);
-        
+
         // Main title with better styling
-        const title = this.add.text(centerX, centerY - panelHeight/2 + 30, '⚙️ SETTINGS', {
+        const title = this.add.text(centerX, centerY - panelHeight / 2 + 30, '⚙️ SETTINGS', {
             fontSize: '28px',
             fontFamily: 'Arial Black, sans-serif',
             color: theme.primary,
@@ -317,7 +320,7 @@ export class MenuScene extends Phaser.Scene {
 
         // Back button - positioned better
         this.menuElements.closeSettingsButton = this.createMenuButton(
-            centerX, centerY + panelHeight/2 - 30, 140, 40,
+            centerX, centerY + panelHeight / 2 - 30, 140, 40,
             '⬅️ BACK',
             () => this.hideSettings()
         );
@@ -466,12 +469,13 @@ export class MenuScene extends Phaser.Scene {
         // Difficulty preference
         const difficulty = storage.get('difficulty', 'easy');
         this.selectedDifficulty = difficulty;
-        this.menuElements.difficultyButton = this.createMenuButton(
+        this.menuElements.settingsDifficultyButton = this.createMenuButton(
             centerX + 80, startY + 30, 140, 30,
             difficulty === 'easy' ? '😊 EASY' : '😈 HARD',
             () => this.toggleDifficulty()
         );
-        this.menuElements.settingsContent.add(this.menuElements.difficultyButton);
+        this.difficultyButtons.push(this.menuElements.settingsDifficultyButton);
+        this.menuElements.settingsContent.add(this.menuElements.settingsDifficultyButton);
     }
 
     /**
@@ -553,15 +557,15 @@ export class MenuScene extends Phaser.Scene {
         // Initially hidden
         this.menuElements.statsPanel = this.add.container(0, 0);
         this.menuElements.statsPanel.setVisible(false);
-        
+
         const centerX = this.cameras.main.centerX;
         const centerY = this.cameras.main.centerY;
         const theme = themeManager.getCurrentTheme();
-        
+
         // Responsive background - fit screen better with proper margins
         const panelWidth = Math.min(420, this.cameras.main.width - 60);
         const panelHeight = Math.min(550, this.cameras.main.height - 120);
-        
+
         // Background with gradient effect
         const bg = this.add.graphics();
         bg.fillGradientStyle(
@@ -571,13 +575,13 @@ export class MenuScene extends Phaser.Scene {
             parseInt(theme.gridBackground.replace('#', ''), 16),
             0.95
         );
-        bg.fillRoundedRect(centerX - panelWidth/2, centerY - panelHeight/2, panelWidth, panelHeight, 15);
+        bg.fillRoundedRect(centerX - panelWidth / 2, centerY - panelHeight / 2, panelWidth, panelHeight, 15);
         bg.lineStyle(3, parseInt(theme.secondary.replace('#', ''), 16), 1);
-        bg.strokeRoundedRect(centerX - panelWidth/2, centerY - panelHeight/2, panelWidth, panelHeight, 15);
+        bg.strokeRoundedRect(centerX - panelWidth / 2, centerY - panelHeight / 2, panelWidth, panelHeight, 15);
         this.menuElements.statsPanel.add(bg);
-        
+
         // Main title with better styling
-        const title = this.add.text(centerX, centerY - panelHeight/2 + 30, '📊 STATISTICS', {
+        const title = this.add.text(centerX, centerY - panelHeight / 2 + 30, '📊 STATISTICS', {
             fontSize: '28px',
             fontFamily: 'Arial Black, sans-serif',
             color: theme.secondary,
@@ -589,31 +593,31 @@ export class MenuScene extends Phaser.Scene {
         this.menuElements.statsPanel.add(title);
 
         // Create tabs for different stat categories
-        this.createStatisticsTabs(centerX, centerY - panelHeight/2 + 80);
+        this.createStatisticsTabs(centerX, centerY - panelHeight / 2 + 80);
 
         // Stats content container with proper clipping
         this.menuElements.statsContent = this.add.container(0, 0);
-        
+
         // Create a mask to clip content within panel bounds
         const maskShape = this.add.graphics();
         maskShape.fillRect(
-            centerX - panelWidth/2 + 10, 
-            centerY - panelHeight/2 + 90, 
-            panelWidth - 20, 
+            centerX - panelWidth / 2 + 10,
+            centerY - panelHeight / 2 + 90,
+            panelWidth - 20,
             panelHeight - 140
         );
         const mask = maskShape.createGeometryMask();
         this.menuElements.statsContent.setMask(mask);
-        
+
         this.menuElements.statsPanel.add(this.menuElements.statsContent);
 
         // Default to overview tab
         this.currentStatsTab = 'overview';
         this.updateStatisticsContent();
-        
+
         // Back button - positioned better
         this.menuElements.closeStatsButton = this.createMenuButton(
-            centerX, centerY + panelHeight/2 - 30, 140, 40,
+            centerX, centerY + panelHeight / 2 - 30, 140, 40,
             '⬅️ BACK',
             () => this.hideStatistics()
         );
@@ -688,7 +692,7 @@ export class MenuScene extends Phaser.Scene {
             });
             this.menuElements.statsTabs = [];
         }
-        
+
         // Clear any existing highlights
         if (this.menuElements.statsHighlights) {
             this.menuElements.statsHighlights.forEach(highlight => {
@@ -707,7 +711,7 @@ export class MenuScene extends Phaser.Scene {
         const centerY = this.cameras.main.centerY;
         // Use proper positioning relative to panel
         const panelHeight = Math.min(550, this.cameras.main.height - 120);
-        this.createStatisticsTabs(centerX, centerY - panelHeight/2 + 80);
+        this.createStatisticsTabs(centerX, centerY - panelHeight / 2 + 80);
     }
 
     /**
@@ -717,15 +721,15 @@ export class MenuScene extends Phaser.Scene {
         // Initially hidden
         this.menuElements.shopPanel = this.add.container(0, 0);
         this.menuElements.shopPanel.setVisible(false);
-        
+
         const centerX = this.cameras.main.centerX;
         const centerY = this.cameras.main.centerY;
         const theme = themeManager.getCurrentTheme();
-        
+
         // Responsive background - fit screen better with proper margins
         const panelWidth = Math.min(450, this.cameras.main.width - 60);
         const panelHeight = Math.min(600, this.cameras.main.height - 120);
-        
+
         // Background with gradient effect
         const bg = this.add.graphics();
         bg.fillGradientStyle(
@@ -735,13 +739,13 @@ export class MenuScene extends Phaser.Scene {
             parseInt(theme.gridBackground.replace('#', ''), 16),
             0.95
         );
-        bg.fillRoundedRect(centerX - panelWidth/2, centerY - panelHeight/2, panelWidth, panelHeight, 15);
+        bg.fillRoundedRect(centerX - panelWidth / 2, centerY - panelHeight / 2, panelWidth, panelHeight, 15);
         bg.lineStyle(3, parseInt(theme.accent.replace('#', ''), 16), 1);
-        bg.strokeRoundedRect(centerX - panelWidth/2, centerY - panelHeight/2, panelWidth, panelHeight, 15);
+        bg.strokeRoundedRect(centerX - panelWidth / 2, centerY - panelHeight / 2, panelWidth, panelHeight, 15);
         this.menuElements.shopPanel.add(bg);
-        
+
         // Title with better styling
-        const title = this.add.text(centerX, centerY - panelHeight/2 + 30, '🛒 POWER-UP SHOP', {
+        const title = this.add.text(centerX, centerY - panelHeight / 2 + 30, '🛒 POWER-UP SHOP', {
             fontSize: '26px',
             fontFamily: 'Arial Black, sans-serif',
             color: theme.accent,
@@ -751,7 +755,7 @@ export class MenuScene extends Phaser.Scene {
         });
         title.setOrigin(0.5);
         this.menuElements.shopPanel.add(title);
-        
+
         // Coins display with enhanced styling
         const coins = storage.getCoins();
         this.menuElements.coinsBg = this.add.rectangle(centerX, centerY - 310, 200, 40, parseInt(themeManager.getCurrentTheme().ui.buttonBackground.replace('#', ''), 16));
@@ -772,10 +776,10 @@ export class MenuScene extends Phaser.Scene {
 
         // Show all power-ups without category filtering
         this.createAllPowerUpsDisplay(centerX, centerY - 180);
-        
+
         // Back button - positioned better
         this.menuElements.closeShopButton = this.createMenuButton(
-            centerX, centerY + panelHeight/2 - 30, 140, 40,
+            centerX, centerY + panelHeight / 2 - 30, 140, 40,
             '⬅️ BACK',
             () => this.hideShop()
         );
@@ -846,32 +850,32 @@ export class MenuScene extends Phaser.Scene {
     createMenuButton(x, y, width, height, text, callback) {
         const theme = themeManager.getCurrentTheme();
         const graphics = this.add.graphics();
-        
+
         // Button colors - much more vibrant
         const buttonColor = parseInt(theme.primary.replace('#', ''), 16);
         const shadowColor = 0x000000;
         const highlightColor = parseInt(theme.accent.replace('#', ''), 16);
-        
+
         // 3D shadow effect
         graphics.fillStyle(shadowColor, 0.6);
-        graphics.fillRoundedRect(x - width/2 + 3, y - height/2 + 3, width, height, 8);
-        
+        graphics.fillRoundedRect(x - width / 2 + 3, y - height / 2 + 3, width, height, 8);
+
         // Main button background - gradient effect
         graphics.fillGradientStyle(buttonColor, buttonColor, shadowColor, shadowColor, 0.8);
-        graphics.fillRoundedRect(x - width/2, y - height/2, width, height, 8);
-        
+        graphics.fillRoundedRect(x - width / 2, y - height / 2, width, height, 8);
+
         // Highlight on top
         graphics.fillStyle(highlightColor, 0.3);
-        graphics.fillRoundedRect(x - width/2, y - height/2, width, height/3, 8);
-        
+        graphics.fillRoundedRect(x - width / 2, y - height / 2, width, height / 3, 8);
+
         // Border
         graphics.lineStyle(2, highlightColor, 1);
-        graphics.strokeRoundedRect(x - width/2, y - height/2, width, height, 8);
-        
+        graphics.strokeRoundedRect(x - width / 2, y - height / 2, width, height, 8);
+
         // Interactive area
         const button = this.add.rectangle(x, y, width, height, 0x000000, 0);
         button.setInteractive({ useHandCursor: true });
-        
+
         // Button text with better styling
         const buttonText = this.add.text(x, y, text, {
             fontSize: height > 35 ? '16px' : '14px',
@@ -889,22 +893,22 @@ export class MenuScene extends Phaser.Scene {
             }
         });
         buttonText.setOrigin(0.5);
-        
+
         // Hover effects with particles
         button.on('pointerover', () => {
             audioManager.playHover();
-            
+
             // Glow effect
             graphics.clear();
             graphics.fillStyle(shadowColor, 0.6);
-            graphics.fillRoundedRect(x - width/2 + 3, y - height/2 + 3, width, height, 8);
+            graphics.fillRoundedRect(x - width / 2 + 3, y - height / 2 + 3, width, height, 8);
             graphics.fillGradientStyle(highlightColor, highlightColor, buttonColor, buttonColor, 0.9);
-            graphics.fillRoundedRect(x - width/2, y - height/2, width, height, 8);
+            graphics.fillRoundedRect(x - width / 2, y - height / 2, width, height, 8);
             graphics.fillStyle(0xFFFFFF, 0.4);
-            graphics.fillRoundedRect(x - width/2, y - height/2, width, height/3, 8);
+            graphics.fillRoundedRect(x - width / 2, y - height / 2, width, height / 3, 8);
             graphics.lineStyle(3, 0xFFFFFF, 0.8);
-            graphics.strokeRoundedRect(x - width/2, y - height/2, width, height, 8);
-            
+            graphics.strokeRoundedRect(x - width / 2, y - height / 2, width, height, 8);
+
             this.tweens.add({
                 targets: [button, buttonText, graphics],
                 scaleX: 1.08,
@@ -913,19 +917,19 @@ export class MenuScene extends Phaser.Scene {
                 ease: 'Back.easeOut'
             });
         });
-        
+
         button.on('pointerout', () => {
             // Reset to normal
             graphics.clear();
             graphics.fillStyle(shadowColor, 0.6);
-            graphics.fillRoundedRect(x - width/2 + 3, y - height/2 + 3, width, height, 8);
+            graphics.fillRoundedRect(x - width / 2 + 3, y - height / 2 + 3, width, height, 8);
             graphics.fillGradientStyle(buttonColor, buttonColor, shadowColor, shadowColor, 0.8);
-            graphics.fillRoundedRect(x - width/2, y - height/2, width, height, 8);
+            graphics.fillRoundedRect(x - width / 2, y - height / 2, width, height, 8);
             graphics.fillStyle(highlightColor, 0.3);
-            graphics.fillRoundedRect(x - width/2, y - height/2, width, height/3, 8);
+            graphics.fillRoundedRect(x - width / 2, y - height / 2, width, height / 3, 8);
             graphics.lineStyle(2, highlightColor, 1);
-            graphics.strokeRoundedRect(x - width/2, y - height/2, width, height, 8);
-            
+            graphics.strokeRoundedRect(x - width / 2, y - height / 2, width, height, 8);
+
             this.tweens.add({
                 targets: [button, buttonText, graphics],
                 scaleX: 1,
@@ -934,14 +938,14 @@ export class MenuScene extends Phaser.Scene {
                 ease: 'Back.easeOut'
             });
         });
-        
+
         button.on('pointerdown', () => {
             // Start background music on first user interaction (Chrome AudioContext requirement)
             if (!this.musicStarted) {
                 this.musicStarted = true;
                 audioManager.startBackgroundMusic();
             }
-            
+
             // Press effect
             this.tweens.add({
                 targets: [button, buttonText, graphics],
@@ -955,7 +959,7 @@ export class MenuScene extends Phaser.Scene {
                 }
             });
         });
-        
+
         return this.add.container(0, 0, [graphics, button, buttonText]);
     }
 
@@ -988,14 +992,74 @@ export class MenuScene extends Phaser.Scene {
         this.input.keyboard.on('keydown-ESC', () => {
             this.hideAllPanels();
         });
-        
+
         this.input.keyboard.on('keydown-S', () => {
             this.showSettings();
         });
-        
+
         this.input.keyboard.on('keydown-T', () => {
             this.cycleTheme();
         });
+
+        // Cheat code: Ctrl+Shift+C for 500 coins
+        this.input.keyboard.on('keydown-C', (event) => {
+            if (event.ctrlKey && event.shiftKey) {
+                storage.addCoins(500);
+                console.log('🎮 Cheat activated! Added 500 coins. Total:', storage.getCoins());
+                
+                // Show a temporary message
+                const centerX = this.cameras.main.centerX;
+                const centerY = this.cameras.main.centerY;
+                const cheatText = this.add.text(centerX, centerY - 50, '+500 COINS!', {
+                    fontSize: '24px',
+                    fontFamily: 'Arial Black',
+                    color: '#FFD700',
+                    stroke: '#000000',
+                    strokeThickness: 2,
+                    shadow: {
+                        offsetX: 2,
+                        offsetY: 2,
+                        color: '#000000',
+                        blur: 5,
+                        stroke: true,
+                        fill: true
+                    }
+                }).setOrigin(0.5);
+
+                // Animate the cheat text
+                this.tweens.add({
+                    targets: cheatText,
+                    y: centerY - 100,
+                    alpha: 0,
+                    scale: 1.5,
+                    duration: 2000,
+                    ease: 'Power2',
+                    onComplete: () => {
+                        cheatText.destroy();
+                    }
+                });
+
+                // Update coin display if visible
+                this.updateCoinDisplay();
+            }
+        });
+    }
+
+    /**
+     * Update coin display in shop and UI
+     */
+    updateCoinDisplay() {
+        const coins = storage.getCoins();
+        
+        // Update shop coin display if shop is open
+        if (this.menuElements.shopPanel && this.menuElements.shopPanel.visible) {
+            this.updateShopContent();
+        }
+        
+        // Update any other coin displays in the UI
+        if (this.menuElements.coinText) {
+            this.menuElements.coinText.setText(`💰 ${coins}`);
+        }
     }
 
     /**
@@ -1011,15 +1075,15 @@ export class MenuScene extends Phaser.Scene {
         const currentIndex = themes.indexOf(this.selectedTheme);
         const nextIndex = (currentIndex + 1) % themes.length;
         const nextTheme = themes[nextIndex];
-        
+
         this.selectedTheme = nextTheme;
         themeManager.setTheme(nextTheme);
         storage.setTheme(nextTheme);
-        
+
         // Update theme button
         const themeName = themeManager.getTheme(nextTheme).name;
         this.menuElements.themeButton.list[2].setText(`🎨 ${themeName}`);
-        
+
         // Update scene colors
         this.updateTheme();
     }
@@ -1041,7 +1105,7 @@ export class MenuScene extends Phaser.Scene {
 
         // Stop background music when leaving menu
         audioManager.stopBackgroundMusic();
-        
+
         // Route to the correct scene based on mode
         switch (mode) {
             case 'adventure':
@@ -1153,7 +1217,7 @@ export class MenuScene extends Phaser.Scene {
         const enabled = audioManager.toggle();
         const text = enabled ? '🔊 Audio On' : '🔇 Audio Off';
         this.menuElements.audioToggle.list[2].setText(text);
-        
+
         // Control background music based on audio state
         if (enabled) {
             audioManager.startBackgroundMusic();
@@ -1211,34 +1275,18 @@ export class MenuScene extends Phaser.Scene {
         // Toggle between easy and hard
         this.selectedDifficulty = this.selectedDifficulty === 'easy' ? 'hard' : 'easy';
         storage.set('difficulty', this.selectedDifficulty);
-        
-        // Update text for button that uses button structure (main menu)
-        if (this.menuElements.difficultyButton && this.menuElements.difficultyButton.list) {
-            const newText = this.selectedDifficulty === 'easy' ? '😊 EASY' : '😈 HARD';
-            this.menuElements.difficultyButton.list[2].setText(newText);
-        }
-        // Update button that might be in settings (recreate if needed)
-        else if (this.menuElements.difficultyButton && this.menuElements.settingsContent) {
-            // Remove old button from settings content first
-            this.menuElements.settingsContent.remove(this.menuElements.difficultyButton);
-            
-            // Store position before destroying
-            const x = this.menuElements.difficultyButton.x;
-            const y = this.menuElements.difficultyButton.y;
-            
-            // Destroy old button
-            this.menuElements.difficultyButton.destroy();
-            
-            // Create new button with updated text
-            this.menuElements.difficultyButton = this.createMenuButton(
-                x, y, 140, 30, 
-                this.selectedDifficulty === 'easy' ? '😊 EASY' : '😈 HARD',
-                () => this.toggleDifficulty()
-            );
-            
-            // Add new button back to settings content
-            this.menuElements.settingsContent.add(this.menuElements.difficultyButton);
-        }
+
+        const newText = this.selectedDifficulty === 'easy' ? '😊 EASY' : '😈 HARD';
+
+        // Update all difficulty buttons
+        this.difficultyButtons.forEach((button, index) => {
+            if (button && button.list && button.list[2]) {
+                button.list[2].setText(newText);
+            }
+        });
+
+        // Clean up any destroyed buttons from the array
+        this.difficultyButtons = this.difficultyButtons.filter(button => button && !button.destroyed);
     }
 
     /**
@@ -1503,7 +1551,7 @@ export class MenuScene extends Phaser.Scene {
 
         // Clear existing content
         this.menuElements.statsContent.removeAll(true);
-        
+
         const centerX = this.cameras.main.centerX;
         const stats = storage.getStatistics();
 
@@ -1526,7 +1574,7 @@ export class MenuScene extends Phaser.Scene {
     createOverviewStats(centerX, stats) {
         const centerY = this.cameras.main.centerY;
         const panelHeight = Math.min(550, this.cameras.main.height - 120);
-        const contentStartY = centerY - panelHeight/2 + 120; // Start below tabs and title
+        const contentStartY = centerY - panelHeight / 2 + 120; // Start below tabs and title
         let currentY = contentStartY;
 
         // Game Overview Section
@@ -1639,7 +1687,7 @@ export class MenuScene extends Phaser.Scene {
 
         const shapeUsage = stats.shapeUsageCount || {};
         const shapeEntries = Object.entries(shapeUsage).sort((a, b) => b[1] - a[1]);
-        
+
         if (shapeEntries.length > 0) {
             shapeEntries.slice(0, 5).forEach(([shape, count], index) => {
                 this.addStatsText(`${shape}: ${count} times`, centerX, currentY + (index * 25));
@@ -1879,7 +1927,7 @@ export class MenuScene extends Phaser.Scene {
         const centerX = this.cameras.main.centerX;
         const centerY = this.cameras.main.centerY;
         const panelHeight = Math.min(600, this.cameras.main.height - 120);
-        const startY = centerY - panelHeight/2 + 120; // Position below title and tabs
+        const startY = centerY - panelHeight / 2 + 120; // Position below title and tabs
 
         // Get filtered power-ups based on category
         const powerUps = this.getFilteredPowerUps();
@@ -1911,11 +1959,11 @@ export class MenuScene extends Phaser.Scene {
         const allPowerUps = Object.values(POWER_UPS);
         const coins = storage.getCoins();
         const ownedPowerUps = storage.getPowerUps();
-        
+
         // Use 3 columns layout with all 9 power-ups
         const itemsPerRow = 3;
         const itemWidth = 120;
-        const spacing = 130; 
+        const spacing = 130;
         const totalWidth = (itemsPerRow - 1) * spacing;
         const startX = centerX - totalWidth / 2;
 
@@ -1939,11 +1987,11 @@ export class MenuScene extends Phaser.Scene {
     createPowerUpItems(powerUps, centerX, startY) {
         const coins = storage.getCoins();
         const ownedPowerUps = storage.getPowerUps();
-        
+
         // Use 3 columns layout with smaller, cleaner cards
         const itemsPerRow = 3;
         const itemWidth = 100;
-        const spacing = 110; 
+        const spacing = 110;
         const totalWidth = (itemsPerRow - 1) * spacing;
         const startX = centerX - totalWidth / 2;
 
@@ -2088,7 +2136,7 @@ export class MenuScene extends Phaser.Scene {
     updateTheme() {
         const colors = themeManager.getPhaserColors();
         this.cameras.main.setBackgroundColor(colors.background);
-        
+
         // Update all UI elements with new theme colors
         // This is a simplified version - full implementation would update all elements
         if (this.menuElements.title) {
@@ -2107,7 +2155,7 @@ export class MenuScene extends Phaser.Scene {
         if (this.titleColorTween) {
             this.titleColorTween.stop();
         }
-        
+
         this.animationTweens.forEach(tween => tween.stop());
         this.animationTweens = [];
     }

@@ -1,5 +1,5 @@
 // Main game scene for Normal, Daily, and Endless modes
-import { GAME_MODES, DIFFICULTY, GRID, TRAY, UI, POWER_UPS } from '../core/constants.js';
+import { GAME_MODES, DIFFICULTY, GRID, TRAY, UI, POWER_UPS, POWER_UP_INFO } from '../core/constants.js';
 import { storage } from '../core/storage.js';
 import { themeManager } from '../core/themes.js';
 import { audioManager } from '../core/audio.js';
@@ -28,6 +28,16 @@ export class GameScene extends Phaser.Scene {
         this.gameStartTime = 0;
         this.shapesPlacedCount = 0;
         this.initialCoins = 0;
+        
+        // Game history for undo functionality
+        this.gameHistory = [];
+        this.maxHistorySize = 5; // Keep last 5 moves
+        
+        // Power-up state variables
+        this.dragSpeedMultiplier = 1.0;
+        this.colorHighlights = [];
+        this.nextShapes = null;
+        this.smartHints = [];
     }
 
     init(data) {
@@ -93,10 +103,21 @@ export class GameScene extends Phaser.Scene {
         // Initialize power-up manager
         this.powerUpManager = new PowerUpManager(this.gameMode);
         this.powerUpManager.registerCallbacks({
+            // Basic power-ups
             onClearRow: (rowIndex) => this.clearRow(rowIndex),
             onSwapTray: () => this.swapTray(),
             onExtraUndo: () => this.performUndo(),
             onClearRowActivated: () => this.activateClearRowMode(),
+            
+            // Advanced power-ups
+            onTimeSlow: () => this.activateTimeWarp(),
+            onBlockPreview: () => this.activateFutureSight(),
+            onLineBlastActivated: () => this.activateLineBlastMode(),
+            onColorMatch: () => this.activateColorRadar(),
+            onPerfectFit: () => this.activateSmartPlacement(),
+            onSecondChance: () => this.activatePhoenixRevival(),
+            
+            // General
             onPowerUpCancelled: () => this.deactivatePowerUpMode()
         });
     }
@@ -121,25 +142,29 @@ export class GameScene extends Phaser.Scene {
      */
     createHeader() {
         const theme = themeManager.getCurrentTheme();
-        const headerY = 30; // Move up for more space
+        const headerY = 25; // Higher up for more space
 
-        // Single row: Score, Best, Coins, Audio - centered and spaced evenly
+        // Single row: Score, Best, Coins, Audio - evenly distributed across the width
         const centerX = this.cameras.main.centerX;
         
-        this.ui.scoreText = this.add.text(centerX - 150, headerY, 'Score: 0', {
-            fontSize: '16px', fontFamily: 'Arial', color: theme.text, fontStyle: 'bold'
-        });
+        // Score - leftmost
+        this.ui.scoreText = this.add.text(centerX - 140, headerY, 'Score: 0', {
+            fontSize: '14px', fontFamily: 'Arial', color: theme.text, fontStyle: 'bold'
+        }).setOrigin(0.5);
 
+        // High Score - left center
         const highScore = storage.getHighScore(this.gameMode, this.difficulty);
-        this.ui.highScoreText = this.add.text(centerX - 50, headerY, `Best: ${highScore}`, {
-            fontSize: '14px', fontFamily: 'Arial', color: theme.textSecondary
-        });
+        this.ui.highScoreText = this.add.text(centerX - 45, headerY, `Best: ${highScore}`, {
+            fontSize: '12px', fontFamily: 'Arial', color: theme.textSecondary
+        }).setOrigin(0.5);
 
-        this.ui.coinsText = this.add.text(centerX + 50, headerY, `💰 ${storage.getCoins()}`, {
-            fontSize: '14px', fontFamily: 'Arial', color: theme.accent, fontStyle: 'bold'
-        });
+        // Coins - right center
+        this.ui.coinsText = this.add.text(centerX + 45, headerY, `💰 ${storage.getCoins()}`, {
+            fontSize: '12px', fontFamily: 'Arial', color: theme.accent, fontStyle: 'bold'
+        }).setOrigin(0.5);
 
-        this.ui.audioButton = this.createButton(centerX + 150, headerY - 5, 40, 20,
+        // Audio button - rightmost
+        this.ui.audioButton = this.createButton(centerX + 140, headerY - 5, 35, 18,
             audioManager.isEnabled() ? '🔊' : '🔇', () => this.toggleAudio());
     }
 
@@ -156,10 +181,10 @@ export class GameScene extends Phaser.Scene {
         // Layout configuration - 5 in first row, 4 in second row
         const firstRowCount = 5;
         const secondRowCount = 4;
-        const buttonSize = 35; // Square buttons
-        const spacing = 45; // Compact spacing
-        const startY = 520; // Position below tray
-        const rowSpacing = 45;
+        const buttonSize = 32; // Slightly smaller buttons
+        const spacing = 42; // Tighter spacing
+        const startY = 470; // Position below tray with proper spacing
+        const rowSpacing = 40;
 
         // First row - 5 power-ups
         const firstRowStartX = centerX - ((firstRowCount - 1) * spacing) / 2;
@@ -423,8 +448,17 @@ export class GameScene extends Phaser.Scene {
 
         // Apply touch offset for better mobile experience
         const touchOffset = this.dragOffset || { x: 0, y: 0 };
-        const adjustedX = pointer.x - touchOffset.x;
-        const adjustedY = pointer.y - touchOffset.y - 40; // Keep shape above finger
+        let adjustedX = pointer.x - touchOffset.x;
+        let adjustedY = pointer.y - touchOffset.y - 40; // Keep shape above finger
+        
+        // Apply time warp smoothing for easier placement
+        if (this.timeWarpActive && this.lastDragPosition) {
+            const smoothFactor = this.dragSpeedMultiplier;
+            adjustedX = this.lastDragPosition.x + (adjustedX - this.lastDragPosition.x) * smoothFactor;
+            adjustedY = this.lastDragPosition.y + (adjustedY - this.lastDragPosition.y) * smoothFactor;
+        }
+        
+        this.lastDragPosition = { x: adjustedX, y: adjustedY };
         
         // Show placement preview with enhanced visual feedback
         const canPlace = this.gameGrid.showPlacementPreview(this.draggedShape.shape, adjustedX, adjustedY);
@@ -432,6 +466,11 @@ export class GameScene extends Phaser.Scene {
         // Enhanced audio feedback based on placement validity
         if (canPlace) {
             audioManager.playHover();
+        }
+        
+        // Show smart placement hints if active
+        if (this.smartPlacementActive && this.enableSmartHints) {
+            this.showSmartPlacementHints(this.draggedShape.shape);
         }
     }
 
@@ -448,6 +487,9 @@ export class GameScene extends Phaser.Scene {
         const touchOffset = this.dragOffset || { x: 0, y: 0 };
         const adjustedX = pointer.x - touchOffset.x;
         const adjustedY = pointer.y - touchOffset.y - 40;
+
+        // Save game state BEFORE placing the shape (for undo)
+        this.saveGameState();
 
         if (this.gameGrid.tryPlaceShape(shape, adjustedX, adjustedY)) {
             // Shape was placed successfully
@@ -634,6 +676,24 @@ export class GameScene extends Phaser.Scene {
      * Handle game over
      */
     gameOver() {
+        // Check if Phoenix Revival is active
+        if (this.phoenixRevivalActive && this.powerUpManager.usePhoenixRevival()) {
+            this.phoenixRevivalActive = false;
+            
+            // Remove phoenix indicator
+            if (this.phoenixIndicator) {
+                this.phoenixIndicator.destroy();
+                this.phoenixIndicator = null;
+            }
+            
+            // Clear some blocks to give player a chance
+            this.performPhoenixRevival();
+            
+            this.showMessage('Phoenix Revival! You rise from the ashes!', 3000);
+            console.log('Phoenix Revival activated - game continues!');
+            return; // Don't end the game
+        }
+        
         this.gameState = 'gameover';
 
         // Track analytics for game end
@@ -653,6 +713,178 @@ export class GameScene extends Phaser.Scene {
         this.showGameOverScreen(isNewHigh);
 
         console.log('Game Over!');
+    }
+
+    /**
+     * Perform Phoenix Revival - clear some blocks to give player a chance
+     */
+    performPhoenixRevival() {
+        if (!this.gameGrid || !this.gameGrid.grid) return;
+        
+        const grid = this.gameGrid.grid;
+        let cleared = 0;
+        
+        // Clear some random blocks to create space (about 20% of filled blocks)
+        for (let row = 0; row < grid.length; row++) {
+            for (let col = 0; col < grid[row].length; col++) {
+                if (grid[row][col] > 0 && Math.random() < 0.2) {
+                    grid[row][col] = 0;
+                    cleared++;
+                    
+                    // Create phoenix fire effect at cleared positions
+                    this.createPhoenixFireEffect(
+                        GRID.START_X + col * (GRID.CELL_SIZE + GRID.MARGIN),
+                        GRID.START_Y + row * (GRID.CELL_SIZE + GRID.MARGIN)
+                    );
+                }
+            }
+        }
+        
+        // Render the updated grid
+        if (cleared > 0) {
+            this.gameGrid.render();
+            audioManager.playClear();
+        }
+        
+        console.log(`Phoenix Revival cleared ${cleared} blocks`);
+    }
+
+    /**
+     * Create phoenix fire effect at position
+     */
+    createPhoenixFireEffect(x, y) {
+        const fire = this.add.text(x + GRID.CELL_SIZE / 2, y + GRID.CELL_SIZE / 2, '🔥', {
+            fontSize: '20px'
+        }).setOrigin(0.5);
+        
+        this.tweens.add({
+            targets: fire,
+            y: y - 30,
+            alpha: 0,
+            scale: 1.5,
+            duration: 1000,
+            ease: 'Power2',
+            onComplete: () => fire.destroy()
+        });
+    }
+
+    /**
+     * Show smart placement hints for optimal positions
+     */
+    showSmartPlacementHints(shape) {
+        // Clear previous hints
+        if (this.smartHints) {
+            this.smartHints.forEach(hint => hint.destroy());
+        }
+        this.smartHints = [];
+        
+        if (!this.gameGrid || !this.gameGrid.grid || !shape) return;
+        
+        const bestPositions = this.findOptimalPlacements(shape);
+        
+        bestPositions.slice(0, 3).forEach((pos, index) => {
+            const hint = this.add.rectangle(
+                GRID.START_X + pos.col * (GRID.CELL_SIZE + GRID.MARGIN) + shape.width * (GRID.CELL_SIZE + GRID.MARGIN) / 2,
+                GRID.START_Y + pos.row * (GRID.CELL_SIZE + GRID.MARGIN) + shape.height * (GRID.CELL_SIZE + GRID.MARGIN) / 2,
+                shape.width * (GRID.CELL_SIZE + GRID.MARGIN),
+                shape.height * (GRID.CELL_SIZE + GRID.MARGIN),
+                0x00FF00, // Green hint
+                0
+            );
+            hint.setStrokeStyle(2, 0x00FF00, 0.6 - index * 0.15); // Fade with rank
+            hint.setDepth(3);
+            
+            // Subtle pulsing
+            this.tweens.add({
+                targets: hint,
+                alpha: 0.3,
+                duration: 800,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.easeInOut'
+            });
+            
+            this.smartHints.push(hint);
+        });
+    }
+
+    /**
+     * Find optimal placements for a shape (simplified scoring)
+     */
+    findOptimalPlacements(shape) {
+        const positions = [];
+        const grid = this.gameGrid.grid;
+        
+        for (let row = 0; row <= GRID.ROWS - shape.height; row++) {
+            for (let col = 0; col <= GRID.COLS - shape.width; col++) {
+                if (this.gameGrid.canPlaceShape(shape, col, row)) {
+                    const score = this.calculatePlacementScore(shape, col, row);
+                    positions.push({ row, col, score });
+                }
+            }
+        }
+        
+        return positions.sort((a, b) => b.score - a.score);
+    }
+
+    /**
+     * Calculate placement score for smart hints
+     */
+    calculatePlacementScore(shape, col, row) {
+        let score = 0;
+        
+        // Prefer positions that complete lines
+        for (let r = row; r < row + shape.height; r++) {
+            if (this.wouldCompleteLine(r, 'row')) score += 100;
+        }
+        for (let c = col; c < col + shape.width; c++) {
+            if (this.wouldCompleteLine(c, 'col')) score += 100;
+        }
+        
+        // Prefer positions near existing blocks
+        score += this.countAdjacentBlocks(shape, col, row) * 10;
+        
+        // Prefer corners and edges
+        if (row === 0 || row === GRID.ROWS - shape.height) score += 5;
+        if (col === 0 || col === GRID.COLS - shape.width) score += 5;
+        
+        return score;
+    }
+
+    /**
+     * Check if placing shape would complete a line
+     */
+    wouldCompleteLine(index, type) {
+        const grid = this.gameGrid.grid;
+        let count = 0;
+        
+        if (type === 'row') {
+            for (let c = 0; c < GRID.COLS; c++) {
+                if (grid[index][c] > 0) count++;
+            }
+            return count >= GRID.COLS - 1; // Almost complete
+        } else {
+            for (let r = 0; r < GRID.ROWS; r++) {
+                if (grid[r][index] > 0) count++;
+            }
+            return count >= GRID.ROWS - 1; // Almost complete
+        }
+    }
+
+    /**
+     * Count adjacent blocks for placement scoring
+     */
+    countAdjacentBlocks(shape, col, row) {
+        const grid = this.gameGrid.grid;
+        let count = 0;
+        
+        for (let r = Math.max(0, row - 1); r <= Math.min(GRID.ROWS - 1, row + shape.height); r++) {
+            for (let c = Math.max(0, col - 1); c <= Math.min(GRID.COLS - 1, col + shape.width); c++) {
+                if (grid[r][c] > 0) count++;
+            }
+        }
+        
+        return count;
     }
 
     /**
@@ -1115,13 +1347,53 @@ export class GameScene extends Phaser.Scene {
     }
 
     /**
+     * Save current game state to history
+     */
+    saveGameState() {
+        const gameState = {
+            grid: this.gameGrid.getGridState(),
+            score: this.scoringManager.getCurrentScore(),
+            trayShapes: this.trayShapes.map(shape => shape ? shape.clone() : null),
+            timestamp: Date.now()
+        };
+        
+        this.gameHistory.push(gameState);
+        
+        // Keep only the last N states
+        if (this.gameHistory.length > this.maxHistorySize) {
+            this.gameHistory.shift();
+        }
+    }
+
+    /**
      * Perform undo (power-up callback)
      */
     performUndo() {
-        // This would require implementing game state history
-        console.log('Undo not yet implemented');
-        return false;
+        if (this.gameHistory.length === 0) {
+            console.log('No moves to undo');
+            return false;
+        }
+        
+        // Get the last saved state
+        const previousState = this.gameHistory.pop();
+        
+        // Restore grid state using the correct method
+        this.gameGrid.setGridState(previousState.grid);
+        
+        // Restore score
+        this.scoringManager.setScore(previousState.score);
+        
+        // Restore tray shapes (simplified - just generate new ones)
+        this.generateTrayShapes();
+        
+        // Update UI
+        this.updateUI();
+        
+        console.log('Game state restored to previous move');
+        return true;
     }
+
+
 
     /**
      * Create a button
@@ -1263,6 +1535,99 @@ export class GameScene extends Phaser.Scene {
         this.input.keyboard.on('keydown-SPACE', () => {
             this.togglePause();
         });
+
+        // Add grid click handler for power-ups
+        this.input.on('pointerdown', (pointer) => {
+            if (this.clearRowModeActive) {
+                this.handleClearRowClick(pointer);
+            } else if (this.lineBlastModeActive) {
+                this.handleLineBlastClick(pointer);
+            }
+        });
+    }
+
+    /**
+     * Handle click when clear row mode is active
+     */
+    handleClearRowClick(pointer) {
+        const { row } = pixelToGrid(pointer.x, pointer.y);
+        if (row >= 0 && row < 10) {
+            const result = this.clearRow(row);
+            if (result.success) {
+                this.showMessage(`Row ${row + 1} cleared!`, 1000);
+            }
+            this.clearRowModeActive = false;
+            this.deactivatePowerUpMode();
+        }
+    }
+
+    /**
+     * Handle click when line blast mode is active
+     */
+    handleLineBlastClick(pointer) {
+        const { row, col } = pixelToGrid(pointer.x, pointer.y);
+        if (row >= 0 && row < 10 && col >= 0 && col < 10) {
+            // Clear both row and column
+            let cleared = 0;
+            const grid = this.gameGrid.grid;
+            
+            // Clear row
+            for (let c = 0; c < grid[row].length; c++) {
+                if (grid[row][c] > 0) {
+                    grid[row][c] = 0;
+                    cleared++;
+                }
+            }
+            
+            // Clear column
+            for (let r = 0; r < grid.length; r++) {
+                if (grid[r][col] > 0) {
+                    grid[r][col] = 0;
+                    cleared++;
+                }
+            }
+            
+            if (cleared > 0) {
+                this.scoringManager.addScore(cleared * 15);
+                audioManager.playClear();
+                this.gameGrid.render();
+                this.updateUI();
+                this.showMessage(`Line blast! Cleared ${cleared} blocks!`, 1500);
+            }
+            
+            this.lineBlastModeActive = false;
+            this.deactivatePowerUpMode();
+        }
+    }
+
+    /**
+     * Show temporary message to user
+     */
+    showMessage(text, duration = 2000) {
+        const centerX = this.cameras.main.centerX;
+        const centerY = this.cameras.main.centerY;
+        
+        const messageText = this.add.text(centerX, centerY, text, {
+            fontSize: '18px',
+            fontFamily: 'Arial Black',
+            color: '#FFFFFF',
+            stroke: '#000000',
+            strokeThickness: 2,
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            padding: { x: 10, y: 5 }
+        }).setOrigin(0.5);
+
+        // Animate the message
+        this.tweens.add({
+            targets: messageText,
+            alpha: 0,
+            y: centerY - 50,
+            duration: duration,
+            ease: 'Power2',
+            onComplete: () => {
+                messageText.destroy();
+            }
+        });
     }
 
     /**
@@ -1310,8 +1675,11 @@ export class GameScene extends Phaser.Scene {
      * Activate clear row mode
      */
     activateClearRowMode() {
-        // Visual indication that clear row is active
-        console.log('Clear row mode activated - click on a row');
+        this.clearRowModeActive = true;
+        console.log('Clear row mode activated - click on a row to clear it');
+        
+        // Show visual indication
+        this.showMessage('Click on a row to clear it!', 2000);
     }
 
     /**
@@ -1319,7 +1687,341 @@ export class GameScene extends Phaser.Scene {
      */
     deactivatePowerUpMode() {
         // Reset any visual indicators
+        this.clearRowModeActive = false;
+        this.lineBlastModeActive = false;
         console.log('Power-up mode deactivated');
+    }
+
+    /**
+     * Activate Time Warp power-up (enhanced time slow)
+     */
+    activateTimeWarp() {
+        // Enable time warp mode with visual effects
+        this.timeWarpActive = true;
+        this.timeWarpEndTime = Date.now() + 30000; // 30 seconds
+        
+        // Add visual time warp overlay
+        this.createTimeWarpOverlay();
+        
+        // Slow down drag mechanics for easier placement
+        this.dragSpeedMultiplier = 0.7;
+        
+        console.log('Time Warp activated for 30 seconds');
+        this.showMessage('Time Warp Active! Easier placement for 30s', 3000);
+        
+        // Set timer to deactivate
+        this.time.delayedCall(30000, () => {
+            this.deactivateTimeWarp();
+        });
+    }
+
+    /**
+     * Deactivate Time Warp
+     */
+    deactivateTimeWarp() {
+        this.timeWarpActive = false;
+        this.dragSpeedMultiplier = 1.0;
+        
+        if (this.timeWarpOverlay) {
+            this.timeWarpOverlay.destroy();
+            this.timeWarpOverlay = null;
+        }
+        
+        this.showMessage('Time Warp ended', 1500);
+    }
+
+    /**
+     * Create visual Time Warp overlay
+     */
+    createTimeWarpOverlay() {
+        if (this.timeWarpOverlay) {
+            this.timeWarpOverlay.destroy();
+        }
+        
+        this.timeWarpOverlay = this.add.graphics();
+        this.timeWarpOverlay.setDepth(-5);
+        this.timeWarpOverlay.fillStyle(0x4169E1, 0.1); // Royal blue tint
+        this.timeWarpOverlay.fillRect(0, 0, this.cameras.main.width, this.cameras.main.height);
+        
+        // Pulsing effect
+        this.tweens.add({
+            targets: this.timeWarpOverlay,
+            alpha: 0.2,
+            duration: 2000,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
+    }
+
+    /**
+     * Activate Future Sight power-up (enhanced block preview)
+     */
+    activateFutureSight() {
+        this.futureSightActive = true;
+        this.futureSightEndTime = Date.now() + 60000; // 60 seconds
+        
+        // Generate and show next shapes preview
+        this.nextShapes = this.shapeGenerator.generateShapes(3);
+        this.createFutureSightDisplay();
+        
+        console.log('Future Sight activated for 60 seconds');
+        this.showMessage('Future Sight Active! Next shapes revealed for 60s', 3000);
+        
+        // Set timer to deactivate
+        this.time.delayedCall(60000, () => {
+            this.deactivateFutureSight();
+        });
+    }
+
+    /**
+     * Deactivate Future Sight
+     */
+    deactivateFutureSight() {
+        this.futureSightActive = false;
+        this.nextShapes = null;
+        
+        if (this.futureSightDisplay) {
+            this.futureSightDisplay.destroy();
+            this.futureSightDisplay = null;
+        }
+        
+        this.showMessage('Future Sight ended', 1500);
+    }
+
+    /**
+     * Create Future Sight display showing next shapes
+     */
+    createFutureSightDisplay() {
+        if (this.futureSightDisplay) {
+            this.futureSightDisplay.destroy();
+        }
+        
+        this.futureSightDisplay = this.add.container(350, 120);
+        this.futureSightDisplay.setDepth(10);
+        
+        // Background panel
+        const bg = this.add.rectangle(0, 0, 60, 120, 0x000000, 0.7);
+        bg.setStrokeStyle(2, 0x4169E1);
+        this.futureSightDisplay.add(bg);
+        
+        // Title
+        const title = this.add.text(0, -45, 'NEXT', {
+            fontSize: '8px', fontFamily: 'Arial', color: '#4169E1', fontStyle: 'bold'
+        }).setOrigin(0.5);
+        this.futureSightDisplay.add(title);
+        
+        // Show mini previews of next 3 shapes
+        this.nextShapes.forEach((shape, index) => {
+            const miniShape = this.createMiniShapePreview(shape, 0, -20 + index * 25);
+            this.futureSightDisplay.add(miniShape);
+        });
+    }
+
+    /**
+     * Create mini shape preview
+     */
+    createMiniShapePreview(shape, x, y) {
+        const container = this.add.container(x, y);
+        const colors = themeManager.getPhaserColors();
+        const blockColor = colors.blockColors[(shape.color - 1) % colors.blockColors.length];
+        
+        const graphics = this.add.graphics();
+        graphics.fillStyle(blockColor);
+        
+        const miniSize = 4; // Very small blocks
+        for (let r = 0; r < shape.height; r++) {
+            for (let c = 0; c < shape.width; c++) {
+                if (shape.pattern[r][c] === 1) {
+                    graphics.fillRect(c * miniSize - shape.width * 2, r * miniSize - shape.height * 2, miniSize - 1, miniSize - 1);
+                }
+            }
+        }
+        
+        container.add(graphics);
+        return container;
+    }
+
+    /**
+     * Activate line blast mode
+     */
+    activateLineBlastMode() {
+        this.lineBlastModeActive = true;
+        console.log('Line blast mode activated - click on a row or column');
+    }
+
+    /**
+     * Activate Color Radar power-up (enhanced color matching)
+     */
+    activateColorRadar() {
+        this.colorRadarActive = true;
+        this.colorRadarEndTime = Date.now() + 15000; // 15 seconds
+        
+        // First, highlight all matching color groups
+        this.highlightColorGroups();
+        
+        console.log('Color Radar activated for 15 seconds');
+        this.showMessage('Color Radar Active! Matching blocks highlighted for 15s', 3000);
+        
+        // Set timer to deactivate
+        this.time.delayedCall(15000, () => {
+            this.deactivateColorRadar();
+        });
+        
+        return true;
+    }
+
+    /**
+     * Deactivate Color Radar
+     */
+    deactivateColorRadar() {
+        this.colorRadarActive = false;
+        
+        // Remove color highlights
+        if (this.colorHighlights) {
+            this.colorHighlights.forEach(highlight => highlight.destroy());
+            this.colorHighlights = [];
+        }
+        
+        this.showMessage('Color Radar ended', 1500);
+    }
+
+    /**
+     * Highlight color groups on the grid
+     */
+    highlightColorGroups() {
+        if (!this.gameGrid || !this.gameGrid.grid) {
+            return;
+        }
+
+        // Clear existing highlights
+        if (this.colorHighlights) {
+            this.colorHighlights.forEach(highlight => highlight.destroy());
+        }
+        this.colorHighlights = [];
+
+        const grid = this.gameGrid.grid;
+        const colors = {};
+        
+        // Count blocks by color/type
+        for (let row = 0; row < grid.length; row++) {
+            for (let col = 0; col < grid[row].length; col++) {
+                const cell = grid[row][col];
+                if (cell > 0) {
+                    if (!colors[cell]) {
+                        colors[cell] = [];
+                    }
+                    colors[cell].push({ row, col });
+                }
+            }
+        }
+
+        // Highlight groups with 3+ matching blocks
+        for (const [colorType, positions] of Object.entries(colors)) {
+            if (positions.length >= 3) {
+                positions.forEach(pos => {
+                    const highlight = this.add.rectangle(
+                        GRID.START_X + pos.col * (GRID.CELL_SIZE + GRID.MARGIN) + GRID.CELL_SIZE / 2,
+                        GRID.START_Y + pos.row * (GRID.CELL_SIZE + GRID.MARGIN) + GRID.CELL_SIZE / 2,
+                        GRID.CELL_SIZE + 4,
+                        GRID.CELL_SIZE + 4,
+                        0xFFD700, // Gold highlight
+                        0
+                    );
+                    highlight.setStrokeStyle(3, 0xFFD700, 0.8);
+                    highlight.setDepth(5);
+                    
+                    // Pulsing animation
+                    this.tweens.add({
+                        targets: highlight,
+                        alpha: 0.5,
+                        duration: 1000,
+                        yoyo: true,
+                        repeat: -1,
+                        ease: 'Sine.easeInOut'
+                    });
+                    
+                    this.colorHighlights.push(highlight);
+                });
+            }
+        }
+    }
+
+    /**
+     * Activate Smart Placement power-up (enhanced perfect fit)
+     */
+    activateSmartPlacement() {
+        this.smartPlacementActive = true;
+        this.smartPlacementEndTime = Date.now() + 45000; // 45 seconds
+        
+        // Enable smart placement hints
+        this.enableSmartHints = true;
+        
+        console.log('Smart Placement activated for 45 seconds');
+        this.showMessage('Smart Placement Active! Optimal spots highlighted for 45s', 3000);
+        
+        // Set timer to deactivate
+        this.time.delayedCall(45000, () => {
+            this.deactivateSmartPlacement();
+        });
+    }
+
+    /**
+     * Deactivate Smart Placement
+     */
+    deactivateSmartPlacement() {
+        this.smartPlacementActive = false;
+        this.enableSmartHints = false;
+        
+        // Remove smart placement hints
+        if (this.smartHints) {
+            this.smartHints.forEach(hint => hint.destroy());
+            this.smartHints = [];
+        }
+        
+        this.showMessage('Smart Placement ended', 1500);
+    }
+
+    /**
+     * Activate Phoenix Revival power-up (enhanced second chance)
+     */
+    activatePhoenixRevival() {
+        this.phoenixRevivalActive = true;
+        
+        // Create visual phoenix indicator
+        this.createPhoenixIndicator();
+        
+        console.log('Phoenix Revival activated - you can continue after game over');
+        this.showMessage('Phoenix Revival Active! Continue after game over once', 3000);
+    }
+
+    /**
+     * Create Phoenix Revival indicator
+     */
+    createPhoenixIndicator() {
+        if (this.phoenixIndicator) {
+            this.phoenixIndicator.destroy();
+        }
+        
+        this.phoenixIndicator = this.add.text(this.cameras.main.centerX, 50, '🔥 PHOENIX 🔥', {
+            fontSize: '14px',
+            fontFamily: 'Arial',
+            color: '#FF6B00',
+            fontStyle: 'bold',
+            stroke: '#000000',
+            strokeThickness: 1
+        }).setOrigin(0.5);
+        
+        // Glowing animation
+        this.tweens.add({
+            targets: this.phoenixIndicator,
+            alpha: 0.7,
+            scale: 1.1,
+            duration: 1500,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
     }
 
     /**

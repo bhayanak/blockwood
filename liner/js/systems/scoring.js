@@ -357,4 +357,18 @@ export class ScoringManager {
         this.scoreHistory = data.scoreHistory || [];
         this.multiplier = data.multiplier || this.getBaseMultiplier();
     }
+
+    /**
+     * Set the current score (used for undo functionality)
+     */
+    setScore(score) {
+        this.currentScore = score;
+    }
+
+    /**
+     * Add score (used for power-ups and bonuses)
+     */
+    addScore(score) {
+        this.currentScore += score;
+    }
 }

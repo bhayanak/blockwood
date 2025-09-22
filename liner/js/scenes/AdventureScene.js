@@ -274,14 +274,14 @@ export class AdventureScene extends Phaser.Scene {
         // Create game elements
         this.gameGrid.create();
         this.createShapeTray();
-        
+
         // Setup keyboard controls
         this.setupInputHandlers();
     }
 
     createHUD() {
         const chapter = ADVENTURE_CHAPTERS[this.currentChapter];
-        
+
         // Chapter name
         this.add.text(this.scale.width / 2, 30, chapter.name, {
             fontSize: '20px',
@@ -340,7 +340,7 @@ export class AdventureScene extends Phaser.Scene {
             .on('pointerdown', () => {
                 this.testCoordinateSystem();
             });
-        
+
         this.add.text(120, 30, 'TEST', {
             fontSize: '12px',
             color: '#ffffff'
@@ -414,7 +414,7 @@ export class AdventureScene extends Phaser.Scene {
 
             // Use adjusted coordinates for preview
             this.gameGrid.showPlacementPreview(shape, pointer.x, pointer.y + offsetY);
-            
+
             // Mobile haptic feedback
             if ('vibrate' in navigator) {
                 navigator.vibrate(5);
@@ -427,7 +427,7 @@ export class AdventureScene extends Phaser.Scene {
             if (this.gameGrid.tryPlaceShape(shape, pointer.x, pointer.y + offsetY)) {
                 this.onShapePlaced(shape, index);
                 shapeGroup.destroy();
-                
+
                 // Haptic feedback for successful placement
                 if ('vibrate' in navigator) {
                     navigator.vibrate(25);
@@ -447,7 +447,7 @@ export class AdventureScene extends Phaser.Scene {
     onShapePlaced(shape, trayIndex) {
         this.gameStats.moves++;
 
-    // Update moves counter
+        // Update moves counter
         const chapter = ADVENTURE_CHAPTERS[this.currentChapter];
         if (chapter.specialRules?.limitedMoves) {
             this.movesRemaining--;
@@ -478,12 +478,12 @@ export class AdventureScene extends Phaser.Scene {
     }
 
     onLinesCleared(lines) {
-    this.gameStats.lines += lines.length;
-    // lines is an array of {type: 'row'|'col', index: number}
-    const completedRows = lines.filter(line => line.type === 'row').map(line => line.index);
-    const completedCols = lines.filter(line => line.type === 'col').map(line => line.index);
-    const points = this.scoringManager.calculateLineScore(completedRows, completedCols);
-    this.gameStats.score += points;
+        this.gameStats.lines += lines.length;
+        // lines is an array of {type: 'row'|'col', index: number}
+        const completedRows = lines.filter(line => line.type === 'row').map(line => line.index);
+        const completedCols = lines.filter(line => line.type === 'col').map(line => line.index);
+        const points = this.scoringManager.calculateLineScore(completedRows, completedCols);
+        this.gameStats.score += points;
 
         if (this.scoreText) {
             this.scoreText.setText(`Score: ${this.gameStats.score}`);
@@ -685,7 +685,7 @@ export class AdventureScene extends Phaser.Scene {
         if (!this.gameActive) return;
 
         this.gameActive = false;
-        
+
         // Show failure screen
         this.showGameOver();
     }

@@ -31,7 +31,7 @@ export const GRID = {
     CELL_SIZE: 30,
     MARGIN: 5,
     START_X: 50, // Centered: (400 - 300) / 2 = 50, so this is correct
-    START_Y: 120,
+    START_Y: 70,  // Moved up further to make more room below
     HIGHLIGHT_COLOR: 0x00ff00,
     INVALID_COLOR: 0xff0000
 };
@@ -70,88 +70,88 @@ export const POWER_UPS = {
 // Power-up costs (coins for normal mode, score for endless)
 export const POWER_UP_COSTS = {
     NORMAL: {
-        [POWER_UPS.CLEAR_ROW]: 50,
-        [POWER_UPS.SWAP_TRAY]: 30,
-        [POWER_UPS.EXTRA_UNDO]: 40,
-        [POWER_UPS.TIME_SLOW]: 75,
-        [POWER_UPS.BLOCK_PREVIEW]: 60,
-        [POWER_UPS.LINE_BLAST]: 80,
-        [POWER_UPS.COLOR_MATCH]: 45,
-        [POWER_UPS.PERFECT_FIT]: 90,
-        [POWER_UPS.SECOND_CHANCE]: 100
+        'CLEAR_ROW': 50,
+        'SWAP_TRAY': 30,
+        'EXTRA_UNDO': 40,
+        'TIME_SLOW': 75,
+        'BLOCK_PREVIEW': 60,
+        'LINE_BLAST': 80,
+        'COLOR_MATCH': 45,
+        'PERFECT_FIT': 90,
+        'SECOND_CHANCE': 100
     },
     ENDLESS: {
-        [POWER_UPS.CLEAR_ROW]: 500,
-        [POWER_UPS.SWAP_TRAY]: 300,
-        [POWER_UPS.EXTRA_UNDO]: 400,
-        [POWER_UPS.TIME_SLOW]: 750,
-        [POWER_UPS.BLOCK_PREVIEW]: 600,
-        [POWER_UPS.LINE_BLAST]: 800,
-        [POWER_UPS.COLOR_MATCH]: 450,
-        [POWER_UPS.PERFECT_FIT]: 900,
-        [POWER_UPS.SECOND_CHANCE]: 1000
+        'CLEAR_ROW': 500,
+        'SWAP_TRAY': 300,
+        'EXTRA_UNDO': 400,
+        'TIME_SLOW': 750,
+        'BLOCK_PREVIEW': 600,
+        'LINE_BLAST': 800,
+        'COLOR_MATCH': 450,
+        'PERFECT_FIT': 900,
+        'SECOND_CHANCE': 1000
     }
 };
 
 // Power-up metadata for shop display
 export const POWER_UP_INFO = {
-    [POWER_UPS.CLEAR_ROW]: {
+    'CLEAR_ROW': {
         name: 'Line Blast',
         icon: '💥',
         description: 'Clear any row or column instantly',
         category: 'utility',
         rarity: 'common'
     },
-    [POWER_UPS.SWAP_TRAY]: {
+    'SWAP_TRAY': {
         name: 'Shape Shuffle',
         icon: '🔄',
         description: 'Get a new set of shapes in your tray',
         category: 'utility',
         rarity: 'common'
     },
-    [POWER_UPS.EXTRA_UNDO]: {
+    'EXTRA_UNDO': {
         name: 'Rewind',
         icon: '⏪',
         description: 'Undo your last move (one-time use)',
         category: 'utility',
         rarity: 'common'
     },
-    [POWER_UPS.TIME_SLOW]: {
+    'TIME_SLOW': {
         name: 'Time Warp',
         icon: '⏰',
         description: 'Slow down time for 30 seconds',
         category: 'temporal',
         rarity: 'rare'
     },
-    [POWER_UPS.BLOCK_PREVIEW]: {
+    'BLOCK_PREVIEW': {
         name: 'Future Sight',
         icon: '🔮',
         description: 'See the next 3 shapes coming',
         category: 'information',
         rarity: 'uncommon'
     },
-    [POWER_UPS.LINE_BLAST]: {
+    'LINE_BLAST': {
         name: 'Precision Strike',
         icon: '🎯',
         description: 'Clear any specific line you choose',
         category: 'utility',
         rarity: 'rare'
     },
-    [POWER_UPS.COLOR_MATCH]: {
+    'COLOR_MATCH': {
         name: 'Color Radar',
         icon: '🌈',
         description: 'Highlight all matching colored blocks',
         category: 'information',
         rarity: 'common'
     },
-    [POWER_UPS.PERFECT_FIT]: {
+    'PERFECT_FIT': {
         name: 'Smart Placement',
         icon: '🧠',
         description: 'Show optimal placement suggestions',
         category: 'assistance',
         rarity: 'epic'
     },
-    [POWER_UPS.SECOND_CHANCE]: {
+    'SECOND_CHANCE': {
         name: 'Phoenix Revival',
         icon: '🔥',
         description: 'Continue after game over (one-time use)',
@@ -164,8 +164,8 @@ export const POWER_UP_INFO = {
 export const SCORING = {
     BASE_LINE_SCORE: 100,
     DIFFICULTY_MULTIPLIERS: {
-        [DIFFICULTY.EASY]: 1.0,
-        [DIFFICULTY.HARD]: 1.5
+        'easy': 1.0,
+        'hard': 1.5
     },
     COINS_PER_SCORE: 0.1, // 1 coin per 10 points
     COMBO_MULTIPLIER: 1.2
@@ -544,8 +544,8 @@ export const UI = {
 // Shape tray configuration
 export const TRAY = {
     SHAPES_COUNT: 3,
-    START_Y: 480,
-    SHAPE_SPACING: 100, // Reduce spacing to prevent clipping
+    START_Y: 400,  // Moved up more to create space for power-ups
+    SHAPE_SPACING: 100, // Good spacing to prevent overlap
     START_X: 50 // Keep centered with grid
 };
 

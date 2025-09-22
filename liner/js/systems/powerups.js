@@ -12,6 +12,17 @@ export class PowerUpManager {
         this.activePowerUp = null;
         this.powerUpCallbacks = {};
         this.costs = this.getCostsForMode(gameMode);
+        
+        // Advanced power-up states
+        this.timeWarpActive = false;
+        this.timeWarpEndTime = 0;
+        this.futureSightActive = false;
+        this.futureSightEndTime = 0;
+        this.colorRadarActive = false;
+        this.colorRadarEndTime = 0;
+        this.smartPlacementActive = false;
+        this.smartPlacementEndTime = 0;
+        this.phoenixRevivalActive = false;
     }
 
     /**
@@ -69,10 +80,10 @@ export class PowerUpManager {
             // In other modes, spend coins and add to inventory
             if (storage.spendCoins(cost)) {
                 storage.addPowerUp(powerUpType, 1);
-                return { 
-                    success: true, 
-                    powerUpType, 
-                    cost, 
+                return {
+                    success: true,
+                    powerUpType,
+                    cost,
                     newCount: storage.getPowerUpCount(powerUpType)
                 };
             }
@@ -103,7 +114,7 @@ export class PowerUpManager {
 
         // Execute power-up effect
         const result = this.executePowerUp(powerUpType, currentScore);
-        
+
         if (result.success) {
             // Deduct cost/inventory
             if (this.gameMode === GAME_MODES.ENDLESS) {
@@ -123,13 +134,31 @@ export class PowerUpManager {
         switch (powerUpType) {
             case POWER_UPS.CLEAR_ROW:
                 return this.executeClearRow();
-                
+
             case POWER_UPS.SWAP_TRAY:
                 return this.executeSwapTray();
-                
+
             case POWER_UPS.EXTRA_UNDO:
                 return this.executeExtraUndo();
-                
+
+            case POWER_UPS.TIME_SLOW:
+                return this.executeTimeSlow();
+
+            case POWER_UPS.BLOCK_PREVIEW:
+                return this.executeBlockPreview();
+
+            case POWER_UPS.LINE_BLAST:
+                return this.executeLineBlast();
+
+            case POWER_UPS.COLOR_MATCH:
+                return this.executeColorMatch();
+
+            case POWER_UPS.PERFECT_FIT:
+                return this.executePerfectFit();
+
+            case POWER_UPS.SECOND_CHANCE:
+                return this.executeSecondChance();
+
             default:
                 return { success: false, reason: 'unknown_power_up' };
         }
@@ -140,13 +169,13 @@ export class PowerUpManager {
      */
     executeClearRow() {
         this.activePowerUp = POWER_UPS.CLEAR_ROW;
-        
+
         if (this.powerUpCallbacks.onClearRowActivated) {
             this.powerUpCallbacks.onClearRowActivated();
         }
 
-        return { 
-            success: true, 
+        return {
+            success: true,
             powerUpType: POWER_UPS.CLEAR_ROW,
             requiresSelection: true,
             message: 'Click on a row to clear it'
@@ -230,12 +259,134 @@ export class PowerUpManager {
     }
 
     /**
+     * Execute Time Slow (Time Warp) power-up
+     */
+    executeTimeSlow() {
+        if (this.powerUpCallbacks.onTimeSlow) {
+            this.powerUpCallbacks.onTimeSlow();
+        }
+
+        // Start time warp effect
+        this.timeWarpActive = true;
+        this.timeWarpEndTime = Date.now() + 30000; // 30 seconds
+
+        audioManager.playPlace();
+        return {
+            success: true,
+            powerUpType: POWER_UPS.TIME_SLOW,
+            message: 'Time Warp activated for 30 seconds!',
+            duration: 30000
+        };
+    }
+
+    /**
+     * Execute Block Preview (Future Sight) power-up
+     */
+    executeBlockPreview() {
+        if (this.powerUpCallbacks.onBlockPreview) {
+            this.powerUpCallbacks.onBlockPreview();
+        }
+
+        // Activate future sight mode
+        this.futureSightActive = true;
+        this.futureSightEndTime = Date.now() + 60000; // 60 seconds
+
+        audioManager.playPlace();
+        return {
+            success: true,
+            powerUpType: POWER_UPS.BLOCK_PREVIEW,
+            message: 'Future Sight activated! See upcoming shapes!',
+            duration: 60000
+        };
+    }
+
+    /**
+     * Execute Line Blast power-up
+     */
+    executeLineBlast() {
+        this.activePowerUp = POWER_UPS.LINE_BLAST;
+
+        if (this.powerUpCallbacks.onLineBlastActivated) {
+            this.powerUpCallbacks.onLineBlastActivated();
+        }
+
+        return {
+            success: true,
+            powerUpType: POWER_UPS.LINE_BLAST,
+            message: 'Click on a line to blast it!'
+        };
+    }
+
+    /**
+     * Execute Color Match (Color Radar) power-up
+     */
+    executeColorMatch() {
+        if (this.powerUpCallbacks.onColorMatch) {
+            // First activate color radar mode to highlight matching blocks
+            this.colorRadarActive = true;
+            this.colorRadarEndTime = Date.now() + 15000; // 15 seconds to see highlighted blocks
+            
+            const matchSuccess = this.powerUpCallbacks.onColorMatch();
+            
+            audioManager.playPlace();
+            return {
+                success: true,
+                powerUpType: POWER_UPS.COLOR_MATCH,
+                message: 'Color Radar activated! Matching blocks highlighted!',
+                duration: 15000
+            };
+        }
+
+        return { success: false, reason: 'no_matches' };
+    }
+
+    /**
+     * Execute Perfect Fit (Smart Placement) power-up
+     */
+    executePerfectFit() {
+        if (this.powerUpCallbacks.onPerfectFit) {
+            this.powerUpCallbacks.onPerfectFit();
+        }
+
+        // Activate smart placement mode
+        this.smartPlacementActive = true;
+        this.smartPlacementEndTime = Date.now() + 45000; // 45 seconds
+
+        audioManager.playPlace();
+        return {
+            success: true,
+            powerUpType: POWER_UPS.PERFECT_FIT,
+            message: 'Smart Placement activated! Optimal spots highlighted!',
+            duration: 45000
+        };
+    }
+
+    /**
+     * Execute Second Chance (Phoenix Revival) power-up
+     */
+    executeSecondChance() {
+        if (this.powerUpCallbacks.onSecondChance) {
+            this.powerUpCallbacks.onSecondChance();
+        }
+
+        // Store phoenix revival state
+        this.phoenixRevivalActive = true;
+
+        audioManager.playPlace();
+        return {
+            success: true,
+            powerUpType: POWER_UPS.SECOND_CHANCE,
+            message: 'Phoenix Revival activated! You can continue after game over!'
+        };
+    }
+
+    /**
      * Cancel active power-up
      */
     cancelActivePowerUp() {
         const wasActive = this.activePowerUp;
         this.activePowerUp = null;
-        
+
         if (this.powerUpCallbacks.onPowerUpCancelled) {
             this.powerUpCallbacks.onPowerUpCancelled(wasActive);
         }
@@ -272,6 +423,87 @@ export class PowerUpManager {
      */
     getPowerUpCount(powerUpType) {
         return storage.getPowerUpCount(powerUpType);
+    }
+
+    /**
+     * Check if time warp is active
+     */
+    isTimeWarpActive() {
+        if (this.timeWarpActive && Date.now() > this.timeWarpEndTime) {
+            this.timeWarpActive = false;
+        }
+        return this.timeWarpActive;
+    }
+
+    /**
+     * Check if future sight is active
+     */
+    isFutureSightActive() {
+        if (this.futureSightActive && Date.now() > this.futureSightEndTime) {
+            this.futureSightActive = false;
+        }
+        return this.futureSightActive;
+    }
+
+    /**
+     * Check if color radar is active
+     */
+    isColorRadarActive() {
+        if (this.colorRadarActive && Date.now() > this.colorRadarEndTime) {
+            this.colorRadarActive = false;
+        }
+        return this.colorRadarActive;
+    }
+
+    /**
+     * Check if smart placement is active
+     */
+    isSmartPlacementActive() {
+        if (this.smartPlacementActive && Date.now() > this.smartPlacementEndTime) {
+            this.smartPlacementActive = false;
+        }
+        return this.smartPlacementActive;
+    }
+
+    /**
+     * Check if phoenix revival is active
+     */
+    isPhoenixRevivalActive() {
+        return this.phoenixRevivalActive;
+    }
+
+    /**
+     * Use phoenix revival (called when game over occurs)
+     */
+    usePhoenixRevival() {
+        if (this.phoenixRevivalActive) {
+            this.phoenixRevivalActive = false;
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Get time remaining for active power-ups
+     */
+    getActivePowerUpTimeRemaining() {
+        const now = Date.now();
+        const active = {};
+        
+        if (this.isTimeWarpActive()) {
+            active.timeWarp = Math.max(0, this.timeWarpEndTime - now);
+        }
+        if (this.isFutureSightActive()) {
+            active.futureSight = Math.max(0, this.futureSightEndTime - now);
+        }
+        if (this.isColorRadarActive()) {
+            active.colorRadar = Math.max(0, this.colorRadarEndTime - now);
+        }
+        if (this.isSmartPlacementActive()) {
+            active.smartPlacement = Math.max(0, this.smartPlacementEndTime - now);
+        }
+        
+        return active;
     }
 
     /**
@@ -332,7 +564,7 @@ export class PowerUpManager {
      * Check if player has any power-ups
      */
     hasAnyPowerUps() {
-        return Object.values(POWER_UPS).some(powerUp => 
+        return Object.values(POWER_UPS).some(powerUp =>
             this.getPowerUpCount(powerUp) > 0
         );
     }
@@ -342,7 +574,7 @@ export class PowerUpManager {
      */
     getShopData() {
         const currentCoins = storage.getCoins();
-        
+
         return this.getAllPowerUpInfo().map(info => ({
             ...info,
             canAfford: this.gameMode === GAME_MODES.ENDLESS ? true : currentCoins >= info.cost,
@@ -373,7 +605,7 @@ export class PowerUpManager {
             for (let i = 0; i < quantity; i++) {
                 const result = this.purchasePowerUp(powerUpType);
                 results.push(result);
-                
+
                 if (!result.success) {
                     // Rollback previous purchases if any fail
                     // This is simplified - a real implementation might need more sophisticated rollback
