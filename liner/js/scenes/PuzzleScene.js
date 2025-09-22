@@ -173,7 +173,8 @@ export class PuzzleScene extends Phaser.Scene {
             .setInteractive()
             .on('pointerdown', () => {
                 audioManager.playPlace();
-                this.scene.start('PuzzleScene');
+                this.currentView = 'packs';
+                this.scene.restart();
             });
 
         this.add.text(40, 40, 'Back', {
@@ -515,20 +516,37 @@ export class PuzzleScene extends Phaser.Scene {
         this.input.setDraggable(shapeGroup);
 
         shapeGroup.on('drag', (pointer, dragX, dragY) => {
+            // Apply mobile touch offset (keep shape above finger)
+            const offsetY = -40;
             shapeGroup.x = dragX;
-            shapeGroup.y = dragY;
+            shapeGroup.y = dragY + offsetY;
+            
             if (this.gameGrid) {
-                // Use raw pointer coordinates like GameScene does
-                this.gameGrid.showPlacementPreview(shape, pointer.x, pointer.y);
+                // Use adjusted coordinates for preview
+                this.gameGrid.showPlacementPreview(shape, pointer.x, pointer.y + offsetY);
+            }
+            if (window.audioManager) {
+                window.audioManager.playHover();
+            }
+            
+            // Mobile haptic feedback
+            if ('vibrate' in navigator) {
+                navigator.vibrate(5);
             }
         });
 
         shapeGroup.on('dragend', (pointer) => {
             if (this.gameGrid) {
-                // Use raw pointer coordinates like GameScene does
-                if (this.gameGrid.tryPlaceShape(shape, pointer.x, pointer.y)) {
+                // Apply mobile touch offset for placement
+                const offsetY = -40;
+                if (this.gameGrid.tryPlaceShape(shape, pointer.x, pointer.y + offsetY)) {
                     this.onShapePlaced(shape, index);
                     shapeGroup.destroy();
+                    
+                    // Haptic feedback for successful placement
+                    if ('vibrate' in navigator) {
+                        navigator.vibrate(25);
+                    }
                 } else {
                     // Return to original position
                     shapeGroup.x = x;
@@ -547,26 +565,14 @@ export class PuzzleScene extends Phaser.Scene {
             .setInteractive()
             .on('pointerdown', () => {
                 audioManager.playPlace();
-                this.scene.start('PuzzleScene', { pack: this.selectedPack });
+                this.currentView = 'puzzles';
+                this.scene.restart();
             });
 
         this.add.text(40, 30, 'Back', {
             fontSize: '12px',
-            shapeGroup.on('dragend', (pointer) => {
-                        if (this.gameGrid.tryPlaceShape(shape, pointer.x, pointer.y)) {
-                            // Remove from tray
-                            this.puzzleShapes[index] = null;
-                            shapeGroup.destroy();
-                            this.puzzleStats.moves++;
-                            this.updateMovesText();
-                            this.checkAfterShapePlaced();
-
-                            // If all shapes placed and puzzle not complete, refill tray
-                            if (this.puzzleShapes.every(ps => !ps || !ps.group.active) && !this.allObjectivesCompleted()) {
-                                this.generatePuzzleShapes();
-                            }
-                        }
-                    });
+            color: '#ffffff'
+        }).setOrigin(0.5);
 
         // Stats
         this.movesText = this.add.text(20, 60, `Moves: ${this.puzzleStats.moves}/${puzzle.targetMoves}`, {

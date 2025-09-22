@@ -407,18 +407,31 @@ export class AdventureScene extends Phaser.Scene {
         this.input.setDraggable(shapeGroup);
 
         shapeGroup.on('drag', (pointer, dragX, dragY) => {
+            // Apply mobile touch offset (keep shape above finger)
+            const offsetY = -40;
             shapeGroup.x = dragX;
-            shapeGroup.y = dragY;
+            shapeGroup.y = dragY + offsetY;
 
-            // Use raw pointer coordinates like GameScene does
-            this.gameGrid.showPlacementPreview(shape, pointer.x, pointer.y);
+            // Use adjusted coordinates for preview
+            this.gameGrid.showPlacementPreview(shape, pointer.x, pointer.y + offsetY);
+            
+            // Mobile haptic feedback
+            if ('vibrate' in navigator) {
+                navigator.vibrate(5);
+            }
         });
 
         shapeGroup.on('dragend', (pointer) => {
-            // Use raw pointer coordinates like GameScene does
-            if (this.gameGrid.tryPlaceShape(shape, pointer.x, pointer.y)) {
+            // Apply mobile touch offset for placement
+            const offsetY = -40;
+            if (this.gameGrid.tryPlaceShape(shape, pointer.x, pointer.y + offsetY)) {
                 this.onShapePlaced(shape, index);
                 shapeGroup.destroy();
+                
+                // Haptic feedback for successful placement
+                if ('vibrate' in navigator) {
+                    navigator.vibrate(25);
+                }
             } else {
                 // Return to original position
                 shapeGroup.x = x;
@@ -465,9 +478,12 @@ export class AdventureScene extends Phaser.Scene {
     }
 
     onLinesCleared(lines) {
-        this.gameStats.lines += lines.length;
-        const points = this.scoringManager.calculateScore(lines.length);
-        this.gameStats.score += points;
+    this.gameStats.lines += lines.length;
+    // lines is an array of {type: 'row'|'col', index: number}
+    const completedRows = lines.filter(line => line.type === 'row').map(line => line.index);
+    const completedCols = lines.filter(line => line.type === 'col').map(line => line.index);
+    const points = this.scoringManager.calculateLineScore(completedRows, completedCols);
+    this.gameStats.score += points;
 
         if (this.scoreText) {
             this.scoreText.setText(`Score: ${this.gameStats.score}`);

@@ -1,8 +1,8 @@
 // Core game constants and configuration
 export const GAME_CONFIG = {
     width: 400,
-    height: 600,
-    backgroundColor: '#000000',
+    height: 620,
+    backgroundColor: '#1a1a2e', // Deep purple instead of black
     parent: 'game-container',
     scale: {
         mode: Phaser.Scale.FIT,
@@ -30,7 +30,7 @@ export const GRID = {
     COLS: 10,
     CELL_SIZE: 30,
     MARGIN: 5,
-    START_X: 50,
+    START_X: 50, // Centered: (400 - 300) / 2 = 50, so this is correct
     START_Y: 120,
     HIGHLIGHT_COLOR: 0x00ff00,
     INVALID_COLOR: 0xff0000
@@ -545,8 +545,8 @@ export const UI = {
 export const TRAY = {
     SHAPES_COUNT: 3,
     START_Y: 480,
-    SHAPE_SPACING: 120,
-    START_X: 50
+    SHAPE_SPACING: 100, // Reduce spacing to prevent clipping
+    START_X: 50 // Keep centered with grid
 };
 
 // Animation constants

@@ -2,43 +2,43 @@
 export const THEMES = {
     vibrant: {
         name: 'Vibrant',
-        background: '#000000',
-        primary: '#FF6B6B',
-        secondary: '#4ECDC4',
-        accent: '#45B7D1',
+        background: '#FF6B6B', // Bright coral background
+        primary: '#4ECDC4', // Turquoise primary
+        secondary: '#45B7D1', // Sky blue secondary  
+        accent: '#FFA07A', // Light salmon accent
         text: '#FFFFFF',
-        textSecondary: '#CCCCCC',
-        gridBackground: '#111111',
-        gridLines: '#333333',
+        textSecondary: '#F8F8FF', // Ghost white
+        gridBackground: '#FF8E8E', // Light coral grid
+        gridLines: '#FFFFFF', // White grid lines
         blockColors: [
-            '#FF6B6B', // Red
-            '#4ECDC4', // Teal
-            '#45B7D1', // Blue
-            '#96CEB4', // Green
-            '#FFEAA7', // Yellow
-            '#DDA0DD', // Plum
-            '#98D8C8', // Mint
-            '#F7DC6F'  // Gold
+            '#FF1744', // Bright red
+            '#FF6D00', // Vivid orange
+            '#FFD600', // Electric yellow
+            '#00E676', // Neon green
+            '#00BCD4', // Cyan
+            '#2196F3', // Blue
+            '#9C27B0', // Purple
+            '#E91E63'  // Pink
         ],
         ui: {
-            buttonBackground: '#333333',
-            buttonHover: '#555555',
-            buttonActive: '#777777',
-            inputBackground: '#222222',
-            borderColor: '#444444'
+            buttonBackground: '#4A148C', // Purple buttons
+            buttonHover: '#6A1B9A', // Lighter purple hover
+            buttonActive: '#8E24AA', // Even lighter active
+            inputBackground: '#1A0033',
+            borderColor: '#9C27B0'
         }
     },
 
     forest: {
         name: 'Forest',
-        background: '#1B4332',
-        primary: '#52B788',
-        secondary: '#74C69D',
-        accent: '#95D5B2',
-        text: '#F8FFF8',
-        textSecondary: '#D8F3DC',
-        gridBackground: '#2D5A35',
-        gridLines: '#40916C',
+        background: '#32CD32', // Lime green background
+        primary: '#228B22', // Forest green primary
+        secondary: '#00FF7F', // Spring green secondary
+        accent: '#ADFF2F', // Green yellow accent
+        text: '#FFFFFF',
+        textSecondary: '#F0FFF0', // Honeydew
+        gridBackground: '#90EE90', // Light green grid
+        gridLines: '#FFFFFF', // White grid lines
         blockColors: [
             '#52B788', // Forest Green
             '#74C69D', // Light Green
@@ -60,30 +60,30 @@ export const THEMES = {
 
     neon: {
         name: 'Neon',
-        background: '#0D1117',
-        primary: '#00FF88',
-        secondary: '#FF0080',
-        accent: '#0080FF',
+        background: '#FF4081', // Bright pink background
+        primary: '#00FF89', // Electric mint green
+        secondary: '#FF1493', // Deep pink
+        accent: '#00BFFF', // Deep sky blue
         text: '#FFFFFF',
-        textSecondary: '#B0B0B0',
-        gridBackground: '#161B22',
-        gridLines: '#30363D',
+        textSecondary: '#F0F8FF', // Alice blue
+        gridBackground: '#FF69B4', // Hot pink grid
+        gridLines: '#FFFFFF', // White grid lines
         blockColors: [
-            '#00FF88', // Neon Green
-            '#FF0080', // Neon Pink
-            '#0080FF', // Neon Blue
-            '#FF8000', // Neon Orange
-            '#8000FF', // Neon Purple
-            '#FFFF00', // Neon Yellow
-            '#00FFFF', // Neon Cyan
-            '#FF4040'  // Neon Red
+            '#00FF41', // Electric green
+            '#FF0080', // Hot pink
+            '#00D4FF', // Electric blue
+            '#FF4000', // Neon orange-red
+            '#8000FF', // Electric purple
+            '#FFFF00', // Electric yellow
+            '#00FFFF', // Cyan
+            '#FF6600'  // Orange
         ],
         ui: {
-            buttonBackground: '#21262D',
-            buttonHover: '#30363D',
-            buttonActive: '#484F58',
-            inputBackground: '#0D1117',
-            borderColor: '#30363D'
+            buttonBackground: '#001100', // Dark green tint
+            buttonHover: '#003300', // Brighter green
+            buttonActive: '#006600', // Active green
+            inputBackground: '#000000',
+            borderColor: '#00FF41'
         }
     },
 

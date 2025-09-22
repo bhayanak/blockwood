@@ -139,14 +139,9 @@ export class GameGrid {
                 graphic.clear();
 
                 if (cell > 0) {
-                    // Draw filled cell
-                    const color = colors.blockColors[(cell - 1) % colors.blockColors.length];
-                    graphic.fillStyle(color);
-                    graphic.fillRect(pos.x, pos.y, GRID.CELL_SIZE, GRID.CELL_SIZE);
-                    
-                    // Add border
-                    graphic.lineStyle(2, color, 0.8);
-                    graphic.strokeRect(pos.x, pos.y, GRID.CELL_SIZE, GRID.CELL_SIZE);
+                    // Draw 3D colorful block
+                    const baseColor = colors.blockColors[(cell - 1) % colors.blockColors.length];
+                    this.draw3DBlock(graphic, pos.x, pos.y, GRID.CELL_SIZE, baseColor);
                 }
             }
         }
@@ -569,5 +564,77 @@ export class GameGrid {
         if (this.highlightGraphics) {
             this.highlightGraphics.clear();
         }
+    }
+
+    /**
+     * Draw a 3D colorful block with depth and highlights
+     */
+    draw3DBlock(graphic, x, y, size, baseColor) {
+        const depth = 4; // 3D depth
+        
+        // Convert color to integer - handle both hex strings and numbers
+        let colorInt;
+        if (typeof baseColor === 'string') {
+            colorInt = parseInt(baseColor.replace('#', ''), 16);
+        } else {
+            colorInt = baseColor;
+        }
+        
+        // Create lighter shade for highlight (top/left faces)
+        const lightColor = this.lightenColor(colorInt, 0.3);
+        // Create darker shade for shadow (bottom/right faces)
+        const darkColor = this.darkenColor(colorInt, 0.3);
+        
+        // Draw main face (front)
+        graphic.fillStyle(baseColor);
+        graphic.fillRect(x, y, size, size);
+        
+        // Draw top face (3D effect)
+        graphic.fillStyle(lightColor);
+        graphic.beginPath();
+        graphic.moveTo(x, y);
+        graphic.lineTo(x + depth, y - depth);
+        graphic.lineTo(x + size + depth, y - depth);
+        graphic.lineTo(x + size, y);
+        graphic.closePath();
+        graphic.fillPath();
+        
+        // Draw right face (3D effect)
+        graphic.fillStyle(darkColor);
+        graphic.beginPath();
+        graphic.moveTo(x + size, y);
+        graphic.lineTo(x + size + depth, y - depth);
+        graphic.lineTo(x + size + depth, y + size - depth);
+        graphic.lineTo(x + size, y + size);
+        graphic.closePath();
+        graphic.fillPath();
+        
+        // Add subtle highlight on main face
+        graphic.fillStyle(lightColor, 0.3);
+        graphic.fillRect(x + 2, y + 2, size * 0.3, size * 0.3);
+        
+        // Add border to main face
+        graphic.lineStyle(1, darkColor, 0.8);
+        graphic.strokeRect(x, y, size, size);
+    }
+
+    /**
+     * Lighten a color by a factor
+     */
+    lightenColor(color, factor) {
+        const r = Math.min(255, Math.floor(((color >> 16) & 0xFF) * (1 + factor)));
+        const g = Math.min(255, Math.floor(((color >> 8) & 0xFF) * (1 + factor)));
+        const b = Math.min(255, Math.floor((color & 0xFF) * (1 + factor)));
+        return (r << 16) | (g << 8) | b;
+    }
+
+    /**
+     * Darken a color by a factor
+     */
+    darkenColor(color, factor) {
+        const r = Math.floor(((color >> 16) & 0xFF) * (1 - factor));
+        const g = Math.floor(((color >> 8) & 0xFF) * (1 - factor));
+        const b = Math.floor((color & 0xFF) * (1 - factor));
+        return (r << 16) | (g << 8) | b;
     }
 }

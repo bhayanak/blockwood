@@ -13,11 +13,20 @@ export class MenuScene extends Phaser.Scene {
         this.selectedTheme = storage.getTheme();
         this.menuElements = {};
         this.animationTweens = [];
+        this.musicStarted = false;
     }
 
     preload() {
-        // Load audio assets
-        audioManager.preloadAssets(this);
+        // Load audio assets properly
+        console.log('📥 Preloading audio assets...');
+        
+        // Load audio files directly in preload
+        this.load.audio('place', 'assets/place.wav');
+        this.load.audio('clear', 'assets/clear.wav');
+        this.load.audio('gameover', 'assets/gameover.wav');
+        this.load.audio('combo', 'assets/combo.wav');
+        this.load.audio('hover', 'assets/hover.wav');
+        this.load.audio('bgmusic', 'assets/sfx.wav');
         
         // Logo is already loaded in LoadingScene
         // this.load.image('logo', 'assets/logo.png');
@@ -27,12 +36,17 @@ export class MenuScene extends Phaser.Scene {
         // Initialize analytics session
         analyticsManager.startSession();
 
-        // Initialize audio
-        audioManager.initializeSounds(this);
+        // Initialize audio - assets should now be loaded
+        audioManager.scene = this;
+        audioManager.initialized = true;
+        audioManager.createSounds();
         
-        // Apply current theme
+        // Don't start background music automatically (Chrome AudioContext restriction)
+        // Music will start on first user interaction
+        
+        // Apply current theme with gradient background
+        this.createGradientBackground();
         const colors = themeManager.getPhaserColors();
-        this.cameras.main.setBackgroundColor(colors.background);
         
         // Create UI elements
         this.createTitle();
@@ -49,34 +63,80 @@ export class MenuScene extends Phaser.Scene {
     }
 
     /**
-     * Create animated title
+     * Create animated title with much better visuals
      */
     createTitle() {
         const centerX = this.cameras.main.centerX;
-        const colors = themeManager.getPhaserColors();
+        const theme = themeManager.getCurrentTheme();
         
-        // Logo if available
+        // Background glow effect
+        const glow = this.add.graphics();
+        glow.fillGradientStyle(0x000000, 0x000000, theme.primary, theme.secondary, 0.3);
+        glow.fillRect(0, 0, this.cameras.main.width, 200);
+        
+        // Logo with animation - smaller and positioned above title
         if (this.textures.exists('logo')) {
-            this.menuElements.logo = this.add.image(centerX, 80, 'logo');
-            this.menuElements.logo.setScale(0.5);
+            this.menuElements.logo = this.add.image(centerX, 65, 'logo');
+            this.menuElements.logo.setScale(0.3); // Much smaller logo
+            this.menuElements.logo.setTint(parseInt(theme.accent.replace('#', '0x')));
+            
+            // Gentle logo floating animation
+            this.tweens.add({
+                targets: this.menuElements.logo,
+                y: 68,
+                duration: 2000,
+                ease: 'Sine.easeInOut',
+                yoyo: true,
+                repeat: -1
+            });
         }
         
-        // Title text
-        this.menuElements.title = this.add.text(centerX, 140, 'BLOCKQUEST', {
-            fontSize: '32px',
-            fontFamily: 'Arial, sans-serif',
-            color: themeManager.getCurrentTheme().primary,
-            fontStyle: 'bold'
+        // Title with gradient effect - moved up closer to logo
+        this.menuElements.title = this.add.text(centerX, 105, 'BLOCK PUZZLE', {
+            fontSize: '42px',
+            fontFamily: 'Arial Black, sans-serif',
+            color: theme.primary,
+            fontStyle: 'bold',
+            stroke: '#000000',
+            strokeThickness: 4,
+            shadow: {
+                offsetX: 3,
+                offsetY: 3,
+                color: '#000000',
+                blur: 5,
+                fill: true
+            }
         });
         this.menuElements.title.setOrigin(0.5);
         
-        // Subtitle
-        this.menuElements.subtitle = this.add.text(centerX, 170, 'Modern Puzzle Challenge', {
-            fontSize: '14px',
+        // Title pulse animation
+        this.tweens.add({
+            targets: this.menuElements.title,
+            scale: 1.05,
+            duration: 1500,
+            ease: 'Sine.easeInOut',
+            yoyo: true,
+            repeat: -1
+        });
+        
+        // Animated subtitle
+        this.menuElements.subtitle = this.add.text(centerX, 165, '🎮 Epic Puzzle Adventure 🎮', {
+            fontSize: '16px',
             fontFamily: 'Arial, sans-serif',
-            color: themeManager.getCurrentTheme().textSecondary
+            color: theme.accent,
+            fontStyle: 'bold'
         });
         this.menuElements.subtitle.setOrigin(0.5);
+        
+        // Subtitle typing effect
+        this.tweens.add({
+            targets: this.menuElements.subtitle,
+            alpha: 0.7,
+            duration: 800,
+            ease: 'Power2',
+            yoyo: true,
+            repeat: -1
+        });
     }
 
     /**
@@ -88,14 +148,14 @@ export class MenuScene extends Phaser.Scene {
         const buttonHeight = 45;
         const buttonSpacing = 10;
         
-        // Game mode buttons (2 columns on mobile)
+        // Game mode buttons with better layout and colors
         const modes = [
-            { key: GAME_MODES.NORMAL, label: '🎮 Normal Mode', desc: 'Classic gameplay' },
-            { key: GAME_MODES.DAILY, label: '📅 Daily Challenge', desc: 'New puzzle each day' },
-            { key: GAME_MODES.ENDLESS, label: '♾️ Endless Mode', desc: 'Score-based power-ups' },
-            { key: GAME_MODES.ADVENTURE, label: '🗺️ Adventure', desc: 'Story campaign' },
-            { key: GAME_MODES.PUZZLE, label: '🧩 Puzzle Packs', desc: 'Handcrafted challenges' },
-            { key: 'shop', label: '🛒 Power-up Shop', desc: 'Buy abilities' }
+            { key: GAME_MODES.NORMAL, label: '🎮 CLASSIC', color: '#4CAF50' },
+            { key: GAME_MODES.DAILY, label: '📅 DAILY', color: '#FF9800' },
+            { key: GAME_MODES.ENDLESS, label: '♾️ ENDLESS', color: '#2196F3' },
+            { key: GAME_MODES.ADVENTURE, label: '🗺️ ADVENTURE', color: '#9C27B0' },
+            { key: GAME_MODES.PUZZLE, label: '🧩 PUZZLE', color: '#F44336' },
+            { key: 'shop', label: '🛒 SHOP', color: '#FFD700' }
         ];
 
         this.menuElements.modeButtons = [];
@@ -103,86 +163,95 @@ export class MenuScene extends Phaser.Scene {
         modes.forEach((mode, index) => {
             const row = Math.floor(index / 2);
             const col = index % 2;
-            const x = centerX + (col === 0 ? -95 : 95);
+            const x = centerX + (col === 0 ? -100 : 100);
             const y = startY + row * (buttonHeight + buttonSpacing);
             
             let buttonLabel = mode.label;
-            let descText = mode.desc;
 
             // Special handling for daily challenge
             if (mode.key === GAME_MODES.DAILY) {
                 const isCompleted = isDailyCompleted();
                 if (isCompleted) {
-                    buttonLabel = '📅 Daily Challenge ✅';
-                    descText = 'Completed today!';
-                } else {
-                    descText = getTodaysDateString().split(',')[0]; // Just the day
+                    buttonLabel = '📅 DAILY ✅';
                 }
             }
 
-            const button = this.createMenuButton(x, y, 180, buttonHeight - 5, buttonLabel, () => {
+            const button = this.createMenuButton(x, y, 190, buttonHeight, buttonLabel, () => {
                 this.selectGameMode(mode.key);
             });
             
-            // Add description text
-            const desc = this.add.text(x, y + 15, descText, {
-                fontSize: '10px',
-                fontFamily: 'Arial, sans-serif',
-                color: mode.key === GAME_MODES.DAILY && isDailyCompleted() ?
-                    '#4CAF50' : themeManager.getCurrentTheme().textSecondary
-            });
-            desc.setOrigin(0.5);
-            
-            this.menuElements.modeButtons.push({ button, desc });
+            this.menuElements.modeButtons.push({ button });
         });
 
         // Settings and stats buttons
-        const bottomY = startY + Math.ceil(modes.length / 2) * (buttonHeight + buttonSpacing) + 20;
+        const bottomY = startY + Math.ceil(modes.length / 2) * (buttonHeight + buttonSpacing) + 30;
         
         this.menuElements.settingsButton = this.createMenuButton(
-            centerX - 95, bottomY, 85, 35, '⚙️ Settings', () => this.showSettings()
+            centerX - 70, bottomY, 120, 40, '⚙️ SETTINGS', () => this.showSettings()
         );
         
         this.menuElements.statsButton = this.createMenuButton(
-            centerX + 95, bottomY, 85, 35, '📊 Stats', () => this.showStatistics()
+            centerX + 70, bottomY, 120, 40, '📊 STATS', () => this.showStatistics()
         );
 
-        // Difficulty toggle
-        this.createDifficultyToggle(centerX, bottomY + 50);
-        
-        // Theme selector
-        this.createThemeSelector(centerX, bottomY + 85);
+        // Difficulty and theme toggles without text labels
+        this.createDifficultyToggle(centerX - 70, bottomY + 55);
+        this.createThemeSelector(centerX + 70, bottomY + 55);
     }
 
     /**
-     * Create difficulty toggle
+     * Create colorful gradient background inspired by CrazyGames
+     */
+    createGradientBackground() {
+        const width = this.cameras.main.width;
+        const height = this.cameras.main.height;
+        const theme = themeManager.getCurrentTheme();
+        
+        // Create gradient background with multiple colors
+        const bg = this.add.graphics();
+        
+        // Create multi-stop gradient
+        bg.fillGradientStyle(
+            parseInt(theme.primary.replace('#', ''), 16),      // Top-left
+            parseInt(theme.secondary.replace('#', ''), 16),    // Top-right  
+            parseInt(theme.accent.replace('#', ''), 16),       // Bottom-left
+            parseInt(theme.background.replace('#', ''), 16),   // Bottom-right
+            1.0  // Full opacity
+        );
+        
+        bg.fillRect(0, 0, width, height);
+        
+        // Add some sparkle with smaller gradient overlays
+        const overlay = this.add.graphics();
+        overlay.fillGradientStyle(
+            parseInt(theme.background.replace('#', ''), 16),
+            parseInt(theme.primary.replace('#', ''), 16),
+            parseInt(theme.secondary.replace('#', ''), 16),
+            parseInt(theme.accent.replace('#', ''), 16),
+            0.3  // Semi-transparent
+        );
+        overlay.fillRect(0, 0, width, height);
+        
+        // Send backgrounds to back
+        bg.setDepth(-1000);
+        overlay.setDepth(-999);
+    }
+
+    /**
+     * Create difficulty toggle - clean button without label
      */
     createDifficultyToggle(x, y) {
-        const difficultyText = this.add.text(x, y - 15, 'Difficulty:', {
-            fontSize: '14px',
-            fontFamily: 'Arial, sans-serif',
-            color: themeManager.getCurrentTheme().text
-        });
-        difficultyText.setOrigin(0.5);
-
         this.menuElements.difficultyButton = this.createMenuButton(
-            x, y, 120, 30, 
-            this.selectedDifficulty === DIFFICULTY.EASY ? '😊 Easy' : '😈 Hard',
+            x, y, 120, 35, 
+            this.selectedDifficulty === 'easy' ? '😊 EASY' : '😈 HARD',
             () => this.toggleDifficulty()
         );
     }
 
     /**
-     * Create theme selector
+     * Create theme selector - clean button without label
      */
     createThemeSelector(x, y) {
-        const themeText = this.add.text(x, y - 15, 'Theme:', {
-            fontSize: '14px',
-            fontFamily: 'Arial, sans-serif',
-            color: themeManager.getCurrentTheme().text
-        });
-        themeText.setOrigin(0.5);
-
         const themes = themeManager.getAllThemes();
         const currentIndex = themes.indexOf(this.selectedTheme);
         const currentTheme = themeManager.getTheme(this.selectedTheme);
@@ -195,7 +264,7 @@ export class MenuScene extends Phaser.Scene {
     }
 
     /**
-     * Create comprehensive settings panel
+     * Create responsive, colorful settings panel
      */
     createSettingsPanel() {
         // Initially hidden
@@ -204,17 +273,34 @@ export class MenuScene extends Phaser.Scene {
         
         const centerX = this.cameras.main.centerX;
         const centerY = this.cameras.main.centerY;
+        const theme = themeManager.getCurrentTheme();
         
-        // Background - larger for comprehensive settings
-        const bg = this.add.rectangle(centerX, centerY, 500, 600, 0x000000, 0.9);
+        // Responsive background - fit screen better
+        const panelWidth = Math.min(400, this.cameras.main.width - 40);
+        const panelHeight = Math.min(500, this.cameras.main.height - 80);
+        
+        // Background with gradient effect
+        const bg = this.add.graphics();
+        bg.fillGradientStyle(
+            parseInt(theme.gridBackground.replace('#', ''), 16),
+            parseInt(theme.background.replace('#', ''), 16),
+            parseInt(theme.background.replace('#', ''), 16),
+            parseInt(theme.gridBackground.replace('#', ''), 16),
+            0.95
+        );
+        bg.fillRoundedRect(centerX - panelWidth/2, centerY - panelHeight/2, panelWidth, panelHeight, 15);
+        bg.lineStyle(3, parseInt(theme.primary.replace('#', ''), 16), 1);
+        bg.strokeRoundedRect(centerX - panelWidth/2, centerY - panelHeight/2, panelWidth, panelHeight, 15);
         this.menuElements.settingsPanel.add(bg);
         
-        // Main title
-        const title = this.add.text(centerX, centerY - 270, 'Settings', {
-            fontSize: '24px',
-            fontFamily: 'Arial, sans-serif',
-            color: themeManager.getCurrentTheme().text,
-            fontStyle: 'bold'
+        // Main title with better styling
+        const title = this.add.text(centerX, centerY - panelHeight/2 + 30, '⚙️ SETTINGS', {
+            fontSize: '28px',
+            fontFamily: 'Arial Black, sans-serif',
+            color: theme.primary,
+            fontStyle: 'bold',
+            stroke: '#000000',
+            strokeThickness: 2
         });
         title.setOrigin(0.5);
         this.menuElements.settingsPanel.add(title);
@@ -229,10 +315,10 @@ export class MenuScene extends Phaser.Scene {
         this.createAccessibilitySettings(centerX, centerY + 120);
         this.createAccountSettings(centerX, centerY + 200);
 
-        // Close button
+        // Back button - positioned better
         this.menuElements.closeSettingsButton = this.createMenuButton(
-            centerX, centerY + 270, 100, 30,
-            'Close',
+            centerX, centerY + panelHeight/2 - 30, 140, 40,
+            '⬅️ BACK',
             () => this.hideSettings()
         );
         this.menuElements.settingsPanel.add(this.menuElements.closeSettingsButton);
@@ -378,11 +464,12 @@ export class MenuScene extends Phaser.Scene {
         this.menuElements.settingsContent.add(this.menuElements.autoSaveToggle);
 
         // Difficulty preference
-        const difficulty = storage.get('difficulty', 'normal');
+        const difficulty = storage.get('difficulty', 'easy');
+        this.selectedDifficulty = difficulty;
         this.menuElements.difficultyButton = this.createMenuButton(
             centerX + 80, startY + 30, 140, 30,
-            `⚡ Difficulty: ${difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}`,
-            () => this.cycleDifficulty()
+            difficulty === 'easy' ? '😊 EASY' : '😈 HARD',
+            () => this.toggleDifficulty()
         );
         this.menuElements.settingsContent.add(this.menuElements.difficultyButton);
     }
@@ -460,7 +547,7 @@ export class MenuScene extends Phaser.Scene {
     }
 
     /**
-     * Create comprehensive statistics panel
+     * Create responsive, colorful statistics panel
      */
     createStatisticsPanel() {
         // Initially hidden
@@ -469,36 +556,65 @@ export class MenuScene extends Phaser.Scene {
         
         const centerX = this.cameras.main.centerX;
         const centerY = this.cameras.main.centerY;
+        const theme = themeManager.getCurrentTheme();
         
-        // Background - larger for comprehensive stats
-        const bg = this.add.rectangle(centerX, centerY, 600, 700, 0x000000, 0.9);
+        // Responsive background - fit screen better with proper margins
+        const panelWidth = Math.min(420, this.cameras.main.width - 60);
+        const panelHeight = Math.min(550, this.cameras.main.height - 120);
+        
+        // Background with gradient effect
+        const bg = this.add.graphics();
+        bg.fillGradientStyle(
+            parseInt(theme.gridBackground.replace('#', ''), 16),
+            parseInt(theme.background.replace('#', ''), 16),
+            parseInt(theme.background.replace('#', ''), 16),
+            parseInt(theme.gridBackground.replace('#', ''), 16),
+            0.95
+        );
+        bg.fillRoundedRect(centerX - panelWidth/2, centerY - panelHeight/2, panelWidth, panelHeight, 15);
+        bg.lineStyle(3, parseInt(theme.secondary.replace('#', ''), 16), 1);
+        bg.strokeRoundedRect(centerX - panelWidth/2, centerY - panelHeight/2, panelWidth, panelHeight, 15);
         this.menuElements.statsPanel.add(bg);
         
-        // Main title
-        const title = this.add.text(centerX, centerY - 320, 'Game Statistics & Analytics', {
-            fontSize: '24px',
-            fontFamily: 'Arial, sans-serif',
-            color: themeManager.getCurrentTheme().text,
-            fontStyle: 'bold'
+        // Main title with better styling
+        const title = this.add.text(centerX, centerY - panelHeight/2 + 30, '📊 STATISTICS', {
+            fontSize: '28px',
+            fontFamily: 'Arial Black, sans-serif',
+            color: theme.secondary,
+            fontStyle: 'bold',
+            stroke: '#000000',
+            strokeThickness: 2
         });
         title.setOrigin(0.5);
         this.menuElements.statsPanel.add(title);
 
         // Create tabs for different stat categories
-        this.createStatisticsTabs(centerX, centerY - 280);
+        this.createStatisticsTabs(centerX, centerY - panelHeight/2 + 80);
 
-        // Stats content container
+        // Stats content container with proper clipping
         this.menuElements.statsContent = this.add.container(0, 0);
+        
+        // Create a mask to clip content within panel bounds
+        const maskShape = this.add.graphics();
+        maskShape.fillRect(
+            centerX - panelWidth/2 + 10, 
+            centerY - panelHeight/2 + 90, 
+            panelWidth - 20, 
+            panelHeight - 140
+        );
+        const mask = maskShape.createGeometryMask();
+        this.menuElements.statsContent.setMask(mask);
+        
         this.menuElements.statsPanel.add(this.menuElements.statsContent);
 
         // Default to overview tab
         this.currentStatsTab = 'overview';
         this.updateStatisticsContent();
         
-        // Close button
+        // Back button - positioned better
         this.menuElements.closeStatsButton = this.createMenuButton(
-            centerX, centerY + 320, 100, 30,
-            'Close',
+            centerX, centerY + panelHeight/2 - 30, 140, 40,
+            '⬅️ BACK',
             () => this.hideStatistics()
         );
         this.menuElements.statsPanel.add(this.menuElements.closeStatsButton);
@@ -510,28 +626,33 @@ export class MenuScene extends Phaser.Scene {
     createStatisticsTabs(centerX, y) {
         const tabs = [
             { key: 'overview', label: '📊 Overview' },
-            { key: 'performance', label: '🎯 Performance' },
-            { key: 'patterns', label: '📈 Patterns' },
-            { key: 'records', label: '🏆 Records' },
-            { key: 'modes', label: '🎮 Modes' }
+            { key: 'records', label: '🏆 Records' }
         ];
 
         this.menuElements.statsTabs = [];
+        this.menuElements.statsHighlights = [];
+
+        // Responsive tab layout - adjust based on screen width
+        const panelWidth = Math.min(420, this.cameras.main.width - 60);
+        const tabWidth = Math.max(70, Math.min(110, (panelWidth - 40) / tabs.length));
+        const totalWidth = tabWidth * tabs.length;
+        const startX = centerX - totalWidth / 2 + tabWidth / 2;
 
         tabs.forEach((tab, index) => {
-            const x = centerX - 240 + index * 120;
+            const x = startX + index * tabWidth;
             const isSelected = this.currentStatsTab === tab.key;
 
             const tabButton = this.createMenuButton(
-                x, y, 110, 30,
+                x, y, tabWidth - 5, 30,
                 tab.label,
                 () => this.selectStatsTab(tab.key)
             );
 
             // Highlight selected tab
             if (isSelected) {
-                const highlight = this.add.rectangle(x, y - 15, 110, 2, parseInt(themeManager.getCurrentTheme().accent.replace('#', ''), 16));
+                const highlight = this.add.rectangle(x, y - 15, tabWidth - 5, 2, parseInt(themeManager.getCurrentTheme().accent.replace('#', ''), 16));
                 this.menuElements.statsPanel.add(highlight);
+                this.menuElements.statsHighlights.push(highlight);
             }
 
             this.menuElements.statsTabs.push(tabButton);
@@ -554,18 +675,43 @@ export class MenuScene extends Phaser.Scene {
      * Refresh statistics tabs to show current selection
      */
     refreshStatisticsTabs() {
-        // Remove old tabs and create new ones
+        // Remove old tabs and highlights properly from the statistics panel
         if (this.menuElements.statsTabs) {
-            this.menuElements.statsTabs.forEach(tab => tab.destroy());
+            this.menuElements.statsTabs.forEach(tab => {
+                if (tab && tab.destroy) {
+                    // Remove from panel first
+                    if (this.menuElements.statsPanel) {
+                        this.menuElements.statsPanel.remove(tab);
+                    }
+                    tab.destroy();
+                }
+            });
+            this.menuElements.statsTabs = [];
+        }
+        
+        // Clear any existing highlights
+        if (this.menuElements.statsHighlights) {
+            this.menuElements.statsHighlights.forEach(highlight => {
+                if (highlight && highlight.destroy) {
+                    // Remove from panel first  
+                    if (this.menuElements.statsPanel) {
+                        this.menuElements.statsPanel.remove(highlight);
+                    }
+                    highlight.destroy();
+                }
+            });
+            this.menuElements.statsHighlights = [];
         }
 
         const centerX = this.cameras.main.centerX;
         const centerY = this.cameras.main.centerY;
-        this.createStatisticsTabs(centerX, centerY - 280);
+        // Use proper positioning relative to panel
+        const panelHeight = Math.min(550, this.cameras.main.height - 120);
+        this.createStatisticsTabs(centerX, centerY - panelHeight/2 + 80);
     }
 
     /**
-     * Create comprehensive power-up shop panel
+     * Create responsive, colorful power-up shop panel
      */
     createPowerUpShop() {
         // Initially hidden
@@ -574,17 +720,34 @@ export class MenuScene extends Phaser.Scene {
         
         const centerX = this.cameras.main.centerX;
         const centerY = this.cameras.main.centerY;
+        const theme = themeManager.getCurrentTheme();
         
-        // Background - larger for comprehensive shop
-        const bg = this.add.rectangle(centerX, centerY, 650, 750, 0x000000, 0.95);
+        // Responsive background - fit screen better with proper margins
+        const panelWidth = Math.min(450, this.cameras.main.width - 60);
+        const panelHeight = Math.min(600, this.cameras.main.height - 120);
+        
+        // Background with gradient effect
+        const bg = this.add.graphics();
+        bg.fillGradientStyle(
+            parseInt(theme.gridBackground.replace('#', ''), 16),
+            parseInt(theme.background.replace('#', ''), 16),
+            parseInt(theme.background.replace('#', ''), 16),
+            parseInt(theme.gridBackground.replace('#', ''), 16),
+            0.95
+        );
+        bg.fillRoundedRect(centerX - panelWidth/2, centerY - panelHeight/2, panelWidth, panelHeight, 15);
+        bg.lineStyle(3, parseInt(theme.accent.replace('#', ''), 16), 1);
+        bg.strokeRoundedRect(centerX - panelWidth/2, centerY - panelHeight/2, panelWidth, panelHeight, 15);
         this.menuElements.shopPanel.add(bg);
         
-        // Title
-        const title = this.add.text(centerX, centerY - 350, 'Power-up Shop', {
+        // Title with better styling
+        const title = this.add.text(centerX, centerY - panelHeight/2 + 30, '🛒 POWER-UP SHOP', {
             fontSize: '26px',
-            fontFamily: 'Arial, sans-serif',
-            color: themeManager.getCurrentTheme().text,
-            fontStyle: 'bold'
+            fontFamily: 'Arial Black, sans-serif',
+            color: theme.accent,
+            fontStyle: 'bold',
+            stroke: '#000000',
+            strokeThickness: 2
         });
         title.setOrigin(0.5);
         this.menuElements.shopPanel.add(title);
@@ -603,21 +766,17 @@ export class MenuScene extends Phaser.Scene {
         this.menuElements.coinsDisplay.setOrigin(0.5);
         this.menuElements.shopPanel.add(this.menuElements.coinsDisplay);
 
-        // Create category tabs
-        this.createShopTabs(centerX, centerY - 260);
-
-        // Shop content container
+        // Shop content container - display all power-ups directly
         this.menuElements.shopContent = this.add.container(0, 0);
         this.menuElements.shopPanel.add(this.menuElements.shopContent);
 
-        // Initialize with first category
-        this.currentShopCategory = 'all';
-        this.updateShopContent();
+        // Show all power-ups without category filtering
+        this.createAllPowerUpsDisplay(centerX, centerY - 180);
         
-        // Close button
+        // Back button - positioned better
         this.menuElements.closeShopButton = this.createMenuButton(
-            centerX, centerY + 350, 100, 35,
-            'Close',
+            centerX, centerY + panelHeight/2 - 30, 140, 40,
+            '⬅️ BACK',
             () => this.hideShop()
         );
         this.menuElements.shopPanel.add(this.menuElements.closeShopButton);
@@ -682,61 +841,122 @@ export class MenuScene extends Phaser.Scene {
     }
 
     /**
-     * Create a styled menu button
+     * Create a vibrant, game-like menu button with 3D effect
      */
     createMenuButton(x, y, width, height, text, callback) {
         const theme = themeManager.getCurrentTheme();
+        const graphics = this.add.graphics();
         
-        // Button background
-        const button = this.add.rectangle(x, y, width, height, parseInt(theme.ui.buttonBackground.replace('#', ''), 16));
-        button.setStrokeStyle(2, parseInt(theme.ui.borderColor.replace('#', ''), 16));
+        // Button colors - much more vibrant
+        const buttonColor = parseInt(theme.primary.replace('#', ''), 16);
+        const shadowColor = 0x000000;
+        const highlightColor = parseInt(theme.accent.replace('#', ''), 16);
+        
+        // 3D shadow effect
+        graphics.fillStyle(shadowColor, 0.6);
+        graphics.fillRoundedRect(x - width/2 + 3, y - height/2 + 3, width, height, 8);
+        
+        // Main button background - gradient effect
+        graphics.fillGradientStyle(buttonColor, buttonColor, shadowColor, shadowColor, 0.8);
+        graphics.fillRoundedRect(x - width/2, y - height/2, width, height, 8);
+        
+        // Highlight on top
+        graphics.fillStyle(highlightColor, 0.3);
+        graphics.fillRoundedRect(x - width/2, y - height/2, width, height/3, 8);
+        
+        // Border
+        graphics.lineStyle(2, highlightColor, 1);
+        graphics.strokeRoundedRect(x - width/2, y - height/2, width, height, 8);
+        
+        // Interactive area
+        const button = this.add.rectangle(x, y, width, height, 0x000000, 0);
         button.setInteractive({ useHandCursor: true });
         
-        // Button text
+        // Button text with better styling
         const buttonText = this.add.text(x, y, text, {
-            fontSize: height > 35 ? '14px' : '12px',
-            fontFamily: 'Arial, sans-serif',
-            color: theme.text
+            fontSize: height > 35 ? '16px' : '14px',
+            fontFamily: 'Arial Black, sans-serif',
+            color: '#FFFFFF',
+            fontStyle: 'bold',
+            stroke: '#000000',
+            strokeThickness: 2,
+            shadow: {
+                offsetX: 1,
+                offsetY: 1,
+                color: '#000000',
+                blur: 2,
+                fill: true
+            }
         });
         buttonText.setOrigin(0.5);
         
-        // Hover effects
+        // Hover effects with particles
         button.on('pointerover', () => {
-            button.setFillStyle(parseInt(theme.ui.buttonHover.replace('#', ''), 16));
+            audioManager.playHover();
+            
+            // Glow effect
+            graphics.clear();
+            graphics.fillStyle(shadowColor, 0.6);
+            graphics.fillRoundedRect(x - width/2 + 3, y - height/2 + 3, width, height, 8);
+            graphics.fillGradientStyle(highlightColor, highlightColor, buttonColor, buttonColor, 0.9);
+            graphics.fillRoundedRect(x - width/2, y - height/2, width, height, 8);
+            graphics.fillStyle(0xFFFFFF, 0.4);
+            graphics.fillRoundedRect(x - width/2, y - height/2, width, height/3, 8);
+            graphics.lineStyle(3, 0xFFFFFF, 0.8);
+            graphics.strokeRoundedRect(x - width/2, y - height/2, width, height, 8);
+            
             this.tweens.add({
-                targets: [button, buttonText],
-                scaleX: 1.05,
-                scaleY: 1.05,
-                duration: 100,
-                ease: 'Power2'
+                targets: [button, buttonText, graphics],
+                scaleX: 1.08,
+                scaleY: 1.08,
+                duration: 150,
+                ease: 'Back.easeOut'
             });
         });
         
         button.on('pointerout', () => {
-            button.setFillStyle(parseInt(theme.ui.buttonBackground.replace('#', ''), 16));
+            // Reset to normal
+            graphics.clear();
+            graphics.fillStyle(shadowColor, 0.6);
+            graphics.fillRoundedRect(x - width/2 + 3, y - height/2 + 3, width, height, 8);
+            graphics.fillGradientStyle(buttonColor, buttonColor, shadowColor, shadowColor, 0.8);
+            graphics.fillRoundedRect(x - width/2, y - height/2, width, height, 8);
+            graphics.fillStyle(highlightColor, 0.3);
+            graphics.fillRoundedRect(x - width/2, y - height/2, width, height/3, 8);
+            graphics.lineStyle(2, highlightColor, 1);
+            graphics.strokeRoundedRect(x - width/2, y - height/2, width, height, 8);
+            
             this.tweens.add({
-                targets: [button, buttonText],
+                targets: [button, buttonText, graphics],
                 scaleX: 1,
                 scaleY: 1,
-                duration: 100,
-                ease: 'Power2'
+                duration: 150,
+                ease: 'Back.easeOut'
             });
         });
         
         button.on('pointerdown', () => {
-            button.setFillStyle(parseInt(theme.ui.buttonActive.replace('#', ''), 16));
+            // Start background music on first user interaction (Chrome AudioContext requirement)
+            if (!this.musicStarted) {
+                this.musicStarted = true;
+                audioManager.startBackgroundMusic();
+            }
+            
+            // Press effect
             this.tweens.add({
-                targets: [button, buttonText],
-                scaleX: 0.95,
-                scaleY: 0.95,
-                duration: 50,
+                targets: [button, buttonText, graphics],
+                scaleX: 0.92,
+                scaleY: 0.92,
+                duration: 80,
                 yoyo: true,
                 ease: 'Power2',
-                onComplete: callback
+                onComplete: () => {
+                    if (callback) callback();
+                }
             });
         });
         
-        return this.add.container(0, 0, [button, buttonText]);
+        return this.add.container(0, 0, [graphics, button, buttonText]);
     }
 
     /**
@@ -781,14 +1001,7 @@ export class MenuScene extends Phaser.Scene {
     /**
      * Toggle difficulty
      */
-    toggleDifficulty() {
-        this.selectedDifficulty = this.selectedDifficulty === DIFFICULTY.EASY ? DIFFICULTY.HARD : DIFFICULTY.EASY;
-        storage.setDifficulty(this.selectedDifficulty);
-        
-        // Update button text
-        const newText = this.selectedDifficulty === DIFFICULTY.EASY ? '😊 Easy' : '😈 Hard';
-        this.menuElements.difficultyButton.list[1].setText(newText);
-    }
+
 
     /**
      * Cycle through themes
@@ -805,7 +1018,7 @@ export class MenuScene extends Phaser.Scene {
         
         // Update theme button
         const themeName = themeManager.getTheme(nextTheme).name;
-        this.menuElements.themeButton.list[1].setText(`🎨 ${themeName}`);
+        this.menuElements.themeButton.list[2].setText(`🎨 ${themeName}`);
         
         // Update scene colors
         this.updateTheme();
@@ -826,6 +1039,9 @@ export class MenuScene extends Phaser.Scene {
             return;
         }
 
+        // Stop background music when leaving menu
+        audioManager.stopBackgroundMusic();
+        
         // Route to the correct scene based on mode
         switch (mode) {
             case 'adventure':
@@ -936,7 +1152,14 @@ export class MenuScene extends Phaser.Scene {
     toggleAudio() {
         const enabled = audioManager.toggle();
         const text = enabled ? '🔊 Audio On' : '🔇 Audio Off';
-        this.menuElements.audioToggle.list[1].setText(text);
+        this.menuElements.audioToggle.list[2].setText(text);
+        
+        // Control background music based on audio state
+        if (enabled) {
+            audioManager.startBackgroundMusic();
+        } else {
+            audioManager.stopBackgroundMusic();
+        }
     }
 
     /**
@@ -978,22 +1201,44 @@ export class MenuScene extends Phaser.Scene {
         const newValue = !current;
         storage.set('autoSave', newValue);
         const text = newValue ? '💾 Auto-save: On' : '� Auto-save: Off';
-        this.menuElements.autoSaveToggle.list[1].setText(text);
+        this.menuElements.autoSaveToggle.list[2].setText(text);
     }
 
     /**
-     * Cycle through difficulty levels
+     * Toggle through difficulty levels
      */
-    cycleDifficulty() {
-        const difficulties = ['easy', 'normal', 'hard'];
-        const current = storage.get('difficulty', 'normal');
-        const currentIndex = difficulties.indexOf(current);
-        const nextIndex = (currentIndex + 1) % difficulties.length;
-        const newDifficulty = difficulties[nextIndex];
-
-        storage.set('difficulty', newDifficulty);
-        const text = `⚡ Difficulty: ${newDifficulty.charAt(0).toUpperCase() + newDifficulty.slice(1)}`;
-        this.menuElements.difficultyButton.list[1].setText(text);
+    toggleDifficulty() {
+        // Toggle between easy and hard
+        this.selectedDifficulty = this.selectedDifficulty === 'easy' ? 'hard' : 'easy';
+        storage.set('difficulty', this.selectedDifficulty);
+        
+        // Update text for button that uses button structure (main menu)
+        if (this.menuElements.difficultyButton && this.menuElements.difficultyButton.list) {
+            const newText = this.selectedDifficulty === 'easy' ? '😊 EASY' : '😈 HARD';
+            this.menuElements.difficultyButton.list[2].setText(newText);
+        }
+        // Update button that might be in settings (recreate if needed)
+        else if (this.menuElements.difficultyButton && this.menuElements.settingsContent) {
+            // Remove old button from settings content first
+            this.menuElements.settingsContent.remove(this.menuElements.difficultyButton);
+            
+            // Store position before destroying
+            const x = this.menuElements.difficultyButton.x;
+            const y = this.menuElements.difficultyButton.y;
+            
+            // Destroy old button
+            this.menuElements.difficultyButton.destroy();
+            
+            // Create new button with updated text
+            this.menuElements.difficultyButton = this.createMenuButton(
+                x, y, 140, 30, 
+                this.selectedDifficulty === 'easy' ? '😊 EASY' : '😈 HARD',
+                () => this.toggleDifficulty()
+            );
+            
+            // Add new button back to settings content
+            this.menuElements.settingsContent.add(this.menuElements.difficultyButton);
+        }
     }
 
     /**
@@ -1008,7 +1253,7 @@ export class MenuScene extends Phaser.Scene {
 
         storage.set('fontSize', newSize);
         const text = `🔤 Font: ${newSize.charAt(0).toUpperCase() + newSize.slice(1)}`;
-        this.menuElements.fontSizeButton.list[1].setText(text);
+        this.menuElements.fontSizeButton.list[2].setText(text);
 
         // Apply font size change immediately
         this.applyFontSize(newSize);
@@ -1022,7 +1267,7 @@ export class MenuScene extends Phaser.Scene {
         const newValue = !current;
         storage.set('highContrast', newValue);
         const text = newValue ? '🌓 Contrast: High' : '🌓 Contrast: Normal';
-        this.menuElements.contrastToggle.list[1].setText(text);
+        this.menuElements.contrastToggle.list[2].setText(text);
 
         // Apply contrast change immediately
         this.applyHighContrast(newValue);
@@ -1266,17 +1511,11 @@ export class MenuScene extends Phaser.Scene {
             case 'overview':
                 this.createOverviewStats(centerX, stats);
                 break;
-            case 'performance':
-                this.createPerformanceStats(centerX, stats);
-                break;
-            case 'patterns':
-                this.createPatternStats(centerX, stats);
-                break;
             case 'records':
                 this.createRecordStats(centerX, stats);
                 break;
-            case 'modes':
-                this.createModeStats(centerX, stats);
+            default:
+                this.createOverviewStats(centerX, stats);
                 break;
         }
     }
@@ -1285,8 +1524,10 @@ export class MenuScene extends Phaser.Scene {
      * Create overview statistics display
      */
     createOverviewStats(centerX, stats) {
-        const startY = -240;
-        let currentY = startY;
+        const centerY = this.cameras.main.centerY;
+        const panelHeight = Math.min(550, this.cameras.main.height - 120);
+        const contentStartY = centerY - panelHeight/2 + 120; // Start below tabs and title
+        let currentY = contentStartY;
 
         // Game Overview Section
         this.addStatsSection('🎮 Game Overview', centerX, currentY);
@@ -1311,10 +1552,10 @@ export class MenuScene extends Phaser.Scene {
         currentY += 40;
 
         const recentData = [
-            `This Week: ${stats.weeklyProgress?.gamesPlayed || 0} games`,
-            `This Month: ${stats.monthlyProgress?.gamesPlayed || 0} games`,
+            `Total Games: ${stats.gamesPlayed || 0}`,
+            `Total Score: ${stats.totalScore || 0}`,
             `Last Played: ${stats.lastPlayed ? new Date(stats.lastPlayed).toLocaleDateString() : 'Never'}`,
-            `Current Streak: ${stats.currentScoreStreak || 0} games`
+            `Highest Score: ${stats.highScore || 0}`
         ];
 
         recentData.forEach((text, index) => {
@@ -1409,7 +1650,7 @@ export class MenuScene extends Phaser.Scene {
     }
 
     /**
-     * Create personal records display
+     * Create personal records and mode statistics display
      */
     createRecordStats(centerX, stats) {
         const startY = -240;
@@ -1424,29 +1665,117 @@ export class MenuScene extends Phaser.Scene {
             `Highest Single Score: ${records.highestSingleScore || 0}`,
             `Most Lines in One Game: ${records.mostLinesInOneGame || 0}`,
             `Longest Combo Chain: ${records.longestComboChain || 0}`,
-            `Fastest Completion: ${records.fastestCompletion ? this.formatDuration(records.fastestCompletion) : 'N/A'}`,
             `Best Score Streak: ${stats.bestScoreStreak || 0} games`
         ];
 
         recordData.forEach((text, index) => {
             this.addStatsText(text, centerX, currentY + (index * 25));
         });
-        currentY += recordData.length * 25 + 20;
+        currentY += recordData.length * 25 + 30;
 
-        // Milestones Section
-        this.addStatsSection('🎖️ Achievement Milestones', centerX, currentY);
+        // Mode Statistics Section
+        this.addStatsSection('� Mode Statistics', centerX, currentY);
         currentY += 40;
 
-        const milestoneData = [
-            `First Game: ${stats.firstGameCompleted ? new Date(stats.firstGameCompleted).toLocaleDateString() : 'Not yet'}`,
-            `100th Game: ${stats.hundredthGameCompleted ? new Date(stats.hundredthGameCompleted).toLocaleDateString() : 'Not yet'}`,
-            `1000th Block: ${stats.thousandthBlockPlaced ? new Date(stats.thousandthBlockPlaced).toLocaleDateString() : 'Not yet'}`,
-            `Challenges Completed: ${stats.challengesCompleted || 0}`
+        const modeStats = stats.modeStats || {};
+        const modes = [
+            { key: 'normal', name: 'Normal Mode', icon: '🎯' },
+            { key: 'endless', name: 'Endless Mode', icon: '♾️' },
+            { key: 'daily', name: 'Daily Challenge', icon: '📅' },
+            { key: 'adventure', name: 'Adventure Mode', icon: '🗺️' },
+            { key: 'puzzle', name: 'Puzzle Mode', icon: '🧩' }
         ];
 
-        milestoneData.forEach((text, index) => {
-            this.addStatsText(text, centerX, currentY + (index * 25));
+        modes.forEach((mode, index) => {
+            const modeData = modeStats[mode.key] || {};
+            const gamesPlayed = modeData.gamesPlayed || 0;
+            const highScore = modeData.highScore || 0;
+            const totalScore = modeData.totalScore || 0;
+            const avgScore = gamesPlayed > 0 ? Math.round(totalScore / gamesPlayed) : 0;
+
+            // Mode header
+            this.addStatsText(`${mode.icon} ${mode.name}`, centerX, currentY, '#FFD700');
+            currentY += 25;
+
+            if (gamesPlayed > 0) {
+                this.addStatsText(`  Games Played: ${gamesPlayed}`, centerX, currentY);
+                currentY += 20;
+                this.addStatsText(`  High Score: ${highScore.toLocaleString()}`, centerX, currentY);
+                currentY += 20;
+                this.addStatsText(`  Average Score: ${avgScore.toLocaleString()}`, centerX, currentY);
+                currentY += 25;
+            } else {
+                this.addStatsText(`  No games played yet`, centerX, currentY, '#888888');
+                currentY += 25;
+            }
         });
+
+        // Achievements Section
+        this.addStatsSection('🎖️ Achievements', centerX, currentY);
+        currentY += 40;
+
+        const achievements = this.calculateAchievements(stats);
+        achievements.forEach((achievement, index) => {
+            const color = achievement.unlocked ? '#4CAF50' : '#888888';
+            const status = achievement.unlocked ? '✅' : '🔒';
+            this.addStatsText(`${status} ${achievement.name}`, centerX, currentY, color);
+            currentY += 20;
+            if (achievement.description) {
+                this.addStatsText(`    ${achievement.description}`, centerX, currentY, '#CCCCCC');
+                currentY += 20;
+            }
+            currentY += 10;
+        });
+    }
+
+    /**
+     * Calculate achievements based on statistics
+     */
+    calculateAchievements(stats) {
+        const achievements = [];
+        const totalGamesPlayed = stats.totalGamesPlayed || 0;
+        const totalScore = stats.totalScore || 0;
+        const totalLinesCleared = stats.totalLinesCleared || 0;
+        const records = stats.personalRecords || {};
+
+        // Basic achievements
+        achievements.push({
+            name: 'First Steps',
+            description: 'Play your first game',
+            unlocked: totalGamesPlayed >= 1
+        });
+
+        achievements.push({
+            name: 'Getting Started',
+            description: 'Play 10 games',
+            unlocked: totalGamesPlayed >= 10
+        });
+
+        achievements.push({
+            name: 'Dedicated Player',
+            description: 'Play 50 games',
+            unlocked: totalGamesPlayed >= 50
+        });
+
+        achievements.push({
+            name: 'High Scorer',
+            description: 'Reach 10,000 points in a single game',
+            unlocked: (records.highestSingleScore || 0) >= 10000
+        });
+
+        achievements.push({
+            name: 'Line Master',
+            description: 'Clear 1,000 total lines',
+            unlocked: totalLinesCleared >= 1000
+        });
+
+        achievements.push({
+            name: 'Combo Expert',
+            description: 'Achieve a 5x combo',
+            unlocked: (records.longestComboChain || 0) >= 5
+        });
+
+        return achievements;
     }
 
     /**
@@ -1503,11 +1832,11 @@ export class MenuScene extends Phaser.Scene {
     /**
      * Add a statistics text line
      */
-    addStatsText(content, x, y) {
+    addStatsText(content, x, y, color = null) {
         const text = this.add.text(x, y, content, {
             fontSize: '13px',
             fontFamily: 'Arial, sans-serif',
-            color: themeManager.getCurrentTheme().text
+            color: color || themeManager.getCurrentTheme().text
         });
         text.setOrigin(0.5);
         this.menuElements.statsContent.add(text);
@@ -1548,7 +1877,9 @@ export class MenuScene extends Phaser.Scene {
         }
 
         const centerX = this.cameras.main.centerX;
-        const startY = -200;
+        const centerY = this.cameras.main.centerY;
+        const panelHeight = Math.min(600, this.cameras.main.height - 120);
+        const startY = centerY - panelHeight/2 + 120; // Position below title and tabs
 
         // Get filtered power-ups based on category
         const powerUps = this.getFilteredPowerUps();
@@ -1574,21 +1905,57 @@ export class MenuScene extends Phaser.Scene {
     }
 
     /**
+     * Create display showing all 9 power-ups
+     */
+    createAllPowerUpsDisplay(centerX, startY) {
+        const allPowerUps = Object.values(POWER_UPS);
+        const coins = storage.getCoins();
+        const ownedPowerUps = storage.getPowerUps();
+        
+        // Use 3 columns layout with all 9 power-ups
+        const itemsPerRow = 3;
+        const itemWidth = 120;
+        const spacing = 130; 
+        const totalWidth = (itemsPerRow - 1) * spacing;
+        const startX = centerX - totalWidth / 2;
+
+        allPowerUps.forEach((powerUpType, index) => {
+            const info = POWER_UP_INFO[powerUpType];
+            const cost = POWER_UP_COSTS.NORMAL[powerUpType];
+            const owned = ownedPowerUps[powerUpType] || 0;
+
+            const row = Math.floor(index / itemsPerRow);
+            const col = index % itemsPerRow;
+            const x = startX + col * spacing;
+            const y = startY + row * 110; // Adjust spacing for better layout
+
+            this.createPowerUpCard(powerUpType, info, cost, owned, coins, x, y);
+        });
+    }
+
+    /**
      * Create power-up item displays
      */
     createPowerUpItems(powerUps, centerX, startY) {
         const coins = storage.getCoins();
         const ownedPowerUps = storage.getPowerUps();
+        
+        // Use 3 columns layout with smaller, cleaner cards
+        const itemsPerRow = 3;
+        const itemWidth = 100;
+        const spacing = 110; 
+        const totalWidth = (itemsPerRow - 1) * spacing;
+        const startX = centerX - totalWidth / 2;
 
         powerUps.forEach((powerUpType, index) => {
             const info = POWER_UP_INFO[powerUpType];
             const cost = POWER_UP_COSTS.NORMAL[powerUpType];
             const owned = ownedPowerUps[powerUpType] || 0;
 
-            const row = Math.floor(index / 2);
-            const col = index % 2;
-            const x = centerX + (col === 0 ? -160 : 160);
-            const y = startY + row * 120;
+            const row = Math.floor(index / itemsPerRow);
+            const col = index % itemsPerRow;
+            const x = startX + col * spacing;
+            const y = startY + row * 90; // Reduced spacing to fit more rows
 
             this.createPowerUpCard(powerUpType, info, cost, owned, coins, x, y);
         });
@@ -1598,7 +1965,7 @@ export class MenuScene extends Phaser.Scene {
      * Create individual power-up card
      */
     createPowerUpCard(powerUpType, info, cost, owned, playerCoins, x, y) {
-        // Card background with rarity color
+        // Card background with rarity color - bigger cards
         const rarityColors = {
             common: '#4A4A4A',
             uncommon: '#2E7D32',
@@ -1607,72 +1974,61 @@ export class MenuScene extends Phaser.Scene {
             legendary: '#E65100'
         };
 
-        const cardBg = this.add.rectangle(x, y, 280, 100, parseInt(rarityColors[info.rarity].replace('#', ''), 16), 0.3);
-        const cardBorder = this.add.rectangle(x, y, 282, 102, parseInt(rarityColors[info.rarity].replace('#', ''), 16));
+        const cardBg = this.add.rectangle(x, y, 120, 90, parseInt(rarityColors[info.rarity].replace('#', ''), 16), 0.3);
+        const cardBorder = this.add.rectangle(x, y, 122, 92, parseInt(rarityColors[info.rarity].replace('#', ''), 16));
         cardBorder.setStrokeStyle(2, parseInt(rarityColors[info.rarity].replace('#', ''), 16));
 
         this.menuElements.shopContent.add([cardBorder, cardBg]);
 
-        // Power-up icon and name
-        const iconText = this.add.text(x - 120, y - 20, info.icon, {
-            fontSize: '24px'
+        // Power-up icon - bigger
+        const iconText = this.add.text(x, y - 30, info.icon, {
+            fontSize: '20px'
         });
         iconText.setOrigin(0.5);
+        this.menuElements.shopContent.add(iconText);
 
-        const nameText = this.add.text(x - 80, y - 25, info.name, {
-            fontSize: '14px',
+        // Power-up name
+        const nameText = this.add.text(x, y - 10, info.name, {
+            fontSize: '12px',
             fontFamily: 'Arial, sans-serif',
             color: themeManager.getCurrentTheme().text,
             fontStyle: 'bold'
         });
-        nameText.setOrigin(0, 0.5);
+        nameText.setOrigin(0.5, 0.5);
+        this.menuElements.shopContent.add(nameText);
 
-        // Description
-        const descText = this.add.text(x - 80, y - 5, info.description, {
-            fontSize: '11px',
+        // Description text
+        const descText = this.add.text(x, y + 5, info.description, {
+            fontSize: '9px',
             fontFamily: 'Arial, sans-serif',
             color: themeManager.getCurrentTheme().textSecondary,
-            wordWrap: { width: 150 }
+            wordWrap: { width: 110 }
         });
-        descText.setOrigin(0, 0.5);
+        descText.setOrigin(0.5, 0.5);
+        this.menuElements.shopContent.add(descText);
 
-        // Owned count
-        const ownedText = this.add.text(x - 80, y + 25, `Owned: ${owned}`, {
-            fontSize: '12px',
+        // Owned count  
+        const ownedText = this.add.text(x, y + 20, `Owned: ${owned}`, {
+            fontSize: '10px',
             fontFamily: 'Arial, sans-serif',
-            color: themeManager.getCurrentTheme().accent
+            color: themeManager.getCurrentTheme().accent,
+            fontStyle: 'bold'
         });
-        ownedText.setOrigin(0, 0.5);
+        ownedText.setOrigin(0.5, 0.5);
+        this.menuElements.shopContent.add(ownedText);
 
-        // Purchase section
+        // Purchase button - bigger and more prominent
         const canAfford = playerCoins >= cost;
         const buyButton = this.createMenuButton(
-            x + 80, y - 10, 80, 30,
-            `Buy: ${cost}💰`,
+            x, y + 35, 60, 20,
+            `💰 ${cost}`,
             canAfford ? () => this.purchasePowerUp(powerUpType) : null
         );
 
         if (!canAfford) {
             buyButton.setAlpha(0.5);
         }
-
-        // Buy 5 button for bulk purchase
-        const bulkCost = cost * 5;
-        const canAffordBulk = playerCoins >= bulkCost;
-        const bulkButton = this.createMenuButton(
-            x + 80, y + 20, 80, 25,
-            `x5: ${bulkCost}💰`,
-            canAffordBulk ? () => this.purchasePowerUpBulk(powerUpType, 5) : null
-        );
-        bulkButton.list[1].setFontSize('10px'); // Smaller text for bulk button
-
-        if (!canAffordBulk) {
-            bulkButton.setAlpha(0.5);
-        }
-
-        this.menuElements.shopContent.add([
-            iconText, nameText, descText, ownedText, buyButton, bulkButton
-        ]);
+        this.menuElements.shopContent.add(buyButton);
     }
 
     /**
@@ -1700,31 +2056,7 @@ export class MenuScene extends Phaser.Scene {
         }
     }
 
-    /**
-     * Purchase multiple power-ups
-     */
-    purchasePowerUpBulk(powerUpType, quantity) {
-        const unitCost = POWER_UP_COSTS.NORMAL[powerUpType];
-        const totalCost = unitCost * quantity;
-        const coins = storage.getCoins();
 
-        if (coins >= totalCost) {
-            // Deduct coins
-            storage.setCoins(coins - totalCost);
-
-            // Add power-ups
-            storage.addPowerUp(powerUpType, quantity);
-
-            // Track analytics
-            analyticsManager.trackCoinsEarned(-totalCost, 'bulk_power_up_purchase');
-
-            // Show purchase confirmation
-            this.showPurchaseConfirmation(powerUpType, quantity);
-
-            // Update shop display
-            this.updateShopContent();
-        }
-    }
 
     /**
      * Show purchase confirmation popup

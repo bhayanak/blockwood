@@ -30,19 +30,49 @@ class AudioManager {
         this.scene.load.audio('place', 'assets/place.wav');
         this.scene.load.audio('clear', 'assets/clear.wav');
         this.scene.load.audio('gameover', 'assets/gameover.wav');
+        this.scene.load.audio('combo', 'assets/combo.wav');
+        this.scene.load.audio('hover', 'assets/hover.wav');
+        this.scene.load.audio('bgmusic', 'assets/sfx.wav');
     }
 
     /**
      * Create sound objects after loading
      */
     createSounds() {
-        if (!this.scene || !this.initialized) return;
+        if (!this.scene || !this.initialized) {
+            console.log('❌ Cannot create sounds - scene or initialization missing');
+            return;
+        }
 
+        console.log('🔊 Creating audio sounds...');
+        
         this.sounds = {
             place: this.scene.sound.add('place', { volume: this.sfxVolume * this.masterVolume }),
             clear: this.scene.sound.add('clear', { volume: this.sfxVolume * this.masterVolume }),
-            gameover: this.scene.sound.add('gameover', { volume: this.sfxVolume * this.masterVolume })
+            gameover: this.scene.sound.add('gameover', { volume: this.sfxVolume * this.masterVolume }),
+            combo: this.scene.sound.add('combo', { volume: this.sfxVolume * this.masterVolume }),
+            hover: this.scene.sound.add('hover', { volume: this.sfxVolume * this.masterVolume }),
+            bgmusic: this.scene.sound.add('bgmusic', { 
+                volume: (this.masterVolume * 0.3), // Lower volume for bg music
+                loop: true 
+            })
         };
+        
+        console.log('✅ Audio sounds created:', Object.keys(this.sounds));
+        console.log('🎵 Background music loaded:', !!this.sounds.bgmusic);
+    }
+
+    /**
+     * Play combo sound
+     */
+    playCombo() {
+        this.playSound('combo');
+    }
+    /**
+     * Play hover sound
+     */
+    playHover() {
+        this.playSound('hover');
     }
 
     /**
@@ -77,6 +107,60 @@ class AudioManager {
      */
     playGameOver() {
         this.playSound('gameover');
+    }
+
+    /**
+     * Play combo sound
+     */
+    playCombo() {
+        this.playSound('combo');
+    }
+
+    /**
+     * Play hover sound
+     */
+    playHover() {
+        this.playSound('hover');
+    }
+
+    /**
+     * Start background music
+     */
+    startBackgroundMusic() {
+        console.log('🎵 Attempting to start background music...');
+        console.log('Audio enabled:', this.enabled);
+        console.log('Background music sound exists:', !!this.sounds.bgmusic);
+        
+        if (!this.enabled) {
+            console.log('❌ Audio is disabled - not starting music');
+            return;
+        }
+        
+        if (!this.sounds.bgmusic) {
+            console.log('❌ Background music sound not loaded');
+            return;
+        }
+        
+        if (!this.sounds.bgmusic.isPlaying) {
+            try {
+                console.log('▶️ Starting background music...');
+                this.sounds.bgmusic.play();
+                console.log('✅ Background music started successfully');
+            } catch (e) {
+                console.error('❌ Failed to start background music:', e);
+            }
+        } else {
+            console.log('🎵 Background music is already playing');
+        }
+    }
+
+    /**
+     * Stop background music
+     */
+    stopBackgroundMusic() {
+        if (this.sounds.bgmusic && this.sounds.bgmusic.isPlaying) {
+            this.sounds.bgmusic.stop();
+        }
     }
 
     /**
@@ -130,10 +214,20 @@ class AudioManager {
     }
 
     /**
+     * Set master volume
+     */
+    setMasterVolume(volume) {
+        this.masterVolume = Math.max(0, Math.min(1, volume));
+        storage.set('masterVolume', this.masterVolume);
+        this.updateAllVolumes();
+    }
+
+    /**
      * Set SFX volume
      */
     setSFXVolume(volume) {
         this.sfxVolume = Math.max(0, Math.min(1, volume));
+        storage.set('sfxVolume', this.sfxVolume);
         this.updateAllVolumes();
     }
 
@@ -179,16 +273,44 @@ class AudioManager {
         if (!scene.cache.audio.exists('gameover')) {
             scene.load.audio('gameover', 'assets/gameover.wav');
         }
+        if (!scene.cache.audio.exists('combo')) {
+            scene.load.audio('combo', 'assets/combo.wav');
+        }
+        if (!scene.cache.audio.exists('hover')) {
+            scene.load.audio('hover', 'assets/hover.wav');
+        }
+        if (!scene.cache.audio.exists('bgmusic')) {
+            scene.load.audio('bgmusic', 'assets/sfx.wav');
+        }
     }
-
     /**
      * Initialize sounds after assets are loaded (call this in scene create)
      */
     initializeSounds(scene) {
         this.scene = scene;
-        this.createSounds();
+        this.initialized = true;
+        
+        // Check if assets are actually loaded before creating sounds
+        console.log('🔊 Initializing audio system...');
+        console.log('Scene exists:', !!scene);
+        console.log('Audio cache - bgmusic:', scene.cache.audio.exists('bgmusic'));
+        console.log('Audio cache - place:', scene.cache.audio.exists('place'));
+        
+        if (scene.cache.audio.exists('bgmusic') && scene.cache.audio.exists('place')) {
+            this.createSounds();
+        } else {
+            console.log('⏳ Audio assets not yet loaded, will retry...');
+            // Retry after a short delay
+            scene.time.delayedCall(100, () => {
+                console.log('🔄 Retrying audio initialization...');
+                if (scene.cache.audio.exists('bgmusic') && scene.cache.audio.exists('place')) {
+                    this.createSounds();
+                } else {
+                    console.log('❌ Audio assets still not loaded after retry');
+                }
+            });
+        }
     }
 }
-
 // Create and export singleton instance
 export const audioManager = new AudioManager();
