@@ -38,6 +38,7 @@ export class GameScene extends Phaser.Scene {
         this.colorHighlights = [];
         this.nextShapes = null;
         this.smartHints = [];
+        this.previousCoins = 0;
     }
 
     init(data) {
@@ -158,9 +159,11 @@ export class GameScene extends Phaser.Scene {
             fontSize: '12px', fontFamily: 'Arial', color: theme.textSecondary
         }).setOrigin(0.5);
 
-        // Coins - right center
+        // Coins - right center with larger icon and highlighting
         this.ui.coinsText = this.add.text(centerX + 45, headerY, `💰 ${storage.getCoins()}`, {
-            fontSize: '12px', fontFamily: 'Arial', color: theme.accent, fontStyle: 'bold'
+            fontSize: '16px', fontFamily: 'Arial', color: theme.accent, fontStyle: 'bold',
+            stroke: '#000000',
+            strokeThickness: 1
         }).setOrigin(0.5);
 
         // Audio button - rightmost
@@ -169,7 +172,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     /**
-     * Create all 9 power-up buttons in compact layout
+     * Create all 9 power-up buttons in compact layout with boundary boxes
      */
     createPowerUpButtons() {
         this.ui.powerUpButtons = [];
@@ -177,14 +180,25 @@ export class GameScene extends Phaser.Scene {
         // Get all power-ups and their info
         const allPowerUps = Object.values(POWER_UPS);
         const centerX = this.cameras.main.centerX;
+        const theme = themeManager.getCurrentTheme();
         
         // Layout configuration - 5 in first row, 4 in second row
         const firstRowCount = 5;
         const secondRowCount = 4;
         const buttonSize = 32; // Slightly smaller buttons
         const spacing = 42; // Tighter spacing
-        const startY = 470; // Position below tray with proper spacing
+        const startY = 520; // Moved down 20px more for better spacing
         const rowSpacing = 40;
+
+        // Create boundary box for shape tray area
+        const trayBoundary = this.add.rectangle(centerX, TRAY.START_Y + 30, 320, 80, 0x000000, 0);
+        trayBoundary.setStrokeStyle(2, parseInt(theme.ui.borderColor.replace('#', ''), 16), 0.3);
+        trayBoundary.setDepth(-1);
+
+        // Create boundary box for power-ups area
+        const powerUpBoundary = this.add.rectangle(centerX, startY + 20, 350, 100, 0x000000, 0);
+        powerUpBoundary.setStrokeStyle(2, parseInt(theme.accent.replace('#', ''), 16), 0.3);
+        powerUpBoundary.setDepth(-1);
 
         // First row - 5 power-ups
         const firstRowStartX = centerX - ((firstRowCount - 1) * spacing) / 2;
@@ -300,6 +314,12 @@ export class GameScene extends Phaser.Scene {
     generateTrayShapes() {
         this.trayShapes = this.shapeGenerator.generateShapes(TRAY.SHAPES_COUNT);
         this.renderTrayShapes();
+        
+        // Update Future Sight display if active
+        if (this.futureSightActive) {
+            this.nextShapes = this.shapeGenerator.generateShapes(3);
+            this.createFutureSightDisplay();
+        }
     }
 
     /**
@@ -505,6 +525,12 @@ export class GameScene extends Phaser.Scene {
             // Remove from tray
             this.trayShapes[shapeIndex] = null;
             this.draggedShape.destroy();
+            
+            // Update Future Sight display if active (shapes consumed, predictions changed)
+            if (this.futureSightActive) {
+                this.nextShapes = this.shapeGenerator.generateShapes(3);
+                this.createFutureSightDisplay();
+            }
 
             // Play sound and haptic feedback for successful placement
             audioManager.playPlace();
@@ -783,28 +809,58 @@ export class GameScene extends Phaser.Scene {
         const bestPositions = this.findOptimalPlacements(shape);
         
         bestPositions.slice(0, 3).forEach((pos, index) => {
-            const hint = this.add.rectangle(
-                GRID.START_X + pos.col * (GRID.CELL_SIZE + GRID.MARGIN) + shape.width * (GRID.CELL_SIZE + GRID.MARGIN) / 2,
-                GRID.START_Y + pos.row * (GRID.CELL_SIZE + GRID.MARGIN) + shape.height * (GRID.CELL_SIZE + GRID.MARGIN) / 2,
-                shape.width * (GRID.CELL_SIZE + GRID.MARGIN),
-                shape.height * (GRID.CELL_SIZE + GRID.MARGIN),
-                0x00FF00, // Green hint
-                0
-            );
-            hint.setStrokeStyle(2, 0x00FF00, 0.6 - index * 0.15); // Fade with rank
-            hint.setDepth(3);
+            // Create hint for each block position of the shape
+            for (let r = 0; r < shape.height; r++) {
+                for (let c = 0; c < shape.width; c++) {
+                    if (shape.pattern[r][c] === 1) {
+                        const blockX = GRID.START_X + (pos.col + c) * (GRID.CELL_SIZE + GRID.MARGIN) + GRID.CELL_SIZE / 2;
+                        const blockY = GRID.START_Y + (pos.row + r) * (GRID.CELL_SIZE + GRID.MARGIN) + GRID.CELL_SIZE / 2;
+                        
+                        const hint = this.add.rectangle(
+                            blockX,
+                            blockY,
+                            GRID.CELL_SIZE,
+                            GRID.CELL_SIZE,
+                            0x00FF00, // Green hint
+                            0.2 - index * 0.05 // More transparent for lower-ranked positions
+                        );
+                        hint.setStrokeStyle(2, 0x00FF00, 0.8 - index * 0.2); // Fade with rank
+                        hint.setDepth(3);
+                        
+                        // Subtle pulsing
+                        this.tweens.add({
+                            targets: hint,
+                            alpha: 0.4 - index * 0.1,
+                            duration: 1000,
+                            yoyo: true,
+                            repeat: -1,
+                            ease: 'Sine.easeInOut'
+                        });
+                        
+                        this.smartHints.push(hint);
+                    }
+                }
+            }
             
-            // Subtle pulsing
-            this.tweens.add({
-                targets: hint,
-                alpha: 0.3,
-                duration: 800,
-                yoyo: true,
-                repeat: -1,
-                ease: 'Sine.easeInOut'
-            });
-            
-            this.smartHints.push(hint);
+            // Add ranking indicator for the best position
+            if (index === 0) {
+                const rankText = this.add.text(
+                    GRID.START_X + pos.col * (GRID.CELL_SIZE + GRID.MARGIN) + (shape.width * (GRID.CELL_SIZE + GRID.MARGIN)) / 2,
+                    GRID.START_Y + pos.row * (GRID.CELL_SIZE + GRID.MARGIN) - 15,
+                    '⭐ BEST',
+                    {
+                        fontSize: '10px',
+                        fontFamily: 'Arial',
+                        color: '#00FF00',
+                        fontStyle: 'bold',
+                        stroke: '#000000',
+                        strokeThickness: 1
+                    }
+                ).setOrigin(0.5);
+                rankText.setDepth(4);
+                
+                this.smartHints.push(rankText);
+            }
         });
     }
 
@@ -817,7 +873,7 @@ export class GameScene extends Phaser.Scene {
         
         for (let row = 0; row <= GRID.ROWS - shape.height; row++) {
             for (let col = 0; col <= GRID.COLS - shape.width; col++) {
-                if (this.gameGrid.canPlaceShape(shape, col, row)) {
+                if (this.gameGrid.canPlaceShape(shape, row, col)) {
                     const score = this.calculatePlacementScore(shape, col, row);
                     positions.push({ row, col, score });
                 }
@@ -1423,7 +1479,20 @@ export class GameScene extends Phaser.Scene {
         const coins = storage.getCoins();
 
         this.ui.scoreText.setText(`Score: ${score.toLocaleString()}`);
-        this.ui.coinsText.setText(`💰 ${coins}`);
+        this.ui.coinsText.setText(`💰 ${coins.toLocaleString()}`);
+        
+        // Add a subtle glow effect to coins when they change
+        if (this.previousCoins !== coins) {
+            this.tweens.add({
+                targets: this.ui.coinsText,
+                scaleX: 1.2,
+                scaleY: 1.2,
+                duration: 200,
+                yoyo: true,
+                ease: 'Power2'
+            });
+            this.previousCoins = coins;
+        }
     }
 
     /**

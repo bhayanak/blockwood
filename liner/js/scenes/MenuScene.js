@@ -93,23 +93,8 @@ export class MenuScene extends Phaser.Scene {
             });
         }
 
-        // Title with gradient effect - moved up closer to logo
-        this.menuElements.title = this.add.text(centerX, 105, 'BLOCK PUZZLE', {
-            fontSize: '42px',
-            fontFamily: 'Arial Black, sans-serif',
-            color: theme.primary,
-            fontStyle: 'bold',
-            stroke: '#000000',
-            strokeThickness: 4,
-            shadow: {
-                offsetX: 3,
-                offsetY: 3,
-                color: '#000000',
-                blur: 5,
-                fill: true
-            }
-        });
-        this.menuElements.title.setOrigin(0.5);
+        // Rainbow title - each letter in different color
+        this.menuElements.title = this.createRainbowTitle(centerX, 105, 'BLOCK PUZZLE');
 
         // Title pulse animation
         this.tweens.add({
@@ -151,9 +136,13 @@ export class MenuScene extends Phaser.Scene {
         const buttonSpacing = 10;
 
         // Game mode buttons with better layout and colors
+        // Get today's date for daily challenge button
+        const today = new Date();
+        const todayDay = today.getDate();
+        
         const modes = [
             { key: GAME_MODES.NORMAL, label: '🎮 CLASSIC', color: '#4CAF50' },
-            { key: GAME_MODES.DAILY, label: '📅 DAILY', color: '#FF9800' },
+            { key: GAME_MODES.DAILY, label: `📅 ${todayDay}`, color: '#FF9800' },
             { key: GAME_MODES.ENDLESS, label: '♾️ ENDLESS', color: '#2196F3' },
             { key: GAME_MODES.ADVENTURE, label: '🗺️ ADVENTURE', color: '#9C27B0' },
             { key: GAME_MODES.PUZZLE, label: '🧩 PUZZLE', color: '#F44336' },
@@ -174,7 +163,7 @@ export class MenuScene extends Phaser.Scene {
             if (mode.key === GAME_MODES.DAILY) {
                 const isCompleted = isDailyCompleted();
                 if (isCompleted) {
-                    buttonLabel = '📅 DAILY ✅';
+                    buttonLabel = `📅 ${todayDay} ✅`;
                 }
             }
 
@@ -967,21 +956,8 @@ export class MenuScene extends Phaser.Scene {
      * Start title animation
      */
     startTitleAnimation() {
-        if (this.menuElements.title) {
-            // Color cycling animation
-            this.titleColorTween = this.tweens.addCounter({
-                from: 0,
-                to: 360,
-                duration: 3000,
-                repeat: -1,
-                onUpdate: (tween) => {
-                    const hue = tween.getValue();
-                    const color = Phaser.Display.Color.HSVToRGB(hue / 360, 0.8, 1);
-                    const hexColor = Phaser.Display.Color.RGBToString(color.r, color.g, color.b, 255, '0x');
-                    this.menuElements.title.setColor(hexColor);
-                }
-            });
-        }
+        // Rainbow title already has fixed colors, no animation needed
+        // Previous color cycling animation removed since title is now a container with rainbow letters
     }
 
     /**
@@ -2139,12 +2115,66 @@ export class MenuScene extends Phaser.Scene {
 
         // Update all UI elements with new theme colors
         // This is a simplified version - full implementation would update all elements
-        if (this.menuElements.title) {
-            this.menuElements.title.setColor(themeManager.getCurrentTheme().primary);
-        }
+        // Note: Rainbow title doesn't need color update as it uses fixed rainbow colors
         if (this.menuElements.subtitle) {
             this.menuElements.subtitle.setColor(themeManager.getCurrentTheme().textSecondary);
         }
+    }
+
+    /**
+     * Create rainbow-colored title with each letter in different color
+     */
+    createRainbowTitle(x, y, text) {
+        const container = this.add.container(x, y);
+        const rainbowColors = [
+            '#FF6B6B', // Red
+            '#FF9F43', // Orange  
+            '#FFDD59', // Yellow
+            '#26de81', // Green
+            '#4834d4', // Blue
+            '#a55eea', // Purple
+            '#fd79a8', // Pink
+            '#00cec9', // Cyan
+            '#fab1a0', // Peach
+            '#74b9ff'  // Light Blue
+        ];
+        
+        const fontSize = 42;
+        const letterSpacing = 2;  
+        let currentX = 0;
+        
+        // Calculate total width for centering
+        const totalWidth = text.length * (fontSize * 0.6 + letterSpacing);
+        currentX = -totalWidth / 2;
+        
+        // Create each letter with different color
+        for (let i = 0; i < text.length; i++) {
+            const letter = text[i];
+            const color = rainbowColors[i % rainbowColors.length];
+            
+            const letterText = this.add.text(currentX, 0, letter, {
+                fontSize: fontSize + 'px',
+                fontFamily: 'Arial Black, sans-serif',
+                color: color,
+                fontStyle: 'bold',
+                stroke: '#000000',
+                strokeThickness: 4,
+                shadow: {
+                    offsetX: 3,
+                    offsetY: 3,
+                    color: '#000000',
+                    blur: 5,
+                    fill: true
+                }
+            }).setOrigin(0, 0.5);
+            
+            container.add(letterText);
+            
+            // Move to next letter position
+            currentX += letterText.width + letterSpacing;
+        }
+        
+        return container;
     }
 
     /**

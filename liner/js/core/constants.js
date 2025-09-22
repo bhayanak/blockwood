@@ -30,8 +30,8 @@ export const GRID = {
     COLS: 10,
     CELL_SIZE: 30,
     MARGIN: 5,
-    START_X: 50, // Centered: (400 - 300) / 2 = 50, so this is correct
-    START_Y: 70,  // Moved up further to make more room below
+    START_X: 25, // Centered: (400 - 300) / 2 = 50, perfectly centered
+    START_Y: 45,  // Moved up more to create better spacing
     HIGHLIGHT_COLOR: 0x00ff00,
     INVALID_COLOR: 0xff0000
 };
@@ -181,13 +181,13 @@ export const ADVENTURE_CHAPTERS = {
         description: 'Begin your journey in the mystical forest where ancient blocks await...',
         story: 'Long ago, a mysterious forest grew blocks of incredible power. Your quest begins here.',
         objectives: [
-            { type: 'score', target: 1000, description: 'Score 1,000 points' },
-            { type: 'lines', target: 5, description: 'Clear 5 lines' },
-            { type: 'moves', target: 15, description: 'Complete in 15 moves or less' }
+            { type: 'score', target: 500, description: 'Score 500 points' },
+            { type: 'lines', target: 3, description: 'Clear 3 lines' },
+            { type: 'moves', target: 20, description: 'Complete in 20 moves or less' }
         ],
         rewards: { coins: 50, stars: 3 },
         difficulty: 'EASY',
-        specialRules: { timeLimit: null, limitedMoves: 15 }
+        specialRules: { timeLimit: null, limitedMoves: 20 }
     },
     CRYSTAL_LAKE: {
         id: 'CRYSTAL_LAKE',
@@ -544,8 +544,8 @@ export const UI = {
 // Shape tray configuration
 export const TRAY = {
     SHAPES_COUNT: 3,
-    START_Y: 400,  // Moved up more to create space for power-ups
-    SHAPE_SPACING: 100, // Good spacing to prevent overlap
+    START_Y: 410,  // Moved up to follow grid positioning
+    SHAPE_SPACING: 105, // Good spacing to prevent overlap
     START_X: 50 // Keep centered with grid
 };
 

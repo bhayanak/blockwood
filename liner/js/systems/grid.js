@@ -23,6 +23,7 @@ export class GameGrid {
         this.cellGraphics = [];
         this.highlightGraphics = null;
         this.animationTweens = [];
+        this.totalLinesCleared = 0; // Initialize line counter for puzzle mode
 
         this.initialize();
     }
@@ -474,7 +475,7 @@ export class GameGrid {
      * Get total lines cleared (for tracking)
      */
     getTotalLinesCleared() {
-        return this.totalLinesCleared || 0;
+        return this.totalLinesCleared;
     }
 
     /**
@@ -513,7 +514,7 @@ export class GameGrid {
 
         if (completedLines.rows.length > 0 || completedLines.cols.length > 0) {
             this.grid = clearLines(this.grid, completedLines);
-            this.totalLinesCleared = (this.totalLinesCleared || 0) + completedLines.rows.length + completedLines.cols.length;
+            this.totalLinesCleared += completedLines.rows.length + completedLines.cols.length;
             this.render();
 
             return [...completedLines.rows.map(r => ({ type: 'row', index: r })),
