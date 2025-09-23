@@ -136,11 +136,12 @@ export const SHAPE_PATTERNS_DIFFICULT = [
  */
 export class Shape {
     constructor(pattern, color = 1, id = null) {
-        this.pattern = pattern;
+        // Deep copy the pattern to prevent reference sharing between shapes
+        this.pattern = JSON.parse(JSON.stringify(pattern));
         this.color = color;
         this.id = id || this.generateId();
-        this.width = pattern[0].length;
-        this.height = pattern.length;
+        this.width = this.pattern[0].length;
+        this.height = this.pattern.length;
         this.isDragging = false;
         this.originalX = 0;
         this.originalY = 0;
