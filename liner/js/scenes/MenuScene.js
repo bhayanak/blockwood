@@ -136,13 +136,9 @@ export class MenuScene extends Phaser.Scene {
         const buttonSpacing = 10;
 
         // Game mode buttons with better layout and colors
-        // Get today's date for daily challenge button
-        const today = new Date();
-        const todayDay = today.getDate();
-        
         const modes = [
             { key: GAME_MODES.NORMAL, label: '🎮 CLASSIC', color: '#4CAF50' },
-            { key: GAME_MODES.DAILY, label: `📅 ${todayDay}`, color: '#FF9800' },
+            { key: GAME_MODES.DAILY, label: '📅 DAILY', color: '#FF9800' },
             { key: GAME_MODES.ENDLESS, label: '♾️ ENDLESS', color: '#2196F3' },
             { key: GAME_MODES.ADVENTURE, label: '🗺️ ADVENTURE', color: '#9C27B0' },
             { key: GAME_MODES.PUZZLE, label: '🧩 PUZZLE', color: '#F44336' },
@@ -163,7 +159,7 @@ export class MenuScene extends Phaser.Scene {
             if (mode.key === GAME_MODES.DAILY) {
                 const isCompleted = isDailyCompleted();
                 if (isCompleted) {
-                    buttonLabel = `📅 ${todayDay} ✅`;
+                    buttonLabel = '📅 DAILY ✅';
                 }
             }
 
@@ -2139,12 +2135,12 @@ export class MenuScene extends Phaser.Scene {
             '#74b9ff'  // Light Blue
         ];
         
-        const fontSize = 42;
-        const letterSpacing = 2;  
+        const fontSize = 32;
+        const letterSpacing = 1;  
         let currentX = 0;
         
         // Calculate total width for centering
-        const totalWidth = text.length * (fontSize * 0.6 + letterSpacing);
+        const totalWidth = text.length * (fontSize * 0.5 + letterSpacing);
         currentX = -totalWidth / 2;
         
         // Create each letter with different color
@@ -2158,12 +2154,12 @@ export class MenuScene extends Phaser.Scene {
                 color: color,
                 fontStyle: 'bold',
                 stroke: '#000000',
-                strokeThickness: 4,
+                strokeThickness: 3,
                 shadow: {
-                    offsetX: 3,
-                    offsetY: 3,
+                    offsetX: 2,
+                    offsetY: 2,
                     color: '#000000',
-                    blur: 5,
+                    blur: 3,
                     fill: true
                 }
             }).setOrigin(0, 0.5);

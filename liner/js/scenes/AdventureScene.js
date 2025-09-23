@@ -274,6 +274,7 @@ export class AdventureScene extends Phaser.Scene {
         // Create game elements
         this.gameGrid.create();
         this.createShapeTray();
+        this.createUI(); // Add UI elements including power-ups
 
         // Setup keyboard controls
         this.setupInputHandlers();
@@ -338,7 +339,7 @@ export class AdventureScene extends Phaser.Scene {
         const testButton = this.add.rectangle(120, 30, 80, 25, 0x446644)
             .setInteractive()
             .on('pointerdown', () => {
-                this.testCoordinateSystem();
+                // Test coordinate system removed
             });
 
         this.add.text(120, 30, 'TEST', {
@@ -349,14 +350,17 @@ export class AdventureScene extends Phaser.Scene {
 
     createObjectiveTracker() {
         const chapter = ADVENTURE_CHAPTERS[this.currentChapter];
-        const startY = 90;
+        const startY = 20; // Move above the grid
 
         this.objectiveTexts = [];
         chapter.objectives.forEach((objective, index) => {
-            const text = this.add.text(20, startY + (index * 20),
+            const text = this.add.text(20, startY + (index * 18),
                 `○ ${objective.description}`, {
-                fontSize: '12px',
-                color: '#888888'
+                fontSize: '14px',
+                color: '#FFFFFF',
+                fontFamily: 'Arial',
+                stroke: '#000000',
+                strokeThickness: 1
             });
             this.objectiveTexts.push(text);
         });
@@ -763,6 +767,132 @@ export class AdventureScene extends Phaser.Scene {
             // Pause functionality could be added here in the future
             console.log('Space pressed - pause functionality not yet implemented in Adventure mode');
         });
+    }
+
+    /**
+     * Create user interface including power-ups
+     */
+    createUI() {
+        this.ui = {};
+        this.createPowerUpButtons();
+    }
+
+    /**
+     * Create power-up buttons (simplified version for Adventure mode)
+     */
+    async createPowerUpButtons() {
+        const { POWER_UPS, POWER_UP_INFO } = await import('../core/constants.js');
+        const { storage } = await import('../systems/storage.js');
+        
+        this.ui.powerUpButtons = [];
+        
+        // Get all power-ups and their info
+        const allPowerUps = Object.values(POWER_UPS);
+        const centerX = this.cameras.main.centerX;
+        
+        // Layout configuration - simplified layout for adventure mode
+        const buttonSize = 30;
+        const spacing = 38;
+        const startY = 500; // Position below tray
+        const firstRowCount = 5;
+        const secondRowCount = 4;
+        const rowSpacing = 35;
+
+        // First row - 5 power-ups
+        const firstRowStartX = centerX - ((firstRowCount - 1) * spacing) / 2;
+        for (let i = 0; i < firstRowCount && i < allPowerUps.length; i++) {
+            const powerUpType = allPowerUps[i];
+            const info = POWER_UP_INFO[powerUpType];
+            const x = firstRowStartX + i * spacing;
+            
+            const button = await this.createPowerUpButton(
+                x, startY, buttonSize, buttonSize, info.icon, powerUpType
+            );
+            this.ui.powerUpButtons.push(button);
+        }
+
+        // Second row - 4 power-ups
+        const secondRowStartX = centerX - ((secondRowCount - 1) * spacing) / 2;
+        for (let i = firstRowCount; i < allPowerUps.length; i++) {
+            const powerUpType = allPowerUps[i];
+            const info = POWER_UP_INFO[powerUpType];
+            const x = secondRowStartX + (i - firstRowCount) * spacing;
+            
+            const button = await this.createPowerUpButton(
+                x, startY + rowSpacing, buttonSize, buttonSize, info.icon, powerUpType
+            );
+            this.ui.powerUpButtons.push(button);
+        }
+    }
+
+    /**
+     * Create individual power-up button
+     */
+    async createPowerUpButton(x, y, width, height, icon, powerUpType) {
+        const { POWER_UP_INFO } = await import('../core/constants.js');
+        const { storage } = await import('../systems/storage.js');
+        
+        const info = POWER_UP_INFO[powerUpType];
+        const userCoins = storage.getCoins();
+        const canUse = userCoins >= info.cost;
+
+        // Button background
+        const button = this.add.rectangle(x, y, width, height, canUse ? 0x2a4a3a : 0x4a2a2a)
+            .setStrokeStyle(2, canUse ? 0x4a7a5a : 0x7a4a4a);
+
+        // Icon
+        const iconText = this.add.text(x, y - 3, icon, {
+            fontSize: '16px',
+            fontFamily: 'Arial'
+        }).setOrigin(0.5);
+
+        // Cost
+        const costText = this.add.text(x, y + 8, info.cost.toString(), {
+            fontSize: '8px',
+            fontFamily: 'Arial',
+            color: canUse ? '#FFD700' : '#888888'
+        }).setOrigin(0.5);
+
+        if (canUse) {
+            button.setInteractive()
+                .on('pointerdown', () => {
+                    this.usePowerUp(powerUpType);
+                });
+        }
+
+        return { button, iconText, costText, type: powerUpType };
+    }
+
+    /**
+     * Use a power-up
+     */
+    async usePowerUp(powerUpType) {
+        const { POWER_UP_INFO } = await import('../core/constants.js');
+        const { storage } = await import('../systems/storage.js');
+        
+        const info = POWER_UP_INFO[powerUpType];
+        const userCoins = storage.getCoins();
+
+        if (userCoins >= info.cost) {
+            storage.spendCoins(info.cost);
+            this.gameStats.powerupsUsed++;
+            
+            // Execute power-up effect
+            this.powerupManager.usePowerUp(powerUpType);
+            
+            // Update UI
+            this.updatePowerUpButtons();
+            
+            console.log(`Used ${powerUpType} power-up for ${info.cost} coins`);
+        }
+    }
+
+    /**
+     * Update power-up button states
+     */
+    updatePowerUpButtons() {
+        // This would update the button appearances based on available coins
+        // For now, keep it simple
     }
 
     testCoordinateSystem() {

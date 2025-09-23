@@ -15,7 +15,9 @@ export class PuzzleScene extends Phaser.Scene {
             moves: 0,
             score: 0,
             startTime: 0,
-            hintsUsed: 0
+            hintsUsed: 0,
+            maxCombo: 0,
+            currentCombo: 0
         };
     }
 
@@ -278,7 +280,9 @@ export class PuzzleScene extends Phaser.Scene {
             moves: 0,
             score: 0,
             startTime: Date.now(),
-            hintsUsed: 0
+            hintsUsed: 0,
+            maxCombo: 0,
+            currentCombo: 0
         };
 
         // Show puzzle intro
@@ -634,6 +638,9 @@ export class PuzzleScene extends Phaser.Scene {
         const clearedLines = this.gameGrid.checkAndClearLines();
         if (clearedLines.length > 0) {
             this.onLinesCleared(clearedLines);
+        } else {
+            // Reset combo if no lines were cleared
+            this.puzzleStats.currentCombo = 0;
         }
 
         // Check objectives
@@ -648,6 +655,10 @@ export class PuzzleScene extends Phaser.Scene {
         const completedRows = lines.filter(line => line.type === 'row').map(line => line.index);
         const completedCols = lines.filter(line => line.type === 'col').map(line => line.index);
 
+        // Update combo tracking
+        this.puzzleStats.currentCombo++;
+        this.puzzleStats.maxCombo = Math.max(this.puzzleStats.maxCombo, this.puzzleStats.currentCombo);
+
         const points = this.scoringManager.calculateLineScore(completedRows, completedCols);
         this.puzzleStats.score += points;
 
@@ -656,6 +667,7 @@ export class PuzzleScene extends Phaser.Scene {
         }
 
         audioManager.playClear();
+        console.log(`Combo: ${this.puzzleStats.currentCombo}, Max Combo: ${this.puzzleStats.maxCombo}`);
     }
 
     checkPuzzleObjectives() {
@@ -675,6 +687,9 @@ export class PuzzleScene extends Phaser.Scene {
                         break;
                     case 'moves':
                         completed = this.puzzleStats.moves <= objective.target;
+                        break;
+                    case 'combo':
+                        completed = (this.puzzleStats.maxCombo || 0) >= objective.target;
                         break;
                     case 'complete':
                         completed = this.puzzleShapes.every(ps => !ps || !ps.group.active);
