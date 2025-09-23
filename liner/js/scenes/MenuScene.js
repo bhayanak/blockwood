@@ -94,7 +94,7 @@ export class MenuScene extends Phaser.Scene {
         }
 
         // Rainbow title - each letter in different color
-        this.menuElements.title = this.createRainbowTitle(centerX, 105, 'BLOCK PUZZLE');
+        this.menuElements.title = this.createRainbowTitle(centerX-70, 105, 'BLOCK PUZZLE');
 
         // Title pulse animation
         this.tweens.add({
@@ -138,7 +138,7 @@ export class MenuScene extends Phaser.Scene {
         // Game mode buttons with better layout and colors
         const modes = [
             { key: GAME_MODES.NORMAL, label: '🎮 CLASSIC', color: '#4CAF50' },
-            { key: GAME_MODES.DAILY, label: '📅 DAILY', color: '#FF9800' },
+            { key: GAME_MODES.DAILY, label: '🗓️ DAILY', color: '#FF9800' },
             { key: GAME_MODES.ENDLESS, label: '♾️ ENDLESS', color: '#2196F3' },
             { key: GAME_MODES.ADVENTURE, label: '🗺️ ADVENTURE', color: '#9C27B0' },
             { key: GAME_MODES.PUZZLE, label: '🧩 PUZZLE', color: '#F44336' },
@@ -2135,7 +2135,7 @@ export class MenuScene extends Phaser.Scene {
             '#74b9ff'  // Light Blue
         ];
         
-        const fontSize = 32;
+        const fontSize = 35;
         const letterSpacing = 1;  
         let currentX = 0;
         

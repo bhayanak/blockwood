@@ -3,6 +3,7 @@ import { PUZZLE_PACKS, DEFAULT_PUZZLE_PROGRESS } from '../core/constants.js';
 import { themeManager } from '../core/themes.js';
 import { storage } from '../core/storage.js';
 import { audioManager } from '../core/audio.js';
+import { analyticsManager } from '../core/analytics.js';
 
 export class PuzzleScene extends Phaser.Scene {
     constructor() {
@@ -344,20 +345,20 @@ export class PuzzleScene extends Phaser.Scene {
         }).setOrigin(0.5);
 
         // Hint button
-        const hintButton = this.add.rectangle(this.scale.width / 2 - 60, this.scale.height / 2 + 80,
+        const hintButton = this.add.rectangle(this.scale.width / 2 - 60, this.scale.height - 40,
             100, 30, 0x666666)
             .setInteractive()
             .on('pointerdown', () => {
                 this.showHint(puzzle);
             });
 
-        this.add.text(this.scale.width / 2 - 60, this.scale.height / 2 + 80, 'Hint', {
+        this.add.text(this.scale.width / 2 - 60, this.scale.height - 40, 'Hint', {
             fontSize: '14px',
             color: '#ffffff'
         }).setOrigin(0.5);
 
         // Start button
-        const startButton = this.add.rectangle(this.scale.width / 2 + 60, this.scale.height / 2 + 80,
+        const startButton = this.add.rectangle(this.scale.width / 2 + 60, this.scale.height - 40,
             100, 30, this.colors.primary)
             .setInteractive()
             .on('pointerdown', () => {
@@ -367,7 +368,7 @@ export class PuzzleScene extends Phaser.Scene {
                 this.startPuzzleGameplay(puzzle);
             });
 
-        this.add.text(this.scale.width / 2 + 60, this.scale.height / 2 + 80, 'Start', {
+        this.add.text(this.scale.width / 2 + 60, this.scale.height - 40, 'Start', {
             fontSize: '14px',
             color: '#ffffff',
             fontStyle: 'bold'
@@ -418,6 +419,9 @@ export class PuzzleScene extends Phaser.Scene {
     }
 
     async startPuzzleGameplay(puzzle) {
+        // Initialize analytics for this puzzle
+        analyticsManager.startGame('puzzle', puzzle.difficulty || 'normal');
+        
         // Initialize game systems
         await this.initializeGameSystems();
 
@@ -440,10 +444,12 @@ export class PuzzleScene extends Phaser.Scene {
         // Import game systems
         const { GameGrid } = await import('../systems/grid.js');
         const { ScoringManager } = await import('../systems/scoring.js');
+        const { PowerUpManager } = await import('../systems/powerups.js');
 
         // Initialize systems
         this.gameGrid = new GameGrid(this);
         this.scoringManager = new ScoringManager(this);
+        this.powerupManager = new PowerUpManager(this);
 
         // Create game grid
         this.gameGrid.create();
@@ -578,31 +584,14 @@ export class PuzzleScene extends Phaser.Scene {
             color: '#ffffff'
         }).setOrigin(0.5);
 
-        // Stats
-        this.movesText = this.add.text(20, 60, `Moves: ${this.puzzleStats.moves}/${puzzle.targetMoves}`, {
-            fontSize: '14px',
-            color: '#ffffff'
-        });
+        // Create consistent header like GameScene
+        this.createPuzzleHeader(puzzle);
 
-        this.scoreText = this.add.text(this.scale.width - 20, 60, `Score: ${this.puzzleStats.score}`, {
-            fontSize: '14px',
-            color: '#ffffff'
-        }).setOrigin(1, 0);
-
-        // Objectives tracker
+        // Create objectives tracker
         this.createObjectiveTracker(puzzle);
 
-        // Hint button
-        const hintButton = this.add.rectangle(this.scale.width - 40, 30, 60, 25, 0x666666)
-            .setInteractive()
-            .on('pointerdown', () => {
-                this.showHint(puzzle);
-            });
-        
-        this.add.text(this.scale.width - 40, 30, 'Hint', {
-            fontSize: '12px',
-            color: '#ffffff'
-        }).setOrigin(0.5);
+        // Create power-up buttons in the same position as GameScene
+        this.createPuzzlePowerUps();
     }
 
     createObjectiveTracker(puzzle) {
@@ -628,6 +617,9 @@ export class PuzzleScene extends Phaser.Scene {
 
     onShapePlaced(shape, index) {
         this.puzzleStats.moves++;
+
+        // Track analytics for block placement
+        analyticsManager.trackBlockPlacement(shape.type || 'unknown', null, true);
 
         if (this.movesText) {
             const puzzle = PUZZLE_PACKS[this.selectedPack].puzzles.find(p => p.id === this.currentPuzzle);
@@ -682,6 +674,9 @@ export class PuzzleScene extends Phaser.Scene {
                     case 'lines':
                         completed = this.gameGrid.getTotalLinesCleared() >= objective.target;
                         break;
+                    case 'columns':
+                        completed = (this.puzzleStats.columnsCleared || 0) >= objective.target;
+                        break;
                     case 'score':
                         completed = this.puzzleStats.score >= objective.target;
                         break;
@@ -691,8 +686,40 @@ export class PuzzleScene extends Phaser.Scene {
                     case 'combo':
                         completed = (this.puzzleStats.maxCombo || 0) >= objective.target;
                         break;
+                    case 'chain':
+                        completed = (this.puzzleStats.chainReactions || 0) >= objective.target;
+                        break;
+                    case 'efficiency':
+                        const totalPlacements = this.puzzleStats.moves || 1;
+                        const wastedPlacements = this.puzzleStats.wastedMoves || 0;
+                        const efficiency = ((totalPlacements - wastedPlacements) / totalPlacements) * 100;
+                        completed = efficiency >= objective.target;
+                        break;
+                    case 'perfect':
+                        completed = (this.puzzleStats.wastedMoves || 0) === 0;
+                        break;
+                    case 'fill':
+                        completed = this.checkFillObjective(objective.target);
+                        break;
                     case 'complete':
                         completed = this.puzzleShapes.every(ps => !ps || !ps.group.active);
+                        break;
+                    case 'powerups':
+                        completed = (this.puzzleStats.powerupsUsed || 0) >= objective.target;
+                        break;
+                    case 'speed':
+                        const timeElapsed = (Date.now() - this.puzzleStats.startTime) / 1000; // in seconds
+                        completed = timeElapsed <= objective.target;
+                        break;
+                    case 'perfection':
+                        const accuracy = this.puzzleStats.moves > 0 ? 
+                            ((this.puzzleStats.moves - (this.puzzleStats.wastedMoves || 0)) / this.puzzleStats.moves) * 100 : 0;
+                        completed = accuracy >= objective.target;
+                        break;
+                    case 'mastery':
+                        // Master objective requires all other objectives to be complete
+                        const otherObjectives = this.puzzleObjectives.filter(obj => obj.type !== 'mastery');
+                        completed = otherObjectives.every(obj => obj.completed);
                         break;
                     // Add more objective types as needed
                 }
@@ -744,6 +771,9 @@ export class PuzzleScene extends Phaser.Scene {
 
         const puzzle = PUZZLE_PACKS[this.selectedPack].puzzles.find(p => p.id === this.currentPuzzle);
         const stars = this.calculatePuzzleStars(puzzle);
+
+        // Track analytics for puzzle completion
+        analyticsManager.endGame(this.puzzleStats.score, true);
 
         // Update progress
         const currentProgress = this.puzzleProgress.puzzles[puzzle.id] || {};
@@ -842,7 +872,7 @@ export class PuzzleScene extends Phaser.Scene {
         }).setOrigin(0.5);
 
         // Buttons
-        const nextButton = this.add.rectangle(this.scale.width / 2 - 70, this.scale.height / 2 + 80,
+        const nextButton = this.add.rectangle(this.scale.width / 2 - 70, this.scale.height - 40,
             100, 35, this.colors.primary)
             .setInteractive()
             .on('pointerdown', () => {
@@ -850,12 +880,12 @@ export class PuzzleScene extends Phaser.Scene {
                 this.scene.start('PuzzleScene', { pack: this.selectedPack });
             });
 
-        this.add.text(this.scale.width / 2 - 70, this.scale.height / 2 + 80, 'Continue', {
+        this.add.text(this.scale.width / 2 - 70, this.scale.height - 40, 'Continue', {
             fontSize: '14px',
             color: '#ffffff'
         }).setOrigin(0.5);
 
-        const menuButton = this.add.rectangle(this.scale.width / 2 + 70, this.scale.height / 2 + 80,
+        const menuButton = this.add.rectangle(this.scale.width / 2 + 70, this.scale.height - 40,
             100, 35, 0x666666)
             .setInteractive()
             .on('pointerdown', () => {
@@ -863,7 +893,7 @@ export class PuzzleScene extends Phaser.Scene {
                 this.scene.start('MenuScene');
             });
 
-        this.add.text(this.scale.width / 2 + 70, this.scale.height / 2 + 80, 'Main Menu', {
+        this.add.text(this.scale.width / 2 + 70, this.scale.height - 40, 'Main Menu', {
             fontSize: '14px',
             color: '#ffffff'
         }).setOrigin(0.5);
@@ -872,6 +902,9 @@ export class PuzzleScene extends Phaser.Scene {
     failPuzzle(reason) {
         if (!this.gameActive) return;
         this.gameActive = false;
+
+        // Track analytics for puzzle failure
+        analyticsManager.endGame(this.puzzleStats.score, false);
 
         // Show failure screen
         const overlay = this.add.rectangle(this.scale.width / 2, this.scale.height / 2,
@@ -938,5 +971,183 @@ export class PuzzleScene extends Phaser.Scene {
     getPackDifficulty(pack) {
         const avgDifficulty = pack.puzzles.reduce((sum, puzzle) => sum + puzzle.difficulty, 0) / pack.puzzles.length;
         return Math.ceil(avgDifficulty / 1.5);
+    }
+
+    checkFillObjective(area) {
+        // area format: [x1, y1, x2, y2] - rectangle coordinates
+        const [x1, y1, x2, y2] = area;
+        
+        for (let x = x1; x <= x2; x++) {
+            for (let y = y1; y <= y2; y++) {
+                if (!this.gameGrid.isCellFilled(x, y)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    createPuzzleHeader(puzzle) {
+        const theme = themeManager.getCurrentTheme();
+        const headerY = 25;
+        const centerX = this.cameras.main.centerX;
+        
+        // Back button - leftmost
+        const backButton = this.add.rectangle(40, 30, 60, 25, 0x444444)
+            .setInteractive()
+            .on('pointerdown', () => {
+                audioManager.playPlace();
+                this.currentView = 'puzzles';
+                this.scene.restart();
+            });
+
+        this.add.text(40, 30, 'Back', {
+            fontSize: '12px',
+            color: '#ffffff'
+        }).setOrigin(0.5);
+
+        // Moves - left center
+        this.movesText = this.add.text(centerX - 80, headerY, `Moves: ${this.puzzleStats.moves}/${puzzle.targetMoves}`, {
+            fontSize: '14px', fontFamily: 'Arial', color: theme.text, fontStyle: 'bold'
+        }).setOrigin(0.5);
+
+        // Score - right center
+        this.scoreText = this.add.text(centerX + 50, headerY, `Score: ${this.puzzleStats.score}`, {
+            fontSize: '14px', fontFamily: 'Arial', color: theme.text, fontStyle: 'bold'
+        }).setOrigin(0.5);
+
+        // Hint button - rightmost
+        const hintButton = this.add.rectangle(this.scale.width - 50, headerY, 60, 25, 0x666666)
+            .setInteractive()
+            .on('pointerdown', () => {
+                this.showHint(puzzle);
+            });
+        
+        this.add.text(this.scale.width - 50, headerY, 'Hint', {
+            fontSize: '12px',
+            color: '#ffffff'
+        }).setOrigin(0.5);
+    }
+
+    async createPuzzlePowerUps() {
+        const { POWER_UPS, POWER_UP_INFO } = await import('../core/constants.js');
+        const theme = themeManager.getCurrentTheme();
+        
+        // Position power-ups in the same location as GameScene
+        const centerX = this.cameras.main.centerX;
+        const startY = 520; // Same as GameScene
+        const allPowerUps = Object.values(POWER_UPS);
+        const buttonSize = 32;
+        const spacing = 35;
+        const firstRowCount = Math.min(5, allPowerUps.length);
+        const secondRowCount = allPowerUps.length - firstRowCount;
+        const rowSpacing = 40;
+
+        this.ui = this.ui || {};
+        this.ui.powerUpButtons = [];
+
+        // Create boundary box for power-ups area (same as GameScene)
+        const powerUpBoundary = this.add.rectangle(centerX, startY + 20, 350, 100, 0x000000, 0);
+        powerUpBoundary.setStrokeStyle(2, parseInt(theme.accent.replace('#', ''), 16), 0.3);
+        powerUpBoundary.setDepth(-1);
+
+        // First row - 5 power-ups
+        const firstRowStartX = centerX - ((firstRowCount - 1) * spacing) / 2;
+        for (let i = 0; i < firstRowCount && i < allPowerUps.length; i++) {
+            const powerUpType = allPowerUps[i];
+            const info = POWER_UP_INFO[powerUpType];
+            const x = firstRowStartX + i * spacing;
+            
+            const button = this.createPuzzlePowerUpButton(
+                x, startY, buttonSize, buttonSize, info.icon, powerUpType
+            );
+            this.ui.powerUpButtons.push(button);
+        }
+
+        // Second row - remaining power-ups
+        if (secondRowCount > 0) {
+            const secondRowStartX = centerX - ((secondRowCount - 1) * spacing) / 2;
+            for (let i = firstRowCount; i < allPowerUps.length; i++) {
+                const powerUpType = allPowerUps[i];
+                const info = POWER_UP_INFO[powerUpType];
+                const x = secondRowStartX + (i - firstRowCount) * spacing;
+                
+                const button = this.createPuzzlePowerUpButton(
+                    x, startY + rowSpacing, buttonSize, buttonSize, info.icon, powerUpType
+                );
+                this.ui.powerUpButtons.push(button);
+            }
+        }
+    }
+
+    async createPuzzlePowerUpButton(x, y, width, height, icon, powerUpType) {
+        const { POWER_UP_INFO } = await import('../core/constants.js');
+        const { storage } = await import('../core/storage.js');
+        
+        const info = POWER_UP_INFO[powerUpType];
+        const userCoins = storage.getCoins();
+        const canUse = userCoins >= info.cost;
+
+        // Button background (same styling as GameScene)
+        const button = this.add.rectangle(x, y, width, height, canUse ? 0x2a4a3a : 0x4a2a2a)
+            .setStrokeStyle(2, canUse ? 0x4a7a5a : 0x7a4a4a);
+
+        // Icon
+        const iconText = this.add.text(x, y - 3, icon, {
+            fontSize: '16px',
+            color: canUse ? '#ffffff' : '#888888'
+        }).setOrigin(0.5);
+
+        // Cost
+        const costText = this.add.text(x, y + 8, `${info.cost}`, {
+            fontSize: '8px',
+            color: canUse ? '#ffaa00' : '#555555'
+        }).setOrigin(0.5);
+
+        // Container for interaction
+        const container = this.add.container(0, 0, [button, iconText, costText]);
+        container.setSize(width, height);
+        container.setInteractive();
+
+        // Add click handler
+        container.on('pointerdown', () => {
+            if (canUse) {
+                this.usePuzzlePowerUp(powerUpType);
+            }
+        });
+
+        container.powerUpType = powerUpType;
+        return container;
+    }
+
+    async usePuzzlePowerUp(powerUpType) {
+        const { POWER_UP_INFO } = await import('../core/constants.js');
+        const { storage } = await import('../core/storage.js');
+        
+        const info = POWER_UP_INFO[powerUpType];
+        const userCoins = storage.getCoins();
+
+        if (userCoins >= info.cost) {
+            storage.spendCoins(info.cost);
+            this.puzzleStats.powerupsUsed = (this.puzzleStats.powerupsUsed || 0) + 1;
+            
+            // Execute power-up effect through powerupManager if available
+            if (this.powerupManager) {
+                this.powerupManager.usePowerUp(powerUpType);
+            }
+            
+            // Update power-up buttons
+            this.updatePuzzlePowerUpButtons();
+        }
+    }
+
+    updatePuzzlePowerUpButtons() {
+        // Similar to GameScene's updatePowerUpButtons
+        if (this.ui && this.ui.powerUpButtons) {
+            this.ui.powerUpButtons.forEach(button => {
+                // Update button state based on current coins
+                // Implementation similar to GameScene
+            });
+        }
     }
 }

@@ -383,6 +383,16 @@ export class GameGrid {
     }
 
     /**
+     * Check if a specific cell is filled
+     */
+    isCellFilled(x, y) {
+        if (x < 0 || x >= GRID.COLS || y < 0 || y >= GRID.ROWS) {
+            return false;
+        }
+        return this.grid[y][x] > 0;
+    }
+
+    /**
      * Animate shape placement
      */
     animateShapePlacement(shape, gridX, gridY) {

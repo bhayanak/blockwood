@@ -4,6 +4,7 @@ import { ADVENTURE_CHAPTERS, UI } from '../core/constants.js';
 import { themeManager } from '../core/themes.js';
 import { storage } from '../core/storage.js';
 import { audioManager } from '../core/audio.js';
+import { analyticsManager } from '../core/analytics.js';
 
 export class AdventureScene extends Phaser.Scene {
     constructor() {
@@ -147,6 +148,9 @@ export class AdventureScene extends Phaser.Scene {
         const chapter = ADVENTURE_CHAPTERS[this.currentChapter];
         if (!chapter) return;
 
+        // Initialize analytics for this adventure
+        analyticsManager.startGame('adventure', chapter.difficulty || 'normal');
+
         // Set theme
         themeManager.setTheme(chapter.theme);
         this.colors = themeManager.getPhaserColors();
@@ -270,6 +274,20 @@ export class AdventureScene extends Phaser.Scene {
         this.scoringManager = new ScoringManager(this);
         this.powerupManager = new PowerUpManager(this);
         this.shapeGenerator = new ShapeGenerator();
+        
+        // Set up power-up callbacks
+        this.powerupManager.registerCallbacks({
+            onClearRow: (rowIndex) => this.clearRow(rowIndex),
+            onSwapTray: () => this.swapTray(),
+            onExtraUndo: () => this.performUndo(),
+            onClearRowActivated: () => this.activateClearRowMode(),
+            onTimeSlow: () => this.activateTimeWarp(),
+            onBlockPreview: () => this.activateFutureSight(),
+            onLineBlastActivated: () => this.activateLineBlastMode(),
+            onColorMatch: () => this.activateColorRadar(),
+            onPerfectFit: () => this.activateSmartPlacement(),
+            onSecondChance: () => this.activatePhoenixRevival()
+        });
 
         // Create game elements
         this.gameGrid.create();
@@ -284,26 +302,30 @@ export class AdventureScene extends Phaser.Scene {
         const chapter = ADVENTURE_CHAPTERS[this.currentChapter];
 
         // Chapter name
-        this.add.text(this.scale.width / 2, 30, chapter.name, {
-            fontSize: '20px',
+        this.add.text(this.scale.width / 2, 15, chapter.name, {
+            fontSize: '18px',
             fontFamily: 'Arial, sans-serif',
             color: '#ffffff',
             fontStyle: 'bold'
         }).setOrigin(0.5);
 
         // Score
-        this.scoreText = this.add.text(20, 60, 'Score: 0', {
-            fontSize: '16px',
-            color: '#ffffff'
-        });
+        this.scoreText = this.add.text(this.scale.width / 2 - 80, 35, 'Score: 0', {
+            fontSize: '14px',
+            color: '#ffffff',
+            stroke: '#000000',
+            strokeThickness: 1
+        }).setOrigin(0.5);
 
         // Timer (if chapter has time limit)
         if (chapter.specialRules?.timeLimit) {
             this.timeRemaining = chapter.specialRules.timeLimit;
-            this.timerText = this.add.text(this.scale.width - 20, 60, `Time: ${this.timeRemaining}`, {
-                fontSize: '16px',
-                color: '#ffffff'
-            }).setOrigin(1, 0);
+            this.timerText = this.add.text(this.scale.width / 2 + 80, 35, `Time: ${this.timeRemaining}`, {
+                fontSize: '14px',
+                color: '#ffffff',
+                stroke: '#000000',
+                strokeThickness: 1
+            }).setOrigin(0.5);
 
             this.time.addEvent({
                 delay: 1000,
@@ -350,13 +372,24 @@ export class AdventureScene extends Phaser.Scene {
 
     createObjectiveTracker() {
         const chapter = ADVENTURE_CHAPTERS[this.currentChapter];
-        const startY = 20; // Move above the grid
+        const startY = 55; // Position below the header but above grid
 
         this.objectiveTexts = [];
+        
+        // Add objectives title
+        this.add.text(20, startY - 20, 'Objectives:', {
+            fontSize: '12px',
+            color: '#FFFF00',
+            fontFamily: 'Arial',
+            fontStyle: 'bold',
+            stroke: '#000000',
+            strokeThickness: 1
+        });
+        
         chapter.objectives.forEach((objective, index) => {
-            const text = this.add.text(20, startY + (index * 18),
+            const text = this.add.text(20, startY + (index * 16),
                 `○ ${objective.description}`, {
-                fontSize: '14px',
+                fontSize: '12px',
                 color: '#FFFFFF',
                 fontFamily: 'Arial',
                 stroke: '#000000',
@@ -561,6 +594,9 @@ export class AdventureScene extends Phaser.Scene {
     completeChapter() {
         const chapter = ADVENTURE_CHAPTERS[this.currentChapter];
 
+        // Track analytics for chapter completion
+        analyticsManager.endGame(this.gameStats.score, true);
+
         // Calculate stars based on performance
         const stars = this.calculateStars(chapter);
 
@@ -695,6 +731,9 @@ export class AdventureScene extends Phaser.Scene {
     }
 
     showGameOver() {
+        // Track analytics for adventure failure
+        analyticsManager.endGame(this.gameStats.score, false);
+        
         const overlay = this.add.rectangle(this.scale.width / 2, this.scale.height / 2,
             this.scale.width, this.scale.height, 0x000000, 0.8);
 
@@ -782,7 +821,7 @@ export class AdventureScene extends Phaser.Scene {
      */
     async createPowerUpButtons() {
         const { POWER_UPS, POWER_UP_INFO } = await import('../core/constants.js');
-        const { storage } = await import('../systems/storage.js');
+        const { storage } = await import('../core/storage.js');
         
         this.ui.powerUpButtons = [];
         
@@ -830,7 +869,7 @@ export class AdventureScene extends Phaser.Scene {
      */
     async createPowerUpButton(x, y, width, height, icon, powerUpType) {
         const { POWER_UP_INFO } = await import('../core/constants.js');
-        const { storage } = await import('../systems/storage.js');
+        const { storage } = await import('../core/storage.js');
         
         const info = POWER_UP_INFO[powerUpType];
         const userCoins = storage.getCoins();
@@ -868,7 +907,7 @@ export class AdventureScene extends Phaser.Scene {
      */
     async usePowerUp(powerUpType) {
         const { POWER_UP_INFO } = await import('../core/constants.js');
-        const { storage } = await import('../systems/storage.js');
+        const { storage } = await import('../core/storage.js');
         
         const info = POWER_UP_INFO[powerUpType];
         const userCoins = storage.getCoins();
@@ -893,6 +932,57 @@ export class AdventureScene extends Phaser.Scene {
     updatePowerUpButtons() {
         // This would update the button appearances based on available coins
         // For now, keep it simple
+    }
+
+    // Power-up callback methods
+    clearRow(rowIndex) {
+        console.log(`Clear row ${rowIndex} power-up activated`);
+        // Implementation would clear specific row
+    }
+
+    swapTray() {
+        console.log('Swap tray power-up activated');
+        // Implementation would swap current tray shapes
+    }
+
+    performUndo() {
+        console.log('Undo power-up activated');
+        // Implementation would undo last move
+    }
+
+    activateClearRowMode() {
+        console.log('Clear row mode activated');
+        // Implementation would let user click on a row to clear it
+    }
+
+    activateTimeWarp() {
+        console.log('Time warp power-up activated');
+        // Implementation would slow down time
+    }
+
+    activateFutureSight() {
+        console.log('Future sight power-up activated');
+        // Implementation would show next shapes
+    }
+
+    activateLineBlastMode() {
+        console.log('Line blast mode activated');
+        // Implementation would let user blast lines
+    }
+
+    activateColorRadar() {
+        console.log('Color radar power-up activated');
+        // Implementation would highlight color groups
+    }
+
+    activateSmartPlacement() {
+        console.log('Smart placement power-up activated');
+        // Implementation would show optimal placement hints
+    }
+
+    activatePhoenixRevival() {
+        console.log('Phoenix revival power-up activated');
+        // Implementation would provide second chance on game over
     }
 
     testCoordinateSystem() {

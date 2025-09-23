@@ -9,6 +9,7 @@ import { GameScene } from './scenes/GameScene.js';
 import { PuzzleScene } from './scenes/PuzzleScene.js';
 import { AdventureScene } from './scenes/AdventureScene.js';
 import { performanceManager } from './core/performance.js';
+import { analyticsManager } from './core/analytics.js';
 
 /**
  * BlockQuest Game Class
@@ -68,6 +69,9 @@ class BlockQuestGame {
      * Called when game is ready
      */
     onGameReady() {
+        // Start analytics session
+        analyticsManager.startSession();
+        
         // Hide loading screen
         const loading = document.getElementById('loading');
         if (loading) {
@@ -97,9 +101,13 @@ class BlockQuestGame {
             // Pause game when tab is hidden
             this.game.scene.pause();
             audioManager.stopAll();
+            // End analytics session when tab is hidden
+            analyticsManager.endSession();
         } else {
             // Resume when tab becomes visible
             this.game.scene.resume();
+            // Restart analytics session when tab becomes visible
+            analyticsManager.startSession();
         }
     }
 
