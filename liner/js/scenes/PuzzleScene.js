@@ -291,9 +291,13 @@ export class PuzzleScene extends Phaser.Scene {
     }
 
     showPuzzleIntro(puzzle) {
+        // Create a container for all intro elements for easy cleanup
+        const introContainer = this.add.container(0, 0);
+
         // Semi-transparent overlay
         const overlay = this.add.rectangle(this.scale.width / 2, this.scale.height / 2,
             this.scale.width, this.scale.height, 0x000000, 0.8);
+        introContainer.add(overlay);
 
         // Info panel
         const panelWidth = Math.min(360, this.scale.width - 40);
@@ -301,48 +305,54 @@ export class PuzzleScene extends Phaser.Scene {
         const panel = this.add.rectangle(this.scale.width / 2, this.scale.height / 2,
             panelWidth, panelHeight, 0x1a1a1a)
             .setStrokeStyle(2, this.colors.primary);
+        introContainer.add(panel);
 
         // Puzzle title
-        this.add.text(this.scale.width / 2, this.scale.height / 2 - 140, puzzle.name, {
+        const titleText = this.add.text(this.scale.width / 2, this.scale.height / 2 - 140, puzzle.name, {
             fontSize: '24px',
             fontFamily: 'Arial, sans-serif',
             color: '#ffffff',
             fontStyle: 'bold'
         }).setOrigin(0.5);
+        introContainer.add(titleText);
 
         // Description
-        this.add.text(this.scale.width / 2, this.scale.height / 2 - 110, puzzle.description, {
+        const descText = this.add.text(this.scale.width / 2, this.scale.height / 2 - 110, puzzle.description, {
             fontSize: '14px',
             fontFamily: 'Arial, sans-serif',
             color: '#cccccc',
             align: 'center'
         }).setOrigin(0.5);
+        introContainer.add(descText);
 
         // Objectives
-        this.add.text(this.scale.width / 2, this.scale.height / 2 - 70, 'Objectives:', {
+        const objTitle = this.add.text(this.scale.width / 2, this.scale.height / 2 - 70, 'Objectives:', {
             fontSize: '16px',
             fontFamily: 'Arial, sans-serif',
             color: '#ffffff',
             fontStyle: 'bold'
         }).setOrigin(0.5);
+        introContainer.add(objTitle);
 
         puzzle.objectives.forEach((objective, index) => {
-            this.add.text(this.scale.width / 2, this.scale.height / 2 - 45 + (index * 20),
+            const objText = this.add.text(this.scale.width / 2, this.scale.height / 2 - 45 + (index * 20),
                 `• ${objective.description}`, {
                 fontSize: '12px',
                 fontFamily: 'Arial, sans-serif',
                 color: '#cccccc'
             }).setOrigin(0.5);
+            introContainer.add(objText);
         });
 
         // Target moves
-        this.add.text(this.scale.width / 2, this.scale.height / 2 + 20,
+        const targetText = this.add.text(this.scale.width / 2, this.scale.height / 2 + 20,
             `Target Moves: ${puzzle.targetMoves}`, {
             fontSize: '14px',
             fontFamily: 'Arial, sans-serif',
             color: '#ffaa00',
             fontStyle: 'bold'
         }).setOrigin(0.5);
+        introContainer.add(targetText);
 
         // Hint button
         const hintButton = this.add.rectangle(this.scale.width / 2 - 60, this.scale.height - 40,
@@ -351,11 +361,13 @@ export class PuzzleScene extends Phaser.Scene {
             .on('pointerdown', () => {
                 this.showHint(puzzle);
             });
+        introContainer.add(hintButton);
 
-        this.add.text(this.scale.width / 2 - 60, this.scale.height - 40, 'Hint', {
+        const hintText = this.add.text(this.scale.width / 2 - 60, this.scale.height - 40, 'Hint', {
             fontSize: '14px',
             color: '#ffffff'
         }).setOrigin(0.5);
+        introContainer.add(hintText);
 
         // Start button
         const startButton = this.add.rectangle(this.scale.width / 2 + 60, this.scale.height - 40,
@@ -363,16 +375,18 @@ export class PuzzleScene extends Phaser.Scene {
             .setInteractive()
             .on('pointerdown', () => {
                 audioManager.playPlace();
-                overlay.destroy();
-                panel.destroy();
+                // Destroy the entire intro container - this removes all elements
+                introContainer.destroy();
                 this.startPuzzleGameplay(puzzle);
             });
+        introContainer.add(startButton);
 
-        this.add.text(this.scale.width / 2 + 60, this.scale.height - 40, 'Start', {
+        const startText = this.add.text(this.scale.width / 2 + 60, this.scale.height - 40, 'Start', {
             fontSize: '14px',
             color: '#ffffff',
             fontStyle: 'bold'
         }).setOrigin(0.5);
+        introContainer.add(startText);
     }
 
     showHint(puzzle) {
@@ -381,41 +395,50 @@ export class PuzzleScene extends Phaser.Scene {
         this.puzzleStats.hintsUsed++;
         const hint = puzzle.hints[Math.min(this.puzzleStats.hintsUsed - 1, puzzle.hints.length - 1)];
 
+        // Create a container for all hint elements for easy cleanup
+        const hintContainer = this.add.container(0, 0);
+
         // Create hint popup
         const hintOverlay = this.add.rectangle(this.scale.width / 2, this.scale.height / 2,
             this.scale.width, this.scale.height, 0x000000, 0.7);
+        hintContainer.add(hintOverlay);
 
         const hintPanel = this.add.rectangle(this.scale.width / 2, this.scale.height / 2,
             300, 150, 0x1a1a1a)
             .setStrokeStyle(2, 0xffaa00);
+        hintContainer.add(hintPanel);
 
-        this.add.text(this.scale.width / 2, this.scale.height / 2 - 40, 'Hint:', {
+        const hintTitle = this.add.text(this.scale.width / 2, this.scale.height / 2 - 40, 'Hint:', {
             fontSize: '18px',
             fontFamily: 'Arial, sans-serif',
             color: '#ffaa00',
             fontStyle: 'bold'
         }).setOrigin(0.5);
+        hintContainer.add(hintTitle);
 
-        this.add.text(this.scale.width / 2, this.scale.height / 2, hint, {
+        const hintText = this.add.text(this.scale.width / 2, this.scale.height / 2, hint, {
             fontSize: '14px',
             fontFamily: 'Arial, sans-serif',
             color: '#ffffff',
             align: 'center',
             wordWrap: { width: 260 }
         }).setOrigin(0.5);
+        hintContainer.add(hintText);
 
         const closeButton = this.add.rectangle(this.scale.width / 2, this.scale.height / 2 + 50,
             80, 25, 0x666666)
             .setInteractive()
             .on('pointerdown', () => {
-                hintOverlay.destroy();
-                hintPanel.destroy();
+                // Destroy the entire hint container - this removes all elements
+                hintContainer.destroy();
             });
+        hintContainer.add(closeButton);
 
-        this.add.text(this.scale.width / 2, this.scale.height / 2 + 50, 'Close', {
+        const closeText = this.add.text(this.scale.width / 2, this.scale.height / 2 + 50, 'Close', {
             fontSize: '12px',
             color: '#ffffff'
         }).setOrigin(0.5);
+        hintContainer.add(closeText);
     }
 
     async startPuzzleGameplay(puzzle) {
@@ -444,12 +467,10 @@ export class PuzzleScene extends Phaser.Scene {
         // Import game systems
         const { GameGrid } = await import('../systems/grid.js');
         const { ScoringManager } = await import('../systems/scoring.js');
-        const { PowerUpManager } = await import('../systems/powerups.js');
 
         // Initialize systems
         this.gameGrid = new GameGrid(this);
         this.scoringManager = new ScoringManager(this);
-        this.powerupManager = new PowerUpManager(this);
 
         // Create game grid
         this.gameGrid.create();
@@ -483,6 +504,7 @@ export class PuzzleScene extends Phaser.Scene {
             'O': { pattern: [[1, 1], [1, 1]], color: 1 },
             'L_1': { pattern: [[1, 0], [1, 1]], color: 2 },
             'L_2': { pattern: [[1, 1], [1, 0], [1, 0]], color: 2 },
+            'L_CORNER': { pattern: [[1, 1], [1, 0]], color: 2 }, // L-shape for corner fitting
             'T': { pattern: [[0, 1, 0], [1, 1, 1]], color: 3 },
             'Z_1': { pattern: [[1, 1, 0], [0, 1, 1]], color: 4 }
         };
@@ -492,7 +514,7 @@ export class PuzzleScene extends Phaser.Scene {
 
     createShapeVisual(shape, index) {
         const x = 80 + (index * 60);
-        const y = this.scale.height - 80;
+        const y = this.scale.height - 80; // Moved back down since no power-ups
 
         // Create shape visual using Container instead of Group
         const shapeGroup = this.add.container(x, y);
@@ -589,9 +611,6 @@ export class PuzzleScene extends Phaser.Scene {
 
         // Create objectives tracker
         this.createObjectiveTracker(puzzle);
-
-        // Create power-up buttons in the same position as GameScene
-        this.createPuzzlePowerUps();
     }
 
     createObjectiveTracker(puzzle) {
@@ -1029,125 +1048,5 @@ export class PuzzleScene extends Phaser.Scene {
         }).setOrigin(0.5);
     }
 
-    async createPuzzlePowerUps() {
-        const { POWER_UPS, POWER_UP_INFO } = await import('../core/constants.js');
-        const theme = themeManager.getCurrentTheme();
-        
-        // Position power-ups in the same location as GameScene
-        const centerX = this.cameras.main.centerX;
-        const startY = 520; // Same as GameScene
-        const allPowerUps = Object.values(POWER_UPS);
-        const buttonSize = 32;
-        const spacing = 35;
-        const firstRowCount = Math.min(5, allPowerUps.length);
-        const secondRowCount = allPowerUps.length - firstRowCount;
-        const rowSpacing = 40;
 
-        this.ui = this.ui || {};
-        this.ui.powerUpButtons = [];
-
-        // Create boundary box for power-ups area (same as GameScene)
-        const powerUpBoundary = this.add.rectangle(centerX, startY + 20, 350, 100, 0x000000, 0);
-        powerUpBoundary.setStrokeStyle(2, parseInt(theme.accent.replace('#', ''), 16), 0.3);
-        powerUpBoundary.setDepth(-1);
-
-        // First row - 5 power-ups
-        const firstRowStartX = centerX - ((firstRowCount - 1) * spacing) / 2;
-        for (let i = 0; i < firstRowCount && i < allPowerUps.length; i++) {
-            const powerUpType = allPowerUps[i];
-            const info = POWER_UP_INFO[powerUpType];
-            const x = firstRowStartX + i * spacing;
-            
-            const button = this.createPuzzlePowerUpButton(
-                x, startY, buttonSize, buttonSize, info.icon, powerUpType
-            );
-            this.ui.powerUpButtons.push(button);
-        }
-
-        // Second row - remaining power-ups
-        if (secondRowCount > 0) {
-            const secondRowStartX = centerX - ((secondRowCount - 1) * spacing) / 2;
-            for (let i = firstRowCount; i < allPowerUps.length; i++) {
-                const powerUpType = allPowerUps[i];
-                const info = POWER_UP_INFO[powerUpType];
-                const x = secondRowStartX + (i - firstRowCount) * spacing;
-                
-                const button = this.createPuzzlePowerUpButton(
-                    x, startY + rowSpacing, buttonSize, buttonSize, info.icon, powerUpType
-                );
-                this.ui.powerUpButtons.push(button);
-            }
-        }
-    }
-
-    async createPuzzlePowerUpButton(x, y, width, height, icon, powerUpType) {
-        const { POWER_UP_INFO } = await import('../core/constants.js');
-        const { storage } = await import('../core/storage.js');
-        
-        const info = POWER_UP_INFO[powerUpType];
-        const userCoins = storage.getCoins();
-        const canUse = userCoins >= info.cost;
-
-        // Button background (same styling as GameScene)
-        const button = this.add.rectangle(x, y, width, height, canUse ? 0x2a4a3a : 0x4a2a2a)
-            .setStrokeStyle(2, canUse ? 0x4a7a5a : 0x7a4a4a);
-
-        // Icon
-        const iconText = this.add.text(x, y - 3, icon, {
-            fontSize: '16px',
-            color: canUse ? '#ffffff' : '#888888'
-        }).setOrigin(0.5);
-
-        // Cost
-        const costText = this.add.text(x, y + 8, `${info.cost}`, {
-            fontSize: '8px',
-            color: canUse ? '#ffaa00' : '#555555'
-        }).setOrigin(0.5);
-
-        // Container for interaction
-        const container = this.add.container(0, 0, [button, iconText, costText]);
-        container.setSize(width, height);
-        container.setInteractive();
-
-        // Add click handler
-        container.on('pointerdown', () => {
-            if (canUse) {
-                this.usePuzzlePowerUp(powerUpType);
-            }
-        });
-
-        container.powerUpType = powerUpType;
-        return container;
-    }
-
-    async usePuzzlePowerUp(powerUpType) {
-        const { POWER_UP_INFO } = await import('../core/constants.js');
-        const { storage } = await import('../core/storage.js');
-        
-        const info = POWER_UP_INFO[powerUpType];
-        const userCoins = storage.getCoins();
-
-        if (userCoins >= info.cost) {
-            storage.spendCoins(info.cost);
-            this.puzzleStats.powerupsUsed = (this.puzzleStats.powerupsUsed || 0) + 1;
-            
-            // Execute power-up effect through powerupManager if available
-            if (this.powerupManager) {
-                this.powerupManager.usePowerUp(powerUpType);
-            }
-            
-            // Update power-up buttons
-            this.updatePuzzlePowerUpButtons();
-        }
-    }
-
-    updatePuzzlePowerUpButtons() {
-        // Similar to GameScene's updatePowerUpButtons
-        if (this.ui && this.ui.powerUpButtons) {
-            this.ui.powerUpButtons.forEach(button => {
-                // Update button state based on current coins
-                // Implementation similar to GameScene
-            });
-        }
-    }
 }

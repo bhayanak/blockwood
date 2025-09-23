@@ -352,7 +352,7 @@ export const PUZZLE_PACKS = {
                     [1, 1, 1, 1, 1, 1, 1, 0, 0, 1],
                     [1, 1, 1, 1, 1, 1, 1, 1, 0, 1]
                 ],
-                availableShapes: ['L_1', 'I_1'],
+                availableShapes: ['L_CORNER', 'I_2'],
                 objectives: [
                     { type: 'lines', target: 1, description: 'Clear at least 1 line' },
                     { type: 'fill', target: [7, 8, 8, 9], description: 'Fill the corner completely' }

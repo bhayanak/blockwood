@@ -172,9 +172,13 @@ export class AdventureScene extends Phaser.Scene {
     }
 
     createStoryDisplay(chapter) {
+        // Create a container for all story elements for easy cleanup
+        const storyContainer = this.add.container(0, 0);
+
         // Semi-transparent overlay
         const overlay = this.add.rectangle(this.scale.width / 2, this.scale.height / 2,
             this.scale.width, this.scale.height, 0x000000, 0.8);
+        storyContainer.add(overlay);
 
         // Story panel
         const panelWidth = Math.min(360, this.scale.width - 40);
@@ -182,40 +186,45 @@ export class AdventureScene extends Phaser.Scene {
         const panel = this.add.rectangle(this.scale.width / 2, this.scale.height / 2,
             panelWidth, panelHeight, 0x1a1a1a)
             .setStrokeStyle(2, this.colors.primary);
+        storyContainer.add(panel);
 
         // Chapter title
-        this.add.text(this.scale.width / 2, this.scale.height / 2 - 170, chapter.name, {
+        const titleText = this.add.text(this.scale.width / 2, this.scale.height / 2 - 170, chapter.name, {
             fontSize: '24px',
             fontFamily: 'Arial, sans-serif',
             color: '#ffffff',
             fontStyle: 'bold'
         }).setOrigin(0.5);
+        storyContainer.add(titleText);
 
         // Story text
-        this.add.text(this.scale.width / 2, this.scale.height / 2 - 120, chapter.story, {
+        const storyText = this.add.text(this.scale.width / 2, this.scale.height / 2 - 120, chapter.story, {
             fontSize: '14px',
             fontFamily: 'Arial, sans-serif',
             color: '#cccccc',
             align: 'center',
             wordWrap: { width: panelWidth - 40 }
         }).setOrigin(0.5);
+        storyContainer.add(storyText);
 
         // Objectives title
-        this.add.text(this.scale.width / 2, this.scale.height / 2 - 40, 'Objectives:', {
+        const objTitle = this.add.text(this.scale.width / 2, this.scale.height / 2 - 40, 'Objectives:', {
             fontSize: '18px',
             fontFamily: 'Arial, sans-serif',
             color: '#ffffff',
             fontStyle: 'bold'
         }).setOrigin(0.5);
+        storyContainer.add(objTitle);
 
         // Objectives list
         chapter.objectives.forEach((objective, index) => {
-            this.add.text(this.scale.width / 2, this.scale.height / 2 - 10 + (index * 25),
+            const objText = this.add.text(this.scale.width / 2, this.scale.height / 2 - 10 + (index * 25),
                 `• ${objective.description}`, {
                 fontSize: '14px',
                 fontFamily: 'Arial, sans-serif',
                 color: '#cccccc'
             }).setOrigin(0.5);
+            storyContainer.add(objText);
         });
 
         // Start button
@@ -224,21 +233,22 @@ export class AdventureScene extends Phaser.Scene {
             .setInteractive()
             .on('pointerdown', () => {
                 audioManager.playPlace();
-                overlay.destroy();
-                panel.destroy();
-                this.destroyStoryElements();
+                // Destroy the entire story container - this removes all elements
+                storyContainer.destroy();
                 this.createGameplayUI();
             });
+        storyContainer.add(startButton);
 
-        this.add.text(this.scale.width / 2, this.scale.height / 2 + 120, 'Start Quest', {
+        const startText = this.add.text(this.scale.width / 2, this.scale.height / 2 + 120, 'Start Quest', {
             fontSize: '16px',
             fontFamily: 'Arial, sans-serif',
             color: '#ffffff',
             fontStyle: 'bold'
         }).setOrigin(0.5);
+        storyContainer.add(startText);
 
-        // Store story elements for cleanup
-        this.storyElements = [overlay, panel, startButton];
+        // Store story container for cleanup
+        this.storyContainer = storyContainer;
     }
 
     destroyStoryElements() {
@@ -357,17 +367,7 @@ export class AdventureScene extends Phaser.Scene {
             color: '#ffffff'
         }).setOrigin(0.5);
 
-        // TEST BUTTON - comprehensive coordinate test
-        const testButton = this.add.rectangle(120, 30, 80, 25, 0x446644)
-            .setInteractive()
-            .on('pointerdown', () => {
-                // Test coordinate system removed
-            });
 
-        this.add.text(120, 30, 'TEST', {
-            fontSize: '12px',
-            color: '#ffffff'
-        }).setOrigin(0.5);
     }
 
     createObjectiveTracker() {
@@ -376,8 +376,8 @@ export class AdventureScene extends Phaser.Scene {
 
         this.objectiveTexts = [];
         
-        // Add objectives title
-        this.add.text(20, startY - 20, 'Objectives:', {
+        // Add objectives title with higher depth to appear above grid
+        const objectiveTitle = this.add.text(20, startY - 20, 'Objectives:', {
             fontSize: '12px',
             color: '#FFFF00',
             fontFamily: 'Arial',
@@ -385,6 +385,7 @@ export class AdventureScene extends Phaser.Scene {
             stroke: '#000000',
             strokeThickness: 1
         });
+        objectiveTitle.setDepth(100); // Ensure it appears above other elements
         
         chapter.objectives.forEach((objective, index) => {
             const text = this.add.text(20, startY + (index * 16),
@@ -395,6 +396,7 @@ export class AdventureScene extends Phaser.Scene {
                 stroke: '#000000',
                 strokeThickness: 1
             });
+            text.setDepth(100); // Ensure it appears above other elements
             this.objectiveTexts.push(text);
         });
     }
@@ -410,7 +412,7 @@ export class AdventureScene extends Phaser.Scene {
     generateNewShape(index) {
         const shape = this.shapeGenerator.generateRandomShape();
         const x = 80 + (index * 100);
-        const y = this.scale.height - 80;
+        const y = this.scale.height - 40; // Moved up to avoid power-up overlap
 
         // Create shape visual representation using Container instead of Group
         const shapeGroup = this.add.container(x, y);
@@ -868,12 +870,18 @@ export class AdventureScene extends Phaser.Scene {
      * Create individual power-up button
      */
     async createPowerUpButton(x, y, width, height, icon, powerUpType) {
-        const { POWER_UP_INFO } = await import('../core/constants.js');
+        const { POWER_UP_INFO, POWER_UP_COSTS } = await import('../core/constants.js');
         const { storage } = await import('../core/storage.js');
         
         const info = POWER_UP_INFO[powerUpType];
+        if (!info) {
+            console.warn(`Power-up info not found for: ${powerUpType}`);
+            return null;
+        }
+        
+        const cost = POWER_UP_COSTS.NORMAL[powerUpType] || 50;
         const userCoins = storage.getCoins();
-        const canUse = userCoins >= info.cost;
+        const canUse = userCoins >= cost;
 
         // Button background
         const button = this.add.rectangle(x, y, width, height, canUse ? 0x2a4a3a : 0x4a2a2a)
@@ -886,7 +894,7 @@ export class AdventureScene extends Phaser.Scene {
         }).setOrigin(0.5);
 
         // Cost
-        const costText = this.add.text(x, y + 8, info.cost.toString(), {
+        const costText = this.add.text(x, y + 8, cost.toString(), {
             fontSize: '8px',
             fontFamily: 'Arial',
             color: canUse ? '#FFD700' : '#888888'
