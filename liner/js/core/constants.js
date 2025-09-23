@@ -303,7 +303,14 @@ export const PUZZLE_PACKS = {
                 objectives: [
                     { type: 'lines', target: 1, description: 'Clear 1 line' }
                 ],
-                hints: ['Place the line piece to complete the bottom row'],
+                hints: [
+                    { 
+                        text: 'Place the single block in the gap to complete the row',
+                        cost: 5,
+                        highlightArea: { row: 9, col: 7, width: 1, height: 1 },
+                        targetShape: 'I_1'
+                    }
+                ],
                 starRequirements: { moves: [3, 2, 1] }
             },
             {
@@ -330,15 +337,56 @@ export const PUZZLE_PACKS = {
                     { type: 'lines', target: 2, description: 'Clear 2 lines' },
                     { type: 'combo', target: 1, description: 'Get a combo' }
                 ],
-                hints: ['The vertical 2-block piece fits perfectly in the gap'],
+                hints: [
+                    {
+                        text: 'Place I_2 vertically to fill both row gaps simultaneously',
+                        cost: 8,
+                        highlightArea: { row: 8, col: 6, width: 1, height: 2 },
+                        targetShape: 'I_2'
+                    }
+                ],
                 starRequirements: { moves: [5, 3, 2] }
             },
             {
                 id: 'B003',
-                name: 'Corner Pocket',
-                description: 'Fill the corner space',
+                name: 'Corner Challenge',
+                description: 'Fill the corner with an L-shape',
                 difficulty: 2,
-                targetMoves: 4,
+                targetMoves: 3,
+                targetScore: 150,
+                initialGrid: [
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [1, 1, 1, 1, 1, 1, 1, 0, 1, 1],
+                    [1, 1, 1, 1, 1, 1, 1, 0, 0, 1]
+                ],
+                availableShapes: ['L_1'],
+                objectives: [
+                    { type: 'lines', target: 1, description: 'Clear 1 line' },
+                    { type: 'complete', description: 'Use all available shapes' }
+                ],
+                hints: [
+                    {
+                        text: 'Rotate L_1 to fit the corner gap - it will complete the bottom row',
+                        cost: 12,
+                        highlightArea: { row: 8, col: 7, width: 2, height: 2 },
+                        targetShape: 'L_1'
+                    }
+                ],
+                starRequirements: { moves: [3, 2, 1] }
+            },
+            {
+                id: 'B004',
+                name: 'Two Choices',
+                description: 'Pick the right shape for the job',
+                difficulty: 2,
+                targetMoves: 2,
                 targetScore: 200,
                 initialGrid: [
                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -348,17 +396,58 @@ export const PUZZLE_PACKS = {
                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [1, 1, 1, 1, 1, 1, 1, 0, 0, 1],
-                    [1, 1, 1, 1, 1, 1, 1, 0, 0, 1],
-                    [1, 1, 1, 1, 1, 1, 1, 1, 0, 1]
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [1, 1, 1, 1, 1, 1, 0, 0, 1, 1],
+                    [1, 1, 1, 1, 1, 1, 0, 0, 1, 1]
                 ],
-                availableShapes: ['L_CORNER', 'I_2'],
+                availableShapes: ['O'],
                 objectives: [
-                    { type: 'lines', target: 1, description: 'Clear at least 1 line' },
-                    { type: 'fill', target: [7, 8, 8, 9], description: 'Fill the corner completely' }
+                    { type: 'lines', target: 2, description: 'Clear 2 lines' },
+                    { type: 'complete', description: 'Use all available shapes' }
                 ],
-                hints: ['Use the L-piece to fill the corner shape'],
-                starRequirements: { moves: [4, 3, 2] }
+                hints: [
+                    {
+                        text: 'Place the O block in the 2x2 gap to complete both rows',
+                        cost: 10,
+                        highlightArea: { row: 8, col: 6, width: 2, height: 2 },
+                        targetShape: 'O'
+                    }
+                ],
+                starRequirements: { moves: [2, 1, 1] }
+            },
+            {
+                id: 'B005',
+                name: 'T-Formation',
+                description: 'Master the T-shape placement',
+                difficulty: 3,
+                targetMoves: 3,
+                targetScore: 250,
+                initialGrid: [
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [1, 1, 1, 1, 0, 1, 1, 1, 1, 1],
+                    [1, 1, 1, 0, 0, 0, 1, 1, 1, 1]
+                ],
+                availableShapes: ['T'],
+                objectives: [
+                    { type: 'lines', target: 1, description: 'Clear 1 line' },
+                    { type: 'complete', description: 'Use all available shapes' }
+                ],
+                hints: [
+                    {
+                        text: 'Rotate the T-shape to fit the gap and complete the line',
+                        cost: 15,
+                        highlightArea: { row: 8, col: 3, width: 3, height: 2 },
+                        targetShape: 'T'
+                    }
+                ],
+                starRequirements: { moves: [3, 2, 1] }
             }
         ]
     },
@@ -371,57 +460,71 @@ export const PUZZLE_PACKS = {
         puzzles: [
             {
                 id: 'I001',
-                name: 'Cascade Effect',
-                description: 'Create a chain reaction',
+                name: 'Strategic Placement',
+                description: 'Use both shapes to clear lines',
                 difficulty: 3,
-                targetMoves: 6,
-                targetScore: 800,
+                targetMoves: 2,
+                targetScore: 300,
                 initialGrid: [
                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [1, 1, 1, 1, 1, 1, 1, 0, 1, 1],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                     [1, 1, 1, 1, 1, 1, 0, 0, 1, 1],
-                    [1, 1, 1, 1, 1, 0, 0, 0, 1, 1],
-                    [1, 1, 1, 1, 0, 0, 0, 0, 1, 1],
-                    [1, 1, 1, 0, 0, 0, 0, 0, 1, 1]
+                    [1, 1, 1, 1, 1, 1, 0, 0, 1, 1]
                 ],
-                availableShapes: ['L_2', 'T', 'Z_1'],
+                availableShapes: ['O'],
                 objectives: [
-                    { type: 'lines', target: 3, description: 'Clear 3+ lines' },
-                    { type: 'chain', target: 1, description: 'Create a chain reaction' }
+                    { type: 'lines', target: 2, description: 'Clear 2 lines' },
+                    { type: 'complete', description: 'Use all available shapes' }
                 ],
-                hints: ['Fill the diagonal pattern to trigger multiple clears'],
-                starRequirements: { moves: [6, 4, 3] }
+                hints: [
+                    { 
+                        text: 'Place the O block in the 2x2 gap to complete both lines',
+                        cost: 10,
+                        highlightArea: { row: 8, col: 6, width: 2, height: 2 },
+                        targetShape: 'O'
+                    }
+                ],
+                starRequirements: { moves: [2, 1, 1] }
             },
             {
                 id: 'I002',
                 name: 'Perfect Fit',
                 description: 'Use every piece exactly',
                 difficulty: 4,
-                targetMoves: 8,
-                targetScore: 1000,
+                targetMoves: 3,
+                targetScore: 400,
                 initialGrid: [
                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [1, 1, 0, 0, 1, 1, 0, 0, 1, 1],
-                    [1, 1, 0, 0, 1, 1, 0, 0, 1, 1],
                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [1, 1, 0, 0, 1, 1, 0, 0, 1, 1],
-                    [1, 1, 0, 0, 1, 1, 0, 0, 1, 1],
-                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [1, 1, 1, 1, 1, 1, 0, 0, 1, 1],
+                    [1, 1, 1, 1, 1, 1, 0, 0, 1, 1]
                 ],
-                availableShapes: ['O', 'O', 'O', 'I_2', 'I_2'],
+                availableShapes: ['O'],
                 objectives: [
-                    { type: 'complete', target: 1, description: 'Use all pieces' },
-                    { type: 'efficiency', target: 100, description: '100% placement efficiency' }
+                    { type: 'lines', target: 2, description: 'Clear 2 lines' },
+                    { type: 'complete', description: 'Use all available shapes' }
                 ],
-                hints: ['Each 2x2 square fits perfectly in the gaps'],
-                starRequirements: { moves: [8, 6, 5] }
+                hints: [
+                    {
+                        text: 'Place the O block in the 2x2 gap to complete both lines',
+                        cost: 15,
+                        highlightArea: { row: 8, col: 6, width: 2, height: 2 },
+                        targetShape: 'O'
+                    }
+                ],
+                starRequirements: { moves: [1, 1, 1] }
             }
         ]
     },
@@ -457,7 +560,20 @@ export const PUZZLE_PACKS = {
                     { type: 'columns', target: 5, description: 'Clear 5 columns' },
                     { type: 'score', target: 2000, description: 'Score 2000 points' }
                 ],
-                hints: ['Focus on completing both rows and columns', 'Use single blocks to fill the checkerboard pattern'],
+                hints: [
+                    {
+                        text: 'Focus on completing both rows and columns with strategic placement',
+                        cost: 25,
+                        highlightArea: { row: 1, col: 0, width: 10, height: 1 },
+                        targetShape: 'I_1'
+                    },
+                    {
+                        text: 'Use single blocks to fill the checkerboard pattern gaps',
+                        cost: 15,
+                        highlightArea: { row: 0, col: 1, width: 1, height: 1 },
+                        targetShape: 'I_1'
+                    }
+                ],
                 starRequirements: { moves: [10, 8, 6] }
             }
         ]
@@ -494,21 +610,28 @@ export const PUZZLE_PACKS = {
                     { type: 'moves', target: 3, description: 'Use exactly 3 moves' },
                     { type: 'perfect', target: 1, description: 'No wasted placements' }
                 ],
-                hints: ['Think about how each piece can trigger cascading line clears'],
+                hints: [
+                    {
+                        text: 'Each piece can trigger cascading line clears - plan your sequence carefully',
+                        cost: 30,
+                        highlightArea: { row: 6, col: 5, width: 4, height: 4 },
+                        targetShape: 'T'
+                    }
+                ],
                 starRequirements: { moves: [3, 3, 3], bonus: 'perfect_execution' }
             }
         ]
     }
 };
 
-// Default puzzle progress structure
+// Default puzzle progress structure - totals calculated dynamically
 export const DEFAULT_PUZZLE_PROGRESS = {
     currentPack: 'BEGINNER',
     packs: {
-        BEGINNER: { unlocked: true, completed: 0, total: 3 },
-        INTERMEDIATE: { unlocked: false, completed: 0, total: 2 },
-        ADVANCED: { unlocked: false, completed: 0, total: 1 },
-        EXPERT: { unlocked: false, completed: 0, total: 1 }
+        BEGINNER: { unlocked: true, completed: 0, total: PUZZLE_PACKS.BEGINNER.puzzles.length },
+        INTERMEDIATE: { unlocked: false, completed: 0, total: PUZZLE_PACKS.INTERMEDIATE.puzzles.length },
+        ADVANCED: { unlocked: false, completed: 0, total: PUZZLE_PACKS.ADVANCED.puzzles.length },
+        EXPERT: { unlocked: false, completed: 0, total: PUZZLE_PACKS.EXPERT.puzzles.length }
     },
     puzzles: {}
 };

@@ -94,7 +94,7 @@ export class MenuScene extends Phaser.Scene {
         }
 
         // Rainbow title - each letter in different color
-        this.menuElements.title = this.createRainbowTitle(centerX-70, 105, 'BLOCK PUZZLE');
+        this.menuElements.title = this.createRainbowTitle(centerX-70, 105, 'BLOCK QUEST');
 
         // Title pulse animation
         this.tweens.add({

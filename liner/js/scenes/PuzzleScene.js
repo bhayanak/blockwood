@@ -392,53 +392,248 @@ export class PuzzleScene extends Phaser.Scene {
     showHint(puzzle) {
         if (!puzzle.hints || puzzle.hints.length === 0) return;
 
-        this.puzzleStats.hintsUsed++;
-        const hint = puzzle.hints[Math.min(this.puzzleStats.hintsUsed - 1, puzzle.hints.length - 1)];
+        const hintIndex = Math.min(this.puzzleStats.hintsUsed, puzzle.hints.length - 1);
+        const hint = puzzle.hints[hintIndex];
+        
+        // Handle both old string format and new object format for backward compatibility
+        const hintData = typeof hint === 'string' ? { text: hint, cost: 0 } : hint;
+        
+        // Get current coins
+        const gameData = storage.get('gameData') || { coins: 100, stars: 0 };
+        
+        // Check if player can afford the hint
+        if (hintData.cost > 0 && gameData.coins < hintData.cost) {
+            this.showInsufficientCoinsDialog(hintData.cost);
+            return;
+        }
+        
+        // Show confirmation dialog if hint costs coins
+        if (hintData.cost > 0) {
+            this.showHintConfirmation(hintData, gameData);
+        } else {
+            this.displayHint(hintData);
+        }
+    }
 
-        // Create a container for all hint elements for easy cleanup
-        const hintContainer = this.add.container(0, 0);
-
-        // Create hint popup
-        const hintOverlay = this.add.rectangle(this.scale.width / 2, this.scale.height / 2,
+    showInsufficientCoinsDialog(cost) {
+        const container = this.add.container(0, 0);
+        
+        const overlay = this.add.rectangle(this.scale.width / 2, this.scale.height / 2,
             this.scale.width, this.scale.height, 0x000000, 0.7);
-        hintContainer.add(hintOverlay);
-
-        const hintPanel = this.add.rectangle(this.scale.width / 2, this.scale.height / 2,
+        container.add(overlay);
+        
+        const panel = this.add.rectangle(this.scale.width / 2, this.scale.height / 2,
             300, 150, 0x1a1a1a)
-            .setStrokeStyle(2, 0xffaa00);
-        hintContainer.add(hintPanel);
+            .setStrokeStyle(2, 0xff6666);
+        container.add(panel);
+        
+        const title = this.add.text(this.scale.width / 2, this.scale.height / 2 - 30, 'Not Enough Coins!', {
+            fontSize: '16px',
+            fontFamily: 'Arial, sans-serif',
+            color: '#ff6666',
+            fontStyle: 'bold'
+        }).setOrigin(0.5);
+        container.add(title);
+        
+        const message = this.add.text(this.scale.width / 2, this.scale.height / 2, `This hint costs ${cost} coins.\nComplete more puzzles to earn coins!`, {
+            fontSize: '12px',
+            fontFamily: 'Arial, sans-serif',
+            color: '#ffffff',
+            align: 'center'
+        }).setOrigin(0.5);
+        container.add(message);
+        
+        const okButton = this.add.rectangle(this.scale.width / 2, this.scale.height / 2 + 40,
+            80, 25, 0x666666)
+            .setInteractive()
+            .on('pointerdown', () => container.destroy());
+        container.add(okButton);
+        
+        const okText = this.add.text(this.scale.width / 2, this.scale.height / 2 + 40, 'OK', {
+            fontSize: '12px',
+            color: '#ffffff'
+        }).setOrigin(0.5);
+        container.add(okText);
+    }
 
-        const hintTitle = this.add.text(this.scale.width / 2, this.scale.height / 2 - 40, 'Hint:', {
+    showHintConfirmation(hintData, gameData) {
+        const container = this.add.container(0, 0);
+        
+        const overlay = this.add.rectangle(this.scale.width / 2, this.scale.height / 2,
+            this.scale.width, this.scale.height, 0x000000, 0.7);
+        container.add(overlay);
+        
+        const panel = this.add.rectangle(this.scale.width / 2, this.scale.height / 2,
+            320, 180, 0x1a1a1a)
+            .setStrokeStyle(2, 0xffaa00);
+        container.add(panel);
+        
+        const title = this.add.text(this.scale.width / 2, this.scale.height / 2 - 50, 'Purchase Hint?', {
+            fontSize: '16px',
+            fontFamily: 'Arial, sans-serif',
+            color: '#ffaa00',
+            fontStyle: 'bold'
+        }).setOrigin(0.5);
+        container.add(title);
+        
+        const costText = this.add.text(this.scale.width / 2, this.scale.height / 2 - 20, `Cost: ${hintData.cost} coins`, {
+            fontSize: '14px',
+            fontFamily: 'Arial, sans-serif',
+            color: '#ffdd44'
+        }).setOrigin(0.5);
+        container.add(costText);
+        
+        const balanceText = this.add.text(this.scale.width / 2, this.scale.height / 2, `Your coins: ${gameData.coins}`, {
+            fontSize: '12px',
+            fontFamily: 'Arial, sans-serif',
+            color: '#cccccc'
+        }).setOrigin(0.5);
+        container.add(balanceText);
+        
+        // Buy button
+        const buyButton = this.add.rectangle(this.scale.width / 2 - 60, this.scale.height / 2 + 40,
+            80, 25, 0x44aa44)
+            .setInteractive()
+            .on('pointerdown', () => {
+                // Deduct coins
+                gameData.coins -= hintData.cost;
+                storage.set('gameData', gameData);
+                
+                // Update coins display if it exists
+                this.updateCoinsDisplay();
+                
+                // Close confirmation and show hint
+                container.destroy();
+                this.displayHint(hintData);
+                
+                // Track hint usage
+                this.puzzleStats.hintsUsed++;
+            });
+        container.add(buyButton);
+        
+        const buyText = this.add.text(this.scale.width / 2 - 60, this.scale.height / 2 + 40, 'Buy Hint', {
+            fontSize: '10px',
+            color: '#ffffff'
+        }).setOrigin(0.5);
+        container.add(buyText);
+        
+        // Cancel button
+        const cancelButton = this.add.rectangle(this.scale.width / 2 + 60, this.scale.height / 2 + 40,
+            80, 25, 0x666666)
+            .setInteractive()
+            .on('pointerdown', () => container.destroy());
+        container.add(cancelButton);
+        
+        const cancelText = this.add.text(this.scale.width / 2 + 60, this.scale.height / 2 + 40, 'Cancel', {
+            fontSize: '10px',
+            color: '#ffffff'
+        }).setOrigin(0.5);
+        container.add(cancelText);
+    }
+
+    displayHint(hintData) {
+        const container = this.add.container(0, 0);
+        
+        const overlay = this.add.rectangle(this.scale.width / 2, this.scale.height / 2,
+            this.scale.width, this.scale.height, 0x000000, 0.7);
+        container.add(overlay);
+        
+        const panel = this.add.rectangle(this.scale.width / 2, this.scale.height / 2,
+            320, 200, 0x1a1a1a)
+            .setStrokeStyle(2, 0xffaa00);
+        container.add(panel);
+        
+        const title = this.add.text(this.scale.width / 2, this.scale.height / 2 - 70, 'Hint:', {
             fontSize: '18px',
             fontFamily: 'Arial, sans-serif',
             color: '#ffaa00',
             fontStyle: 'bold'
         }).setOrigin(0.5);
-        hintContainer.add(hintTitle);
-
-        const hintText = this.add.text(this.scale.width / 2, this.scale.height / 2, hint, {
+        container.add(title);
+        
+        const hintText = this.add.text(this.scale.width / 2, this.scale.height / 2 - 20, hintData.text, {
             fontSize: '14px',
             fontFamily: 'Arial, sans-serif',
             color: '#ffffff',
             align: 'center',
-            wordWrap: { width: 260 }
+            wordWrap: { width: 280 }
         }).setOrigin(0.5);
-        hintContainer.add(hintText);
-
-        const closeButton = this.add.rectangle(this.scale.width / 2, this.scale.height / 2 + 50,
+        container.add(hintText);
+        
+        // Show target shape if specified
+        if (hintData.targetShape) {
+            const shapeText = this.add.text(this.scale.width / 2, this.scale.height / 2 + 20, `Target shape: ${hintData.targetShape}`, {
+                fontSize: '12px',
+                fontFamily: 'Arial, sans-serif',
+                color: '#ffdd44',
+                fontStyle: 'italic'
+            }).setOrigin(0.5);
+            container.add(shapeText);
+        }
+        
+        const closeButton = this.add.rectangle(this.scale.width / 2, this.scale.height / 2 + 60,
             80, 25, 0x666666)
             .setInteractive()
             .on('pointerdown', () => {
-                // Destroy the entire hint container - this removes all elements
-                hintContainer.destroy();
+                container.destroy();
+                // Remove highlight if it exists
+                if (this.hintHighlight) {
+                    this.hintHighlight.destroy();
+                    this.hintHighlight = null;
+                }
             });
-        hintContainer.add(closeButton);
-
-        const closeText = this.add.text(this.scale.width / 2, this.scale.height / 2 + 50, 'Close', {
+        container.add(closeButton);
+        
+        const closeText = this.add.text(this.scale.width / 2, this.scale.height / 2 + 60, 'Close', {
             fontSize: '12px',
             color: '#ffffff'
         }).setOrigin(0.5);
-        hintContainer.add(closeText);
+        container.add(closeText);
+        
+        // Show highlight area if specified
+        if (hintData.highlightArea && this.gameGrid) {
+            this.showHintHighlight(hintData.highlightArea);
+        }
+    }
+
+    showHintHighlight(highlightArea) {
+        // Remove existing highlight
+        if (this.hintHighlight) {
+            this.hintHighlight.destroy();
+            this.hintHighlight = null;
+        }
+        
+        // Calculate position based on grid
+        const gridX = this.scale.width / 2 - (10 * 32) / 2; // Assuming 32px blocks and 10-wide grid
+        const gridY = 120; // Grid Y position
+        
+        const x = gridX + (highlightArea.col * 32);
+        const y = gridY + (highlightArea.row * 32);
+        const width = highlightArea.width * 32;
+        const height = highlightArea.height * 32;
+        
+        // Create pulsing highlight rectangle
+        this.hintHighlight = this.add.rectangle(x + width/2, y + height/2, width, height)
+            .setStrokeStyle(3, 0xffaa00, 0.8)
+            .setFillStyle(0xffaa00, 0.2);
+        
+        // Add pulsing animation
+        this.tweens.add({
+            targets: this.hintHighlight,
+            alpha: 0.3,
+            duration: 800,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
+    }
+
+    updateCoinsDisplay() {
+        // Update coins display if it exists in the UI
+        if (this.coinsText) {
+            const gameData = storage.get('gameData') || { coins: 100, stars: 0 };
+            this.coinsText.setText(`Coins: ${gameData.coins}`);
+        }
     }
 
     async startPuzzleGameplay(puzzle) {
@@ -504,9 +699,10 @@ export class PuzzleScene extends Phaser.Scene {
             'O': { pattern: [[1, 1], [1, 1]], color: 1 },
             'L_1': { pattern: [[1, 0], [1, 1]], color: 2 },
             'L_2': { pattern: [[1, 1], [1, 0], [1, 0]], color: 2 },
-            'L_CORNER': { pattern: [[1, 1], [1, 0]], color: 2 }, // L-shape for corner fitting
+            'L_CORNER': { pattern: [[0, 1], [1, 1]], color: 2 }, // L-shape for corner fitting
             'T': { pattern: [[0, 1, 0], [1, 1, 1]], color: 3 },
-            'Z_1': { pattern: [[1, 1, 0], [0, 1, 1]], color: 4 }
+            'Z_1': { pattern: [[1, 1, 0], [0, 1, 1]], color: 4 },
+            'L_2_I': { pattern: [[1, 1, 1], [0, 0, 1]], color: 2 },
         };
 
         return shapeMap[shapeKey] || null;
@@ -574,6 +770,13 @@ export class PuzzleScene extends Phaser.Scene {
                 if (this.gameGrid.tryPlaceShape(shape, pointer.x, pointer.y + offsetY)) {
                     this.onShapePlaced(shape, index);
                     shapeGroup.destroy();
+                    
+                    // Mark shape as used
+                    this.puzzleShapes[index] = null;
+                    
+                    // Now check objectives after shape is marked as used
+                    this.checkPuzzleObjectives();
+                    this.checkPuzzleEnd();
                     
                     // Haptic feedback for successful placement
                     if ('vibrate' in navigator) {
@@ -654,11 +857,7 @@ export class PuzzleScene extends Phaser.Scene {
             this.puzzleStats.currentCombo = 0;
         }
 
-        // Check objectives
-        this.checkPuzzleObjectives();
-
-        // Check if puzzle completed or failed
-        this.checkPuzzleEnd();
+        // Note: Objective checking is now done in dragend handler after shape is marked as null
     }
 
     onLinesCleared(lines) {
@@ -721,7 +920,7 @@ export class PuzzleScene extends Phaser.Scene {
                         completed = this.checkFillObjective(objective.target);
                         break;
                     case 'complete':
-                        completed = this.puzzleShapes.every(ps => !ps || !ps.group.active);
+                        completed = this.puzzleShapes.every(ps => ps === null || ps === undefined || !ps.group?.active);
                         break;
                     case 'powerups':
                         completed = (this.puzzleStats.powerupsUsed || 0) >= objective.target;
