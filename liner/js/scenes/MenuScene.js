@@ -154,6 +154,7 @@ export class MenuScene extends Phaser.Scene {
             const y = startY + row * (buttonHeight + buttonSpacing);
 
             let buttonLabel = mode.label;
+            let button;
 
             // Special handling for daily challenge
             if (mode.key === GAME_MODES.DAILY) {
@@ -163,9 +164,14 @@ export class MenuScene extends Phaser.Scene {
                 }
             }
 
-            const button = this.createMenuButton(x, y, 190, buttonHeight, buttonLabel, () => {
-                this.selectGameMode(mode.key);
-            });
+            // Special handling for puzzle mode - create disabled button
+            if (mode.key === GAME_MODES.PUZZLE) {
+                button = this.createDisabledMenuButton(x, y, 190, buttonHeight, buttonLabel, 'Coming Soon');
+            } else {
+                button = this.createMenuButton(x, y, 190, buttonHeight, buttonLabel, () => {
+                    this.selectGameMode(mode.key);
+                });
+            }
 
             this.menuElements.modeButtons.push({ button });
         });
@@ -187,41 +193,391 @@ export class MenuScene extends Phaser.Scene {
     }
 
     /**
-     * Create colorful gradient background inspired by CrazyGames
+     * Create amazing animated background with particles and dynamic effects
      */
     createGradientBackground() {
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
         const theme = themeManager.getCurrentTheme();
 
-        // Create gradient background with multiple colors
+        // Base gradient background
         const bg = this.add.graphics();
-
-        // Create multi-stop gradient
-        bg.fillGradientStyle(
-            parseInt(theme.primary.replace('#', ''), 16),      // Top-left
-            parseInt(theme.secondary.replace('#', ''), 16),    // Top-right  
-            parseInt(theme.accent.replace('#', ''), 16),       // Bottom-left
-            parseInt(theme.background.replace('#', ''), 16),   // Bottom-right
-            1.0  // Full opacity
-        );
-
-        bg.fillRect(0, 0, width, height);
-
-        // Add some sparkle with smaller gradient overlays
-        const overlay = this.add.graphics();
-        overlay.fillGradientStyle(
-            parseInt(theme.background.replace('#', ''), 16),
-            parseInt(theme.primary.replace('#', ''), 16),
-            parseInt(theme.secondary.replace('#', ''), 16),
-            parseInt(theme.accent.replace('#', ''), 16),
-            0.3  // Semi-transparent
-        );
-        overlay.fillRect(0, 0, width, height);
-
-        // Send backgrounds to back
         bg.setDepth(-1000);
-        overlay.setDepth(-999);
+
+        // Animated gradient layers
+        this.backgroundLayers = [];
+        this.createAnimatedGradientLayers(width, height, theme);
+
+        // Floating particles system
+        this.createFloatingParticles(width, height);
+
+        // Animated geometric shapes
+        this.createGeometricShapes(width, height, theme);
+
+        // Pulsing orbs
+        this.createPulsingOrbs(width, height, theme);
+
+        // Moving wave effect
+        this.createWaveEffect(width, height, theme);
+
+        // Start background animations
+        this.startBackgroundAnimations();
+    }
+
+    /**
+     * Create animated gradient layers with smooth transitions
+     */
+    createAnimatedGradientLayers(width, height, theme) {
+        // Primary gradient layer
+        const gradient1 = this.add.graphics();
+        gradient1.setDepth(-950);
+        this.backgroundLayers.push(gradient1);
+
+        // Secondary gradient layer  
+        const gradient2 = this.add.graphics();
+        gradient2.setDepth(-940);
+        this.backgroundLayers.push(gradient2);
+
+        // Tertiary gradient layer
+        const gradient3 = this.add.graphics();
+        gradient3.setDepth(-930);
+        this.backgroundLayers.push(gradient3);
+
+        this.updateGradientLayers(width, height, theme, 0);
+    }
+
+    /**
+     * Update gradient layers with animated colors
+     */
+    updateGradientLayers(width, height, theme, time) {
+        if (!this.backgroundLayers || this.backgroundLayers.length === 0) return;
+
+        // Calculate animated color shifts
+        const hueShift1 = Math.sin(time * 0.001) * 30;
+        const hueShift2 = Math.cos(time * 0.0015) * 40;
+        const hueShift3 = Math.sin(time * 0.0008) * 25;
+
+        // Primary layer - base colors with subtle animation
+        const layer1 = this.backgroundLayers[0];
+        layer1.clear();
+        layer1.fillGradientStyle(
+            this.shiftHue(theme.primary, hueShift1),
+            this.shiftHue(theme.secondary, hueShift1),
+            this.shiftHue(theme.accent, hueShift1),
+            this.shiftHue(theme.background, hueShift1),
+            0.8
+        );
+        layer1.fillRect(0, 0, width, height);
+
+        // Secondary layer - creates depth
+        const layer2 = this.backgroundLayers[1];
+        layer2.clear();
+        layer2.fillGradientStyle(
+            this.shiftHue(theme.secondary, hueShift2),
+            this.shiftHue(theme.accent, hueShift2),
+            this.shiftHue(theme.primary, hueShift2),
+            this.shiftHue(theme.secondary, hueShift2),
+            0.4
+        );
+        layer2.fillRect(0, 0, width, height);
+
+        // Tertiary layer - adds sparkle
+        const layer3 = this.backgroundLayers[2];
+        layer3.clear();
+        layer3.fillGradientStyle(
+            this.shiftHue(theme.accent, hueShift3),
+            this.shiftHue(theme.primary, hueShift3),
+            this.shiftHue(theme.background, hueShift3),
+            this.shiftHue(theme.accent, hueShift3),
+            0.2
+        );
+        layer3.fillRect(0, 0, width, height);
+    }
+
+    /**
+     * Shift color hue for animation effects
+     */
+    shiftHue(colorHex, shift) {
+        const color = parseInt(colorHex.replace('#', ''), 16);
+        const r = (color >> 16) & 255;
+        const g = (color >> 8) & 255;
+        const b = color & 255;
+
+        // Simple hue shift approximation
+        const factor = 1 + shift / 100;
+        const newR = Math.min(255, Math.max(0, r * factor));
+        const newG = Math.min(255, Math.max(0, g * factor));
+        const newB = Math.min(255, Math.max(0, b * factor));
+
+        return (newR << 16) | (newG << 8) | newB;
+    }
+
+    /**
+     * Create floating particle system
+     */
+    createFloatingParticles(width, height) {
+        this.particles = [];
+        const particleCount = 50;
+
+        for (let i = 0; i < particleCount; i++) {
+            const particle = this.add.graphics();
+            particle.setDepth(-900 + i);
+            
+            // Random particle properties
+            const size = Phaser.Math.Between(2, 8);
+            const x = Phaser.Math.Between(0, width);
+            const y = Phaser.Math.Between(0, height);
+            const alpha = Phaser.Math.FloatBetween(0.1, 0.6);
+            
+            // Create glowing particle
+            particle.fillStyle(0xFFFFFF, alpha);
+            particle.fillCircle(0, 0, size);
+            particle.setPosition(x, y);
+            
+            // Store movement properties
+            particle.velocity = {
+                x: Phaser.Math.FloatBetween(-0.5, 0.5),
+                y: Phaser.Math.FloatBetween(-1, -0.2)
+            };
+            particle.originalAlpha = alpha;
+            particle.size = size;
+            
+            this.particles.push(particle);
+        }
+    }
+
+    /**
+     * Create animated geometric shapes
+     */
+    createGeometricShapes(width, height, theme) {
+        this.geometricShapes = [];
+        const shapeCount = 8;
+
+        for (let i = 0; i < shapeCount; i++) {
+            const shape = this.add.graphics();
+            shape.setDepth(-880 + i);
+            
+            const x = Phaser.Math.Between(width * 0.1, width * 0.9);
+            const y = Phaser.Math.Between(height * 0.1, height * 0.9);
+            const size = Phaser.Math.Between(30, 80);
+            const sides = Phaser.Math.Between(3, 8);
+            
+            shape.setPosition(x, y);
+            shape.rotation = Phaser.Math.FloatBetween(0, Math.PI * 2);
+            shape.alpha = 0.1;
+            
+            // Store properties for animation
+            shape.size = size;
+            shape.sides = sides;
+            shape.rotationSpeed = Phaser.Math.FloatBetween(-0.01, 0.01);
+            shape.pulseSpeed = Phaser.Math.FloatBetween(0.002, 0.005);
+            shape.colorIndex = i % 4; // Rotate through theme colors
+            
+            this.geometricShapes.push(shape);
+        }
+    }
+
+    /**
+     * Create pulsing orbs
+     */
+    createPulsingOrbs(width, height, theme) {
+        this.pulsingOrbs = [];
+        const orbCount = 6;
+
+        for (let i = 0; i < orbCount; i++) {
+            const orb = this.add.graphics();
+            orb.setDepth(-860 + i);
+            
+            const x = Phaser.Math.Between(width * 0.2, width * 0.8);
+            const y = Phaser.Math.Between(height * 0.2, height * 0.8);
+            const baseSize = Phaser.Math.Between(40, 100);
+            
+            orb.setPosition(x, y);
+            orb.alpha = 0.15;
+            
+            // Store properties for animation
+            orb.baseSize = baseSize;
+            orb.pulsePhase = Phaser.Math.FloatBetween(0, Math.PI * 2);
+            orb.pulseSpeed = Phaser.Math.FloatBetween(0.01, 0.03);
+            orb.colorIndex = i % 4;
+            
+            this.pulsingOrbs.push(orb);
+        }
+    }
+
+    /**
+     * Create wave effect
+     */
+    createWaveEffect(width, height, theme) {
+        this.waveGraphics = this.add.graphics();
+        this.waveGraphics.setDepth(-920);
+        this.waveTime = 0;
+    }
+
+    /**
+     * Start all background animations
+     */
+    startBackgroundAnimations() {
+        // Main animation loop
+        this.backgroundAnimationTimer = this.time.addEvent({
+            delay: 16, // ~60 FPS
+            callback: this.updateBackgroundAnimation,
+            callbackScope: this,
+            loop: true
+        });
+    }
+
+    /**
+     * Update all background animations
+     */
+    updateBackgroundAnimation() {
+        const time = this.time.now;
+        const width = this.cameras.main.width;
+        const height = this.cameras.main.height;
+        const theme = themeManager.getCurrentTheme();
+
+        // Update gradient layers
+        this.updateGradientLayers(width, height, theme, time);
+
+        // Update particles
+        this.updateParticles(width, height);
+
+        // Update geometric shapes
+        this.updateGeometricShapes(theme, time);
+
+        // Update pulsing orbs
+        this.updatePulsingOrbs(theme, time);
+
+        // Update wave effect
+        this.updateWaveEffect(width, height, theme, time);
+    }
+
+    /**
+     * Update floating particles
+     */
+    updateParticles(width, height) {
+        if (!this.particles) return;
+
+        this.particles.forEach(particle => {
+            // Move particle
+            particle.x += particle.velocity.x;
+            particle.y += particle.velocity.y;
+            
+            // Wrap around screen
+            if (particle.x < -10) particle.x = width + 10;
+            if (particle.x > width + 10) particle.x = -10;
+            if (particle.y < -10) particle.y = height + 10;
+            if (particle.y > height + 10) particle.y = -10;
+            
+            // Subtle alpha pulsing
+            particle.alpha = particle.originalAlpha + Math.sin(this.time.now * 0.002 + particle.x * 0.01) * 0.1;
+        });
+    }
+
+    /**
+     * Update geometric shapes
+     */
+    updateGeometricShapes(theme, time) {
+        if (!this.geometricShapes) return;
+
+        const themeColors = [theme.primary, theme.secondary, theme.accent, theme.background];
+
+        this.geometricShapes.forEach(shape => {
+            // Rotate shape
+            shape.rotation += shape.rotationSpeed;
+            
+            // Pulse size
+            const pulseFactor = 1 + Math.sin(time * shape.pulseSpeed) * 0.2;
+            const currentSize = shape.size * pulseFactor;
+            
+            // Update shape graphics
+            shape.clear();
+            const color = parseInt(themeColors[shape.colorIndex].replace('#', ''), 16);
+            shape.lineStyle(2, color, 0.3);
+            shape.fillStyle(color, 0.05);
+            
+            // Draw polygon
+            const points = [];
+            for (let i = 0; i < shape.sides; i++) {
+                const angle = (i / shape.sides) * Math.PI * 2;
+                points.push({
+                    x: Math.cos(angle) * currentSize,
+                    y: Math.sin(angle) * currentSize
+                });
+            }
+            
+            shape.beginPath();
+            shape.moveTo(points[0].x, points[0].y);
+            for (let i = 1; i < points.length; i++) {
+                shape.lineTo(points[i].x, points[i].y);
+            }
+            shape.closePath();
+            shape.fillPath();
+            shape.strokePath();
+        });
+    }
+
+    /**
+     * Update pulsing orbs
+     */
+    updatePulsingOrbs(theme, time) {
+        if (!this.pulsingOrbs) return;
+
+        const themeColors = [theme.primary, theme.secondary, theme.accent, theme.background];
+
+        this.pulsingOrbs.forEach(orb => {
+            // Update pulse phase
+            orb.pulsePhase += orb.pulseSpeed;
+            
+            // Calculate pulsing size and alpha
+            const pulseFactor = 1 + Math.sin(orb.pulsePhase) * 0.4;
+            const currentSize = orb.baseSize * pulseFactor;
+            const currentAlpha = 0.15 + Math.sin(orb.pulsePhase * 0.5) * 0.1;
+            
+            // Update orb graphics
+            orb.clear();
+            orb.alpha = currentAlpha;
+            const color = parseInt(themeColors[orb.colorIndex].replace('#', ''), 16);
+            
+            // Create gradient-like effect with multiple circles
+            for (let i = 3; i >= 0; i--) {
+                const radius = currentSize * (i + 1) / 4;
+                const alpha = (0.8 - i * 0.2) * currentAlpha;
+                orb.fillStyle(color, alpha);
+                orb.fillCircle(0, 0, radius);
+            }
+        });
+    }
+
+    /**
+     * Update wave effect
+     */
+    updateWaveEffect(width, height, theme, time) {
+        if (!this.waveGraphics) return;
+
+        this.waveTime += 0.02;
+        this.waveGraphics.clear();
+        
+        const color = parseInt(theme.accent.replace('#', ''), 16);
+        this.waveGraphics.lineStyle(3, color, 0.2);
+        
+        // Draw multiple sine waves
+        for (let wave = 0; wave < 3; wave++) {
+            const amplitude = 30 + wave * 10;
+            const frequency = 0.01 + wave * 0.005;
+            const phase = this.waveTime + wave * Math.PI / 3;
+            
+            this.waveGraphics.beginPath();
+            for (let x = 0; x <= width; x += 5) {
+                const y = height / 2 + Math.sin(x * frequency + phase) * amplitude + wave * 60;
+                if (x === 0) {
+                    this.waveGraphics.moveTo(x, y);
+                } else {
+                    this.waveGraphics.lineTo(x, y);
+                }
+            }
+            this.waveGraphics.strokePath();
+        }
     }
 
     /**
@@ -741,12 +1097,13 @@ export class MenuScene extends Phaser.Scene {
         title.setOrigin(0.5);
         this.menuElements.shopPanel.add(title);
 
-        // Coins display with enhanced styling
+        // Coins display with enhanced styling - positioned properly within panel
         const coins = storage.getCoins();
-        this.menuElements.coinsBg = this.add.rectangle(centerX, centerY - 310, 200, 40, parseInt(themeManager.getCurrentTheme().ui.buttonBackground.replace('#', ''), 16));
+        const coinsY = centerY - panelHeight / 2 + 80; // Position below title but inside panel
+        this.menuElements.coinsBg = this.add.rectangle(centerX, coinsY, 200, 40, parseInt(themeManager.getCurrentTheme().ui.buttonBackground.replace('#', ''), 16));
         this.menuElements.shopPanel.add(this.menuElements.coinsBg);
 
-        this.menuElements.coinsDisplay = this.add.text(centerX, centerY - 310, `💰 ${coins} coins`, {
+        this.menuElements.coinsDisplay = this.add.text(centerX, coinsY, `💰 ${coins} coins`, {
             fontSize: '18px',
             fontFamily: 'Arial, sans-serif',
             color: themeManager.getCurrentTheme().accent,
@@ -949,6 +1306,91 @@ export class MenuScene extends Phaser.Scene {
     }
 
     /**
+     * Create a disabled menu button with grayed-out styling and tooltip
+     */
+    createDisabledMenuButton(x, y, width, height, text, tooltipText) {
+        const theme = themeManager.getCurrentTheme();
+        const graphics = this.add.graphics();
+
+        // Disabled button colors - grayed out
+        const buttonColor = 0x666666;
+        const shadowColor = 0x333333;
+        const textColor = '#999999';
+
+        // Shadow effect (lighter for disabled state)
+        graphics.fillStyle(shadowColor, 0.4);
+        graphics.fillRoundedRect(x - width / 2 + 2, y - height / 2 + 2, width, height, 8);
+
+        // Main button background - single gray color
+        graphics.fillStyle(buttonColor, 0.6);
+        graphics.fillRoundedRect(x - width / 2, y - height / 2, width, height, 8);
+
+        // Subtle highlight (very muted)
+        graphics.fillStyle(0x888888, 0.2);
+        graphics.fillRoundedRect(x - width / 2, y - height / 2, width, height / 3, 8);
+
+        // Border (muted)
+        graphics.lineStyle(1, 0x888888, 0.8);
+        graphics.strokeRoundedRect(x - width / 2, y - height / 2, width, height, 8);
+
+        // Interactive area for tooltip
+        const button = this.add.rectangle(x, y, width, height, 0x000000, 0);
+        button.setInteractive({ useHandCursor: false });
+
+        // Button text with disabled styling
+        const buttonText = this.add.text(x, y, text, {
+            fontSize: height > 35 ? '16px' : '14px',
+            fontFamily: 'Arial Black, sans-serif',
+            color: textColor,
+            fontStyle: 'bold',
+            stroke: '#333333',
+            strokeThickness: 1,
+            shadow: {
+                offsetX: 1,
+                offsetY: 1,
+                color: '#000000',
+                blur: 1,
+                fill: true
+            }
+        });
+        buttonText.setOrigin(0.5);
+
+        // Tooltip functionality
+        let tooltip = null;
+
+        button.on('pointerover', () => {
+            // Create tooltip
+            if (tooltipText) {
+                const tooltipBg = this.add.graphics();
+                tooltipBg.fillStyle(0x000000, 0.8);
+                tooltipBg.fillRoundedRect(x - 100, y - height / 2 - 40, 200, 30, 5);
+                
+                tooltip = this.add.text(x, y - height / 2 - 25, tooltipText, {
+                    fontSize: '12px',
+                    fontFamily: 'Arial, sans-serif',
+                    color: '#FFFFFF',
+                    align: 'center'
+                });
+                tooltip.setOrigin(0.5);
+                
+                // Add both to container for easy cleanup
+                tooltip.tooltipBg = tooltipBg;
+            }
+        });
+
+        button.on('pointerout', () => {
+            // Remove tooltip
+            if (tooltip) {
+                tooltip.destroy();
+                if (tooltip.tooltipBg) tooltip.tooltipBg.destroy();
+                tooltip = null;
+            }
+        });
+
+        return this.add.container(0, 0, [graphics, button, buttonText]);
+    }
+
+    /**
      * Start title animation
      */
     startTitleAnimation() {
@@ -1069,6 +1511,12 @@ export class MenuScene extends Phaser.Scene {
             return;
         }
 
+        // Show "Coming Soon" message for puzzle mode
+        if (mode === 'puzzle') {
+            this.showModalPopup('Puzzle Mode Coming Soon', 'Puzzle Mode is currently being improved and will be available soon! Stay tuned for exciting puzzle challenges.');
+            return;
+        }
+
         // Prevent replaying daily challenge if already completed
         if (mode === GAME_MODES.DAILY && isDailyCompleted()) {
             this.showModalPopup('Daily Challenge Completed', 'You have already completed today\'s Daily Challenge! Come back tomorrow for a new puzzle.');
@@ -1084,7 +1532,7 @@ export class MenuScene extends Phaser.Scene {
                 this.scene.start('AdventureScene');
                 break;
             case 'puzzle':
-                this.scene.start('PuzzleScene');
+                // This case is now handled above with the "Coming Soon" message
                 break;
             case 'normal':
             case 'daily':
@@ -1571,8 +2019,10 @@ export class MenuScene extends Phaser.Scene {
         this.addStatsSection('📅 Recent Activity', centerX, currentY);
         currentY += 40;
 
+        // Fix stats calculation - use consistent property names
+        const totalGamesPlayed = stats.totalGames || stats.gamesPlayed || 0;
         const recentData = [
-            `Total Games: ${stats.gamesPlayed || 0}`,
+            `Total Games: ${totalGamesPlayed}`,
             `Total Score: ${stats.totalScore || 0}`,
             `Last Played: ${stats.lastPlayed ? new Date(stats.lastPlayed).toLocaleDateString() : 'Never'}`,
             `Highest Score: ${stats.highScore || 0}`
@@ -1587,8 +2037,10 @@ export class MenuScene extends Phaser.Scene {
      * Create performance statistics display
      */
     createPerformanceStats(centerX, stats) {
-        const startY = -240;
-        let currentY = startY;
+        const centerY = this.cameras.main.centerY;
+        const panelHeight = Math.min(550, this.cameras.main.height - 120);
+        const contentStartY = centerY - panelHeight / 2 + 120; // Start below tabs and title
+        let currentY = contentStartY;
 
         // Performance Metrics Section
         this.addStatsSection('🎯 Performance Metrics', centerX, currentY);
@@ -1633,8 +2085,10 @@ export class MenuScene extends Phaser.Scene {
      * Create pattern analysis display
      */
     createPatternStats(centerX, stats) {
-        const startY = -240;
-        let currentY = startY;
+        const centerY = this.cameras.main.centerY;
+        const panelHeight = Math.min(550, this.cameras.main.height - 120);
+        const contentStartY = centerY - panelHeight / 2 + 120; // Start below tabs and title
+        let currentY = contentStartY;
 
         // Playing Patterns Section
         this.addStatsSection('📈 Playing Patterns', centerX, currentY);
@@ -1673,8 +2127,10 @@ export class MenuScene extends Phaser.Scene {
      * Create personal records and mode statistics display
      */
     createRecordStats(centerX, stats) {
-        const startY = -240;
-        let currentY = startY;
+        const centerY = this.cameras.main.centerY;
+        const panelHeight = Math.min(550, this.cameras.main.height - 120);
+        const contentStartY = centerY - panelHeight / 2 + 120; // Start below tabs and title
+        let currentY = contentStartY;
 
         // Personal Records Section
         this.addStatsSection('🏆 Personal Records', centerX, currentY);
@@ -2177,12 +2633,52 @@ export class MenuScene extends Phaser.Scene {
      * Clean up
      */
     destroy() {
-        // Stop animations
+        // Stop title animations
         if (this.titleColorTween) {
             this.titleColorTween.stop();
         }
 
         this.animationTweens.forEach(tween => tween.stop());
         this.animationTweens = [];
+
+        // Stop background animations
+        if (this.backgroundAnimationTimer) {
+            this.backgroundAnimationTimer.destroy();
+            this.backgroundAnimationTimer = null;
+        }
+
+        // Clean up background elements
+        if (this.backgroundLayers) {
+            this.backgroundLayers.forEach(layer => {
+                if (layer && layer.destroy) layer.destroy();
+            });
+            this.backgroundLayers = [];
+        }
+
+        if (this.particles) {
+            this.particles.forEach(particle => {
+                if (particle && particle.destroy) particle.destroy();
+            });
+            this.particles = [];
+        }
+
+        if (this.geometricShapes) {
+            this.geometricShapes.forEach(shape => {
+                if (shape && shape.destroy) shape.destroy();
+            });
+            this.geometricShapes = [];
+        }
+
+        if (this.pulsingOrbs) {
+            this.pulsingOrbs.forEach(orb => {
+                if (orb && orb.destroy) orb.destroy();
+            });
+            this.pulsingOrbs = [];
+        }
+
+        if (this.waveGraphics && this.waveGraphics.destroy) {
+            this.waveGraphics.destroy();
+            this.waveGraphics = null;
+        }
     }
 }

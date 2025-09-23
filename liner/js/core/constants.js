@@ -454,17 +454,18 @@ export const PUZZLE_PACKS = {
     INTERMEDIATE: {
         id: 'INTERMEDIATE',
         name: 'Building Skills',
-        description: 'More complex pattern challenges',
+        description: 'Shape mastery and multi-line tactical clears',
         theme: 'forest',
         unlocked: false,
         puzzles: [
+            // I001: Single-piece multi-line clear using vertical I_4
             {
                 id: 'I001',
-                name: 'Strategic Placement',
-                description: 'Use both shapes to clear lines',
+                name: 'Vertical Strike',
+                description: 'Clear 4 stacked lines with one precise drop',
                 difficulty: 3,
-                targetMoves: 2,
-                targetScore: 300,
+                targetMoves: 1,
+                targetScore: 600,
                 initialGrid: [
                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -472,32 +473,40 @@ export const PUZZLE_PACKS = {
                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [1, 1, 1, 1, 1, 1, 0, 0, 1, 1],
-                    [1, 1, 1, 1, 1, 1, 0, 0, 1, 1]
+                    [1, 1, 1, 1, 1, 0, 1, 1, 1, 1],
+                    [1, 1, 1, 1, 1, 0, 1, 1, 1, 1],
+                    [1, 1, 1, 1, 1, 0, 1, 1, 1, 1],
+                    [1, 1, 1, 1, 1, 0, 1, 1, 1, 1]
                 ],
-                availableShapes: ['O'],
+                availableShapes: ['I_4'],
                 objectives: [
-                    { type: 'lines', target: 2, description: 'Clear 2 lines' },
+                    { type: 'lines', target: 4, description: 'Clear 4 lines' },
+                    { type: 'moves', target: 1, description: 'Finish in 1 move' },
                     { type: 'complete', description: 'Use all available shapes' }
                 ],
                 hints: [
-                    { 
-                        text: 'Place the O block in the 2x2 gap to complete both lines',
-                        cost: 10,
-                        highlightArea: { row: 8, col: 6, width: 2, height: 2 },
-                        targetShape: 'O'
+                    {
+                        text: 'All four gaps share a column—fill that column in one move',
+                        cost: 12,
+                        highlightArea: { row: 6, col: 5, width: 1, height: 4 },
+                        targetShape: 'I_4'
+                    },
+                    {
+                        text: 'Drop I_4 vertically into column 6 (0-index col 5) to clear 4 lines',
+                        cost: 20,
+                        highlightArea: { row: 6, col: 5, width: 1, height: 4 },
+                        targetShape: 'I_4'
                     }
                 ],
-                starRequirements: { moves: [2, 1, 1] }
+                starRequirements: { moves: [1, 1, 1] }
             },
+            // I002: T-shape targeted multi-row completion
             {
                 id: 'I002',
-                name: 'Perfect Fit',
-                description: 'Use every piece exactly',
-                difficulty: 4,
-                targetMoves: 3,
+                name: 'T Junction',
+                description: 'Fit a T perfectly to finish 2 lines',
+                difficulty: 3,
+                targetMoves: 1,
                 targetScore: 400,
                 initialGrid: [
                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -508,23 +517,160 @@ export const PUZZLE_PACKS = {
                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [1, 1, 1, 1, 1, 1, 0, 0, 1, 1],
-                    [1, 1, 1, 1, 1, 1, 0, 0, 1, 1]
+                    [1, 1, 1, 1, 0, 1, 1, 1, 1, 1],
+                    [1, 1, 1, 1, 0, 0, 1, 1, 1, 1]
                 ],
-                availableShapes: ['O'],
+                // Holes for T at row8 col4 and row9 col3-5 (0-indexed) -> Align T bounding box at row8 col3
+                availableShapes: ['T'],
                 objectives: [
                     { type: 'lines', target: 2, description: 'Clear 2 lines' },
+                    { type: 'moves', target: 1, description: 'Finish in 1 move' },
                     { type: 'complete', description: 'Use all available shapes' }
                 ],
                 hints: [
                     {
-                        text: 'Place the O block in the 2x2 gap to complete both lines',
+                        text: 'You need a shape whose stem fills a lone gap above three adjacent gaps',
+                        cost: 12,
+                        highlightArea: { row: 8, col: 3, width: 3, height: 2 },
+                        targetShape: 'T'
+                    },
+                    {
+                        text: 'Place the T so its single block sits at row 9 top (row8 col4) completing both rows',
+                        cost: 20,
+                        highlightArea: { row: 8, col: 3, width: 3, height: 2 },
+                        targetShape: 'T'
+                    }
+                ],
+                starRequirements: { moves: [1, 1, 1] }
+            },
+            // I003: Z-shape resolution
+            {
+                id: 'I003',
+                name: 'Z Resolver',
+                description: 'Fill a staggered gap with a Z-shape',
+                difficulty: 4,
+                targetMoves: 1,
+                targetScore: 450,
+                initialGrid: [
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                    [1, 1, 1, 1, 0, 0, 1, 1, 1, 1],
+                    [1, 1, 1, 1, 0, 1, 1, 1, 1, 1]
+                ],
+                // Z holes at row8 col4-5 and row9 col4-5 (staggered)
+                availableShapes: ['Z_1'],
+                objectives: [
+                    { type: 'lines', target: 2, description: 'Clear 2 lines' },
+                    { type: 'moves', target: 1, description: 'Finish in 1 move' },
+                    { type: 'complete', description: 'Use all available shapes' }
+                ],
+                hints: [
+                    {
+                        text: 'A staggered 2x3 gap needs a zig-zag shape',
                         cost: 15,
+                        highlightArea: { row: 8, col: 4, width: 3, height: 2 },
+                        targetShape: 'Z_1'
+                    },
+                    {
+                        text: 'Insert Z_1 so its upper pair sits at row9 (row8 visually) columns 5-6 (0-index 4-5)',
+                        cost: 24,
+                        highlightArea: { row: 8, col: 4, width: 3, height: 2 },
+                        targetShape: 'Z_1'
+                    }
+                ],
+                starRequirements: { moves: [1, 1, 1] }
+            },
+            // I004: Tall L clearing three lines
+            {
+                id: 'I004',
+                name: 'Tall Hook',
+                description: 'Use a tall L to patch cascading gaps',
+                difficulty: 5,
+                targetMoves: 1,
+                targetScore: 700,
+                initialGrid: [
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [1, 1, 1, 0, 0, 1, 1, 1, 1, 1],
+                    [1, 1, 1, 0, 1, 1, 1, 1, 1, 1],
+                    [1, 1, 1, 0, 1, 1, 1, 1, 1, 1],
+                    [1, 1, 1, 0, 1, 1, 1, 1, 1, 1]
+                ],
+                // Gaps create an L_2 bounding box at col3-4 rows6-9 with missing cells matching L_2 pattern
+                availableShapes: ['L_2'],
+                objectives: [
+                    { type: 'lines', target: 3, description: 'Clear 3 lines' },
+                    { type: 'moves', target: 1, description: 'Finish in 1 move' },
+                    { type: 'complete', description: 'Use all available shapes' }
+                ],
+                hints: [
+                    {
+                        text: 'One tall shape can fix the vertical cascade and the side nub',
+                        cost: 18,
+                        highlightArea: { row: 6, col: 3, width: 2, height: 4 },
+                        targetShape: 'L_2'
+                    },
+                    {
+                        text: 'Place L_2 so its long spine fills column 4 (0-index col3)',
+                        cost: 26,
+                        highlightArea: { row: 6, col: 3, width: 2, height: 4 },
+                        targetShape: 'L_2'
+                    }
+                ],
+                starRequirements: { moves: [1, 1, 1] }
+            },
+            // I005: Two-shape line completion requiring order flexibility
+            {
+                id: 'I005',
+                name: 'Corner Pair',
+                description: 'Use two shapes to finish both lines',
+                difficulty: 5,
+                targetMoves: 2,
+                targetScore: 800,
+                initialGrid: [
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [1, 1, 0, 0, 1, 1, 0, 0, 1, 1],
+                    [1, 1, 0, 0, 1, 1, 0, 0, 1, 1]
+                ],
+                // Two distinct gaps: L_1 at (row8 col2) bounding box & O at (row8 col6)
+                availableShapes: ['L_1', 'O'],
+                objectives: [
+                    { type: 'lines', target: 2, description: 'Clear 2 lines' },
+                    { type: 'complete', description: 'Use both shapes' },
+                    { type: 'moves', target: 2, description: 'Finish in 2 moves' }
+                ],
+                hints: [
+                    {
+                        text: 'Identify the two disjoint gaps—one square, one angled',
+                        cost: 16,
+                        highlightArea: { row: 8, col: 2, width: 6, height: 2 },
+                        targetShape: 'L_1'
+                    },
+                    {
+                        text: 'Place O in the 2x2 gap (col7-8 visually) and L_1 in the asymmetric gap',
+                        cost: 28,
                         highlightArea: { row: 8, col: 6, width: 2, height: 2 },
                         targetShape: 'O'
                     }
                 ],
-                starRequirements: { moves: [1, 1, 1] }
+                starRequirements: { moves: [2, 2, 2] }
             }
         ]
     },
