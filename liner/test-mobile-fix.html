@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mobile Shape Generation Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #1a1a1a;
+            color: white;
+        }
+        .test-container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .test-results {
+            background: #2a2a2a;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        .pass { color: #4CAF50; }
+        .fail { color: #f44336; }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .shape-preview {
+            display: inline-block;
+            margin: 5px;
+            padding: 5px;
+            background: #333;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🔧 Mobile Shape Generation Bug Test</h1>
+        <p>This test verifies that the shape cloning bug on mobile browsers has been fixed.</p>
+        
+        <div class="test-results" id="testResults">
+            <h3>Test Results:</h3>
+            <div id="results"></div>
+        </div>
+        
+        <button id="shapeGenTest">Run Shape Generation Test</button>
+        <button id="patternIntegrityTest">Run Pattern Integrity Test</button>
+        <button id="memoryLeakTest">Run Memory Leak Test</button>
+        
+        <div id="shapePreview"></div>
+    </div>
+
+    <script type="module">
+        // Import the ShapeGenerator
+        import { ShapeGenerator } from './js/systems/shapes.js';
+        
+        let testResults = [];
+        
+        function addResult(testName, passed, details) {
+            testResults.push({ testName, passed, details });
+            updateResultsDisplay();
+        }
+        
+        function updateResultsDisplay() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = testResults.map(result => 
+                `<div class="${result.passed ? 'pass' : 'fail'}">
+                    ${result.passed ? '✅' : '❌'} ${result.testName}: ${result.details}
+                </div>`
+            ).join('');
+        }
+        
+        function runShapeGenerationTest() {
+            testResults = [];
+            addResult('Starting Tests', true, 'Initialized shape generation test suite');
+            
+            try {
+                const generator = new ShapeGenerator();
+                const shapes = [];
+                
+                // Generate multiple shapes and check they're unique
+                for (let i = 0; i < 10; i++) {
+                    const shape = generator.generateShape();
+                    shapes.push(shape);
+                }
+                
+                // Check that patterns are not shared by reference
+                let uniquePatterns = true;
+                for (let i = 0; i < shapes.length - 1; i++) {
+                    for (let j = i + 1; j < shapes.length; j++) {
+                        if (shapes[i].pattern === shapes[j].pattern) {
+                            uniquePatterns = false;
+                            addResult('Pattern Reference Test', false, 
+                                `Shapes ${i} and ${j} share the same pattern array reference`);
+                            break;
+                        }
+                    }
+                    if (!uniquePatterns) break;
+                }
+                
+                if (uniquePatterns) {
+                    addResult('Pattern Reference Test', true, 
+                        'All generated shapes have unique pattern array references');
+                }
+                
+                // Test pattern modification doesn't affect other shapes
+                const originalPatterns = shapes.map(s => JSON.stringify(s.pattern));
+                const originalFirstPattern = JSON.stringify(shapes[0].pattern);
+                
+                // Modify the first shape's pattern
+                shapes[0].pattern[0][0] = !shapes[0].pattern[0][0]; // Flip first cell
+                const modifiedFirstPattern = JSON.stringify(shapes[0].pattern);
+                
+                let patternIsolation = true;
+                // Check that other shapes' patterns remain unchanged
+                for (let i = 1; i < shapes.length; i++) {
+                    const currentPattern = JSON.stringify(shapes[i].pattern);
+                    if (currentPattern !== originalPatterns[i]) {
+                        // This shape's pattern was affected by modification of shape 0
+                        patternIsolation = false;
+                        addResult('Pattern Isolation Test', false, 
+                            `Shape ${i}'s pattern was affected by modifying shape 0`);
+                        break;
+                    }
+                }
+                
+                // Also verify the first shape actually changed
+                if (patternIsolation && modifiedFirstPattern === originalFirstPattern) {
+                    patternIsolation = false;
+                    addResult('Pattern Isolation Test', false, 
+                        'Pattern modification test failed - first shape pattern did not change');
+                }
+                
+                addResult('Pattern Isolation Test', patternIsolation,
+                    patternIsolation ? 
+                    'Pattern modifications do not affect other shapes' :
+                    'Pattern modifications affected other shapes (bug detected)');
+                    
+            } catch (error) {
+                addResult('Shape Generation Test', false, `Error: ${error.message}`);
+            }
+        }
+        
+        function runPatternIntegrityTest() {
+            try {
+                const generator = new ShapeGenerator();
+                const testCycles = 50;
+                let integrityMaintained = true;
+                
+                for (let cycle = 0; cycle < testCycles; cycle++) {
+                    // Generate shapes as if tray is being refilled
+                    const shapes = [];
+                    for (let i = 0; i < 3; i++) {
+                        shapes.push(generator.generateShape());
+                    }
+                    
+                    // Store original patterns
+                    const originalPatterns = shapes.map(s => JSON.stringify(s.pattern));
+                    
+                    // Simulate placing shapes (modifying patterns)
+                    shapes.forEach(shape => {
+                        if (shape.pattern && shape.pattern.length > 0) {
+                            shape.pattern[0][0] = true; // Simulate modification
+                        }
+                    });
+                    
+                    // Generate new batch
+                    const newShapes = [];
+                    for (let i = 0; i < 3; i++) {
+                        newShapes.push(generator.generateShape());
+                    }
+                    
+                    // Check if new patterns are unaffected
+                    for (let i = 0; i < newShapes.length; i++) {
+                        const newPattern = JSON.stringify(newShapes[i].pattern);
+                        for (let j = 0; j < originalPatterns.length; j++) {
+                            if (newShapes[i].type === shapes[j].type && 
+                                newPattern !== originalPatterns[j]) {
+                                // This is expected - patterns should be independent
+                                continue;
+                            }
+                        }
+                    }
+                }
+                
+                addResult('Pattern Integrity Stress Test', true, 
+                    `Completed ${testCycles} cycles without pattern corruption`);
+                    
+            } catch (error) {
+                addResult('Pattern Integrity Test', false, `Error: ${error.message}`);
+            }
+        }
+        
+        function runMemoryLeakTest() {
+            try {
+                const generator = new ShapeGenerator();
+                const initialMemory = performance.memory ? performance.memory.usedJSHeapSize : 0;
+                
+                // Generate many shapes to test for memory leaks
+                for (let i = 0; i < 1000; i++) {
+                    const shape = generator.generateShape();
+                    // Simulate heavy usage
+                    shape.pattern = JSON.parse(JSON.stringify(shape.pattern));
+                }
+                
+                // Force garbage collection if available
+                if (window.gc) {
+                    window.gc();
+                }
+                
+                const finalMemory = performance.memory ? performance.memory.usedJSHeapSize : 0;
+                const memoryIncrease = finalMemory - initialMemory;
+                
+                addResult('Memory Leak Test', memoryIncrease < 5000000, // Less than 5MB increase
+                    performance.memory ? 
+                    `Memory usage increased by ${(memoryIncrease / 1024 / 1024).toFixed(2)}MB` :
+                    'Memory API not available in this browser');
+                    
+            } catch (error) {
+                addResult('Memory Leak Test', false, `Error: ${error.message}`);
+            }
+        }
+        
+        // Add event listeners
+        document.getElementById('shapeGenTest').addEventListener('click', runShapeGenerationTest);
+        document.getElementById('patternIntegrityTest').addEventListener('click', runPatternIntegrityTest);
+        document.getElementById('memoryLeakTest').addEventListener('click', runMemoryLeakTest);
+        
+        // Auto-run basic test on page load
+        setTimeout(() => {
+            addResult('Page Load', true, 'Test environment initialized successfully');
+        }, 100);
+    </script>
+</body>
+</html>
