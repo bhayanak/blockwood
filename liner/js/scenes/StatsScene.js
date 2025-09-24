@@ -88,13 +88,13 @@ export default class StatsScene extends Phaser.Scene {
 
     createTabSystem() {
         const tabY = 130;
-        const tabWidth = 200;
+        const tabWidth = 160; // Reduced from 200 to prevent clipping
         
         // Achievements tab
-        this.achievementsTab = this.createTab('🏆 Achievements', this.centerX - 120, tabY, tabWidth, 'achievements');
+        this.achievementsTab = this.createTab('🏆 Achievements', this.centerX - 90, tabY, tabWidth, 'achievements');
         
         // Records tab
-        this.recordsTab = this.createTab('📈 Records', this.centerX + 120, tabY, tabWidth, 'records');
+        this.recordsTab = this.createTab('📈 Records', this.centerX + 90, tabY, tabWidth, 'records');
         
         // Update tab appearance
         this.updateTabAppearance();
@@ -175,8 +175,8 @@ export default class StatsScene extends Phaser.Scene {
         // Content container for scrolling
         this.contentContainer = this.add.container(0, 0);
         
-        // Create mask for scrolling area
-        const maskRect = this.add.rectangle(this.centerX, this.centerY + 50, this.cameras.main.width - 40, this.cameras.main.height - 300, 0x000000);
+        // Create mask for scrolling area - wider margins to prevent clipping
+        const maskRect = this.add.rectangle(this.centerX, this.centerY + 50, this.cameras.main.width - 80, this.cameras.main.height - 300, 0x000000);
         maskRect.setVisible(false);
         this.contentMask = maskRect.createGeometryMask();
         this.contentContainer.setMask(this.contentMask);
@@ -185,8 +185,8 @@ export default class StatsScene extends Phaser.Scene {
     createNavigation() {
         const theme = themeManager.getCurrentTheme();
         
-        // Back button with theme
-        const backButton = this.add.text(50, 50, '← Back', {
+        // Back button with theme - positioned to avoid title overlap
+        const backButton = this.add.text(50, 30, '← Back', {
             fontSize: '18px',
             fontFamily: 'Arial',
             color: theme.accent,
@@ -252,8 +252,8 @@ export default class StatsScene extends Phaser.Scene {
     createAchievementCard(achievement, y) {
         const cardContainer = this.add.container(this.centerX, y);
         
-        // Card background
-        const cardBg = this.add.rectangle(0, 0, this.cameras.main.width - 60, 100, 0x1a1a2e, 0.9);
+        // Card background - wider margins to prevent clipping
+        const cardBg = this.add.rectangle(0, 0, this.cameras.main.width - 100, 100, 0x1a1a2e, 0.9);
         cardBg.setStrokeStyle(2, achievement.currentTier ? TIER_COLORS[achievement.currentTier.level] : TIER_COLORS.locked);
         
         // Achievement icon
@@ -374,8 +374,8 @@ export default class StatsScene extends Phaser.Scene {
     createRecordsCategory(categoryName, categoryData, startY) {
         const categoryContainer = this.add.container(this.centerX, startY);
         
-        // Category header
-        const headerBg = this.add.rectangle(0, 0, this.cameras.main.width - 60, 40, 0x2a2a4a, 0.9);
+        // Category header - wider margins to prevent clipping
+        const headerBg = this.add.rectangle(0, 0, this.cameras.main.width - 100, 40, 0x2a2a4a, 0.9);
         headerBg.setStrokeStyle(2, 0x4CAF50);
         
         const categoryIcons = {
@@ -397,29 +397,31 @@ export default class StatsScene extends Phaser.Scene {
         
         let currentY = startY + 50;
         
-        // Create records in two columns
+        // Create records in two columns - responsive layout
         const records = Object.entries(categoryData);
         const recordsPerColumn = Math.ceil(records.length / 2);
+        const maxColumnWidth = Math.min(280, (this.cameras.main.width - 120) / 2); // Responsive column width
+        const columnSpacing = Math.min(150, (this.cameras.main.width - 200) / 4); // Responsive spacing
         
         records.forEach(([key, value], index) => {
             const isLeftColumn = index < recordsPerColumn;
-            const columnX = isLeftColumn ? this.centerX - 150 : this.centerX + 150;
+            const columnX = isLeftColumn ? this.centerX - columnSpacing : this.centerX + columnSpacing;
             const rowY = currentY + ((index % recordsPerColumn) * 25);
             
             const recordContainer = this.add.container(columnX, rowY);
             
-            // Record background
-            const recordBg = this.add.rectangle(0, 0, 280, 20, 0x1a1a2e, 0.7);
+            // Record background - responsive width
+            const recordBg = this.add.rectangle(0, 0, maxColumnWidth, 20, 0x1a1a2e, 0.7);
             
-            // Record label
-            const label = this.add.text(-130, 0, key, {
+            // Record label - responsive positioning
+            const label = this.add.text(-maxColumnWidth/2 + 10, 0, key, {
                 fontSize: '11px',
                 fontFamily: 'Arial',
                 color: '#CCCCCC'
             }).setOrigin(0, 0.5);
             
-            // Record value
-            const valueText = this.add.text(130, 0, value, {
+            // Record value - responsive positioning
+            const valueText = this.add.text(maxColumnWidth/2 - 10, 0, value, {
                 fontSize: '11px',
                 fontFamily: 'Arial',
                 color: '#FFFFFF',

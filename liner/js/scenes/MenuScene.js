@@ -614,6 +614,7 @@ export class MenuScene extends Phaser.Scene {
         // Initially hidden
         this.menuElements.settingsPanel = this.add.container(0, 0);
         this.menuElements.settingsPanel.setVisible(false);
+        this.menuElements.settingsPanel.setDepth(1000); // High depth to appear above menu buttons
 
         const centerX = this.cameras.main.centerX;
         const centerY = this.cameras.main.centerY;
@@ -1062,6 +1063,7 @@ export class MenuScene extends Phaser.Scene {
         // Initially hidden
         this.menuElements.shopPanel = this.add.container(0, 0);
         this.menuElements.shopPanel.setVisible(false);
+        this.menuElements.shopPanel.setDepth(1000); // High depth to appear above menu buttons
 
         const centerX = this.cameras.main.centerX;
         const centerY = this.cameras.main.centerY;
@@ -1303,7 +1305,9 @@ export class MenuScene extends Phaser.Scene {
             });
         });
 
-        return this.add.container(0, 0, [graphics, button, buttonText]);
+        const container = this.add.container(0, 0, [graphics, button, buttonText]);
+        container.setDepth(10); // Menu buttons should be above background but below popups
+        return container;
     }
 
     /**
@@ -1388,7 +1392,9 @@ export class MenuScene extends Phaser.Scene {
             }
         });
 
-        return this.add.container(0, 0, [graphics, button, buttonText]);
+        const container = this.add.container(0, 0, [graphics, button, buttonText]);
+        container.setDepth(10); // Menu buttons should be above background but below popups
+        return container;
     }
 
     /**
