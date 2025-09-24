@@ -9,6 +9,7 @@ import { ShapeGenerator } from '../systems/shapes.js';
 import { ScoringManager } from '../systems/scoring.js';
 import { PowerUpManager } from '../systems/powerups.js';
 import { DailyChallenge, markDailyCompleted, isDailyCompleted } from '../systems/DailyChallenge.js';
+import { achievementSystem } from '../systems/AchievementSystem.js';
 import { hasValidMoves, getTodaysSeed, pixelToGrid } from '../core/utils.js';
 
 export class GameScene extends Phaser.Scene {
@@ -1150,8 +1151,11 @@ export class GameScene extends Phaser.Scene {
         const gameStats = this.getGameStatistics();
         storage.updateModeStats(this.gameMode, gameStats);
 
+        // Update achievements and check for unlocks
+        const achievementUnlocks = achievementSystem.updateRecords(this.gameMode, gameStats);
+        
         // Show game over screen
-        this.showGameOverScreen(isNewHigh);
+        this.showGameOverScreen(isNewHigh, achievementUnlocks);
 
         console.log('Game Over!');
     }
@@ -2265,7 +2269,7 @@ export class GameScene extends Phaser.Scene {
     /**
      * Show game over screen with enhanced animations and design
      */
-    showGameOverScreen(isNewHighScore) {
+    showGameOverScreen(isNewHighScore, achievementUnlocks = []) {
         const centerX = this.cameras.main.centerX;
         const centerY = this.cameras.main.centerY;
         const theme = themeManager.getCurrentTheme();
@@ -2516,6 +2520,9 @@ export class GameScene extends Phaser.Scene {
             // Track mode-specific stats for daily challenge completion
             const gameStats = this.getGameStatistics();
             storage.updateModeStats(this.gameMode, gameStats);
+            
+            // Update achievements for daily challenge completion
+            achievementSystem.updateRecords(this.gameMode, gameStats);
 
             if (rewards) {
                 dailyChallengeOffset = 60;
@@ -2577,8 +2584,14 @@ export class GameScene extends Phaser.Scene {
             }
         }
 
+        // Show achievement unlock notifications
+        let achievementOffset = 0;
+        if (achievementUnlocks.length > 0) {
+            achievementOffset = this.showAchievementUnlocks(centerX, centerY + 120 + dailyChallengeOffset, achievementUnlocks);
+        }
+
         // Enhanced play again button with better positioning and animation
-        const buttonY = centerY + 180 + dailyChallengeOffset;
+        const buttonY = centerY + 180 + dailyChallengeOffset + achievementOffset;
         
         const playAgainButton = this.createButton(centerX, buttonY, 160, 40, '🎮 PLAY AGAIN', () => {
             this.scene.restart();
@@ -2625,6 +2638,7 @@ export class GameScene extends Phaser.Scene {
         const coinsEarned = storage.getCoins() - this.initialCoins;
 
         return {
+            score: this.scoringManager.getScore() || 0,
             linesCleared: this.scoringManager.totalLinesCleared || 0,
             maxCombo: this.scoringManager.maxCombo || 0,
             shapesPlaced: this.shapesPlacedCount || 0,
@@ -3571,5 +3585,115 @@ export class GameScene extends Phaser.Scene {
         const g = Math.floor(((color >> 8) & 0xFF) * (1 - factor));
         const b = Math.floor((color & 0xFF) * (1 - factor));
         return (r << 16) | (g << 8) | b;
+    }
+
+    /**
+     * Show achievement unlock notifications
+     */
+    showAchievementUnlocks(centerX, startY, unlocks) {
+        if (!unlocks || unlocks.length === 0) return 0;
+
+        let totalHeight = 0;
+        let delay = 4000; // Start after other animations
+
+        unlocks.forEach((unlock, index) => {
+            const y = startY + (index * 60);
+            totalHeight += 60;
+
+            // Achievement unlock container
+            const container = this.add.container(centerX, y);
+
+            // Background with tier color
+            const tierColors = {
+                bronze: 0xCD7F32,
+                silver: 0xC0C0C0,
+                gold: 0xFFD700,
+                diamond: 0xB9F2FF
+            };
+
+            const bg = this.add.rectangle(0, 0, 350, 50, 0x000000, 0.9);
+            bg.setStrokeStyle(3, tierColors[unlock.tier.level] || 0xFFD700);
+
+            // Achievement icon
+            const icon = this.add.text(-150, 0, unlock.tier.icon, {
+                fontSize: '24px'
+            }).setOrigin(0.5);
+
+            // Achievement text
+            const titleText = this.add.text(-120, -8, `🎉 ACHIEVEMENT UNLOCKED!`, {
+                fontSize: '12px',
+                fontFamily: 'Arial',
+                color: '#FFD700',
+                fontStyle: 'bold'
+            });
+
+            const nameText = this.add.text(-120, 8, unlock.tier.name, {
+                fontSize: '14px',
+                fontFamily: 'Arial',
+                color: tierColors[unlock.tier.level] ? `#${tierColors[unlock.tier.level].toString(16).padStart(6, '0')}` : '#FFD700',
+                fontStyle: 'bold'
+            });
+
+            // Coin reward
+            const coinText = this.add.text(140, 0, `+${unlock.coins} 💰`, {
+                fontSize: '16px',
+                fontFamily: 'Arial',
+                color: '#FFD700',
+                fontStyle: 'bold'
+            }).setOrigin(0.5);
+
+            container.add([bg, icon, titleText, nameText, coinText]);
+
+            // Animation
+            container.setAlpha(0);
+            container.setScale(0.8);
+
+            this.tweens.add({
+                targets: container,
+                alpha: 1,
+                scaleX: 1,
+                scaleY: 1,
+                duration: 800,
+                delay: delay + (index * 500),
+                ease: 'Back.Out'
+            });
+
+            // Sparkle effect
+            this.time.delayedCall(delay + (index * 500) + 400, () => {
+                this.createSparkleEffect(centerX, y, tierColors[unlock.tier.level] || 0xFFD700);
+            });
+
+            // Award coins
+            storage.addCoins(unlock.coins);
+        });
+
+        return totalHeight + 20; // Extra spacing
+    }
+
+    /**
+     * Create sparkle effect for achievement unlocks
+     */
+    createSparkleEffect(x, y, color) {
+        for (let i = 0; i < 8; i++) {
+            const angle = (i / 8) * Math.PI * 2;
+            const distance = 60;
+            const sparkleX = x + Math.cos(angle) * distance;
+            const sparkleY = y + Math.sin(angle) * distance;
+
+            const sparkle = this.add.text(sparkleX, sparkleY, '✨', {
+                fontSize: '16px'
+            }).setOrigin(0.5);
+
+            this.tweens.add({
+                targets: sparkle,
+                alpha: 0,
+                scale: 1.5,
+                x: sparkleX + Math.cos(angle) * 20,
+                y: sparkleY + Math.sin(angle) * 20,
+                duration: 1000,
+                ease: 'Power2.Out',
+                onComplete: () => sparkle.destroy()
+            });
+        }
     }
 }
