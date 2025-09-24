@@ -1152,7 +1152,9 @@ export class GameScene extends Phaser.Scene {
         storage.updateModeStats(this.gameMode, gameStats);
 
         // Update achievements and check for unlocks
+        console.log('🎮 GAME OVER - Calling achievementSystem.updateRecords with:', this.gameMode, gameStats);
         const achievementUnlocks = achievementSystem.updateRecords(this.gameMode, gameStats);
+        console.log('🏆 Achievement unlocks received:', achievementUnlocks);
         
         // Show game over screen
         this.showGameOverScreen(isNewHigh, achievementUnlocks);
@@ -2522,6 +2524,7 @@ export class GameScene extends Phaser.Scene {
             storage.updateModeStats(this.gameMode, gameStats);
             
             // Update achievements for daily challenge completion
+            console.log('📅 DAILY CHALLENGE - Calling achievementSystem.updateRecords with:', this.gameMode, gameStats);
             achievementSystem.updateRecords(this.gameMode, gameStats);
 
             if (rewards) {
@@ -2637,7 +2640,7 @@ export class GameScene extends Phaser.Scene {
         const playTime = Date.now() - this.gameStartTime;
         const coinsEarned = storage.getCoins() - this.initialCoins;
 
-        return {
+        const gameStats = {
             score: this.scoringManager.getScore() || 0,
             linesCleared: this.scoringManager.totalLinesCleared || 0,
             maxCombo: this.scoringManager.maxCombo || 0,
@@ -2645,6 +2648,9 @@ export class GameScene extends Phaser.Scene {
             playTime: playTime,
             coinsEarned: Math.max(0, coinsEarned)
         };
+        
+        console.log('📊 Game statistics generated:', gameStats);
+        return gameStats;
     }
 
     /**

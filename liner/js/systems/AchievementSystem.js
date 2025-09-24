@@ -237,6 +237,9 @@ export class AchievementSystem {
      * Update records based on game completion
      */
     updateRecords(gameMode, gameStats) {
+        console.log('=== ACHIEVEMENT SYSTEM DEBUG ===');
+        console.log('updateRecords called with gameMode:', gameMode, 'gameStats:', gameStats);
+        
         const mode = gameMode.toLowerCase();
         
         // Update overall records
@@ -277,6 +280,11 @@ export class AchievementSystem {
         }
 
         this.saveRecords();
+        
+        console.log('✅ Records after update:', this.records);
+        console.log('💾 Saved to localStorage successfully:', localStorage.getItem('blockquest_records') ? 'YES' : 'NO');
+        console.log('🎯 Total games played now:', this.records.overall.totalGamesPlayed);
+        console.log('📊 Total lines cleared now:', this.records.overall.totalLinesCleared);
         
         // Check for achievement progress
         this.updateAchievementProgress();

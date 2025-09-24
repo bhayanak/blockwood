@@ -42,37 +42,39 @@ export default class StatsScene extends Phaser.Scene {
     createBackground() {
         const theme = themeManager.getCurrentTheme();
         
-        // Themed gradient background
-        const bg = this.add.rectangle(
+        // Dark overlay background
+        const overlay = this.add.rectangle(
             this.centerX, 
             this.centerY, 
             this.cameras.main.width, 
             this.cameras.main.height, 
-            parseInt(theme.ui.inputBackground.replace('#', ''), 16)
+            0x000000
         );
-        bg.setAlpha(0.95);
+        overlay.setAlpha(0.7);
         
-        // Background pattern with theme colors
-        for (let i = 0; i < 20; i++) {
-            const star = this.add.text(
-                Math.random() * this.cameras.main.width,
-                Math.random() * this.cameras.main.height,
-                '✨',
-                { 
-                    fontSize: '12px',
-                    color: theme.accent
-                }
-            );
-            star.setAlpha(0.3);
-        }
+        // Main panel background - larger size for better content display
+        const panelWidth = Math.min(550, this.cameras.main.width - 40); // Wider panel
+        const panelHeight = Math.min(750, this.cameras.main.height - 40); // Much taller panel
+        
+        const panelBg = this.add.graphics();
+        panelBg.fillGradientStyle(
+            parseInt(theme.gridBackground.replace('#', ''), 16),
+            parseInt(theme.background.replace('#', ''), 16),
+            parseInt(theme.background.replace('#', ''), 16),
+            parseInt(theme.gridBackground.replace('#', ''), 16),
+            0.95
+        );
+        panelBg.fillRoundedRect(this.centerX - panelWidth / 2, this.centerY - panelHeight / 2, panelWidth, panelHeight, 15);
+        panelBg.lineStyle(3, parseInt(theme.primary.replace('#', ''), 16), 1);
+        panelBg.strokeRoundedRect(this.centerX - panelWidth / 2, this.centerY - panelHeight / 2, panelWidth, panelHeight, 15);
     }
 
     createHeader() {
         const theme = themeManager.getCurrentTheme();
         
-        // Main title with theme colors
+        // Main title with theme colors - reduced font size
         this.headerTitle = this.add.text(this.centerX, 60, '📊 STATISTICS & ACHIEVEMENTS', {
-            fontSize: '24px',
+            fontSize: '20px',
             fontFamily: 'Arial',
             color: theme.accent,
             fontStyle: 'bold'
@@ -87,7 +89,7 @@ export default class StatsScene extends Phaser.Scene {
     }
 
     createTabSystem() {
-        const tabY = 130;
+        const tabY = 120; // Moved up to give more space for content
         const tabWidth = 160; // Reduced from 200 to prevent clipping
         
         // Achievements tab
@@ -185,13 +187,13 @@ export default class StatsScene extends Phaser.Scene {
     createNavigation() {
         const theme = themeManager.getCurrentTheme();
         
-        // Back button with theme - positioned to avoid title overlap
-        const backButton = this.add.text(50, 30, '← Back', {
-            fontSize: '18px',
+        // Back button with theme - much smaller size
+        const backButton = this.add.text(30, 20, '← Back', {
+            fontSize: '12px',
             fontFamily: 'Arial',
             color: theme.accent,
             backgroundColor: theme.ui.buttonBackground,
-            padding: { x: 15, y: 8 }
+            padding: { x: 8, y: 4 }
         }).setInteractive();
 
         backButton.on('pointerdown', () => {
@@ -238,56 +240,59 @@ export default class StatsScene extends Phaser.Scene {
 
     showAchievements() {
         const achievements = achievementSystem.getAchievementDisplayData();
-        const startY = 200;
-        const achievementHeight = 120;
+        const startY = 260; // Much more space to prevent clipping of first card
+        const achievementHeight = 110; // Taller cards for better text layout
         
         achievements.forEach((achievement, index) => {
             const y = startY + (index * achievementHeight);
             this.createAchievementCard(achievement, y);
         });
         
-        this.maxScroll = Math.max(0, (achievements.length * achievementHeight) - (this.cameras.main.height - 350));
+        this.maxScroll = Math.max(0, (achievements.length * achievementHeight) - (this.cameras.main.height - 200));
     }
 
     createAchievementCard(achievement, y) {
         const cardContainer = this.add.container(this.centerX, y);
         
-        // Card background - wider margins to prevent clipping
-        const cardBg = this.add.rectangle(0, 0, this.cameras.main.width - 100, 100, 0x1a1a2e, 0.9);
+        // Card background - larger and better proportioned
+        const cardWidth = Math.min(480, this.cameras.main.width - 100); // Wider cards
+        const cardBg = this.add.rectangle(0, 0, cardWidth, 100, 0x1a1a2e, 0.9); // Taller cards (100px)
         cardBg.setStrokeStyle(2, achievement.currentTier ? TIER_COLORS[achievement.currentTier.level] : TIER_COLORS.locked);
         
-        // Achievement icon
-        const iconSize = achievement.currentTier ? 40 : 30;
+        // Achievement icon - better vertical alignment
+        const iconSize = achievement.currentTier ? 32 : 24;
         const iconColor = achievement.currentTier ? '#FFFFFF' : '#666666';
-        const icon = this.add.text(-200, -20, achievement.currentTier ? achievement.currentTier.icon : '🔒', {
+        const iconX = -(cardWidth/2) + 40; // Safe left margin
+        const icon = this.add.text(iconX, -20, achievement.currentTier ? achievement.currentTier.icon : '🔒', {
             fontSize: `${iconSize}px`,
             color: iconColor
         }).setOrigin(0.5);
         
-        // Achievement name and tier
+        // Achievement name and tier - better vertical alignment with less top margin
         const tierName = achievement.currentTier ? achievement.currentTier.name : 'Locked';
-        const name = this.add.text(-150, -25, `${achievement.name}`, {
+        const textX = iconX + 60; // Good distance from icon
+        const name = this.add.text(textX, -30, `${achievement.name}`, {
             fontSize: '16px',
             fontFamily: 'Arial',
             color: achievement.currentTier ? TIER_COLORS[achievement.currentTier.level] : TIER_COLORS.locked,
             fontStyle: 'bold'
         });
         
-        const tier = this.add.text(-150, -5, tierName, {
+        const tier = this.add.text(textX, -10, tierName, {
             fontSize: '12px',
             fontFamily: 'Arial',
             color: '#CCCCCC'
         });
         
-        // Description
-        const description = this.add.text(-150, 15, achievement.description, {
+        // Description - positioned with better spacing
+        const description = this.add.text(textX, 8, achievement.description, {
             fontSize: '10px',
             fontFamily: 'Arial',
             color: '#AAAAAA',
-            wordWrap: { width: 250 }
+            wordWrap: { width: cardWidth - 140 } // More space for text
         });
         
-        // Progress bar
+        // Progress bar - positioned in bottom area with better spacing
         let progressPercent = 0;
         let progressText = '';
         
@@ -297,31 +302,40 @@ export default class StatsScene extends Phaser.Scene {
         } else if (achievement.isCompleted) {
             progressPercent = 1;
             progressText = 'COMPLETED';
+        } else {
+            progressText = 'LOCKED';
         }
         
-        // Progress bar background
-        const progressBg = this.add.rectangle(80, 10, 150, 8, 0x333333);
+        // Progress bar - better aligned in bottom area of card
+        const progressBarX = 0; // Center of card for better alignment
+        const progressBarY = 35; // Bottom area with more space
+        const progressWidth = Math.min(200, cardWidth - 80); // Responsive width within card bounds
+        const progressBg = this.add.rectangle(progressBarX, progressBarY, progressWidth, 8, 0x333333);
         
-        // Progress bar fill
-        const progressFill = this.add.rectangle(80 - 75 + (75 * progressPercent), 10, 150 * progressPercent, 8, 
+        // Progress bar fill - simplified calculation for better alignment
+        const fillWidth = progressWidth * progressPercent;
+        const fillX = progressBarX - (progressWidth/2) + (fillWidth/2);
+        const progressFill = this.add.rectangle(fillX, progressBarY, fillWidth, 8, 
             achievement.currentTier ? TIER_COLORS[achievement.currentTier.level] : TIER_COLORS.bronze);
         
-        // Progress text
-        const progressTextObj = this.add.text(80, 25, progressText, {
-            fontSize: '10px',
+        // Progress text - centered below progress bar within card bounds
+        const progressTextObj = this.add.text(progressBarX, progressBarY + 15, progressText, {
+            fontSize: '8px',
             fontFamily: 'Arial',
-            color: '#CCCCCC'
+            color: '#CCCCCC',
+            wordWrap: { width: progressWidth } // Prevent text overflow
         }).setOrigin(0.5);
         
-        // Next tier info
+        // Next tier info - positioned in top right area with better alignment
         if (achievement.nextTier && !achievement.isCompleted) {
-            const nextTierText = this.add.text(80, -15, `Next: ${achievement.nextTier.name}`, {
+            const nextTierX = (cardWidth/2) - 90; // Right side of card
+            const nextTierText = this.add.text(nextTierX, -25, `Next: ${achievement.nextTier.name}`, {
                 fontSize: '10px',
                 fontFamily: 'Arial',
                 color: TIER_COLORS[achievement.nextTier.level]
             }).setOrigin(0.5);
             
-            const rewardText = this.add.text(80, -5, `Reward: ${achievement.nextTier.reward} coins`, {
+            const rewardText = this.add.text(nextTierX, -10, `Reward: ${achievement.nextTier.reward} coins`, {
                 fontSize: '9px',
                 fontFamily: 'Arial',
                 color: '#FFD700'
@@ -358,17 +372,22 @@ export default class StatsScene extends Phaser.Scene {
     }
 
     showRecords() {
+        // Check if we have game data
+        if (achievementSystem.records.overall.totalGamesPlayed === 0) {
+            console.warn('⚠️ No game data found. Play some games to see statistics.');
+        }
+        
         const records = achievementSystem.getRecordsDisplayData();
-        const startY = 200;
+        const startY = 260; // Match achievements start position for consistency  
         let currentY = startY;
         
-        // Show each category
+        // Show each category with better spacing
         Object.keys(records).forEach((category, categoryIndex) => {
             currentY = this.createRecordsCategory(category, records[category], currentY);
-            currentY += 30; // Space between categories
+            currentY += 40; // More space between categories to prevent overlapping
         });
         
-        this.maxScroll = Math.max(0, currentY - startY - (this.cameras.main.height - 350));
+        this.maxScroll = Math.max(0, currentY - startY - (this.cameras.main.height - 200));
     }
 
     createRecordsCategory(categoryName, categoryData, startY) {
@@ -397,32 +416,32 @@ export default class StatsScene extends Phaser.Scene {
         
         let currentY = startY + 50;
         
-        // Create records in two columns - responsive layout
+        // Create records in two columns with better spacing to prevent overlapping
         const records = Object.entries(categoryData);
         const recordsPerColumn = Math.ceil(records.length / 2);
-        const maxColumnWidth = Math.min(280, (this.cameras.main.width - 120) / 2); // Responsive column width
-        const columnSpacing = Math.min(150, (this.cameras.main.width - 200) / 4); // Responsive spacing
+        const maxColumnWidth = Math.min(200, (this.cameras.main.width - 140) / 2); // Smaller width to prevent overlap
+        const columnSpacing = Math.min(120, (this.cameras.main.width - 180) / 4); // Better spacing
         
         records.forEach(([key, value], index) => {
             const isLeftColumn = index < recordsPerColumn;
-            const columnX = isLeftColumn ? this.centerX - columnSpacing : this.centerX + columnSpacing;
-            const rowY = currentY + ((index % recordsPerColumn) * 25);
+            const columnX = isLeftColumn ? this.centerX - columnSpacing - 40 : this.centerX + columnSpacing + 40; // More separation
+            const rowY = currentY + ((index % recordsPerColumn) * 30); // More vertical spacing
             
             const recordContainer = this.add.container(columnX, rowY);
             
-            // Record background - responsive width
-            const recordBg = this.add.rectangle(0, 0, maxColumnWidth, 20, 0x1a1a2e, 0.7);
+            // Record background - smaller to prevent overlap
+            const recordBg = this.add.rectangle(0, 0, maxColumnWidth, 24, 0x1a1a2e, 0.7);
             
-            // Record label - responsive positioning
-            const label = this.add.text(-maxColumnWidth/2 + 10, 0, key, {
-                fontSize: '11px',
+            // Record label - better positioning
+            const label = this.add.text(-maxColumnWidth/2 + 8, 0, key, {
+                fontSize: '10px',
                 fontFamily: 'Arial',
                 color: '#CCCCCC'
             }).setOrigin(0, 0.5);
             
-            // Record value - responsive positioning
-            const valueText = this.add.text(maxColumnWidth/2 - 10, 0, value, {
-                fontSize: '11px',
+            // Record value - better positioning
+            const valueText = this.add.text(maxColumnWidth/2 - 8, 0, value, {
+                fontSize: '10px',
                 fontFamily: 'Arial',
                 color: '#FFFFFF',
                 fontStyle: 'bold'
@@ -432,16 +451,30 @@ export default class StatsScene extends Phaser.Scene {
             this.contentContainer.add(recordContainer);
         });
         
-        return currentY + (recordsPerColumn * 25) + 20;
+        return currentY + (recordsPerColumn * 30) + 25; // More space after each category
+    }
+
+    // Test method to add dummy data for debugging
+    addTestData() {
+        console.log('Adding test data...');
+        achievementSystem.updateRecords('normal', {
+            score: 1500,
+            linesCleared: 10,
+            maxCombo: 3,
+            shapesPlaced: 25,
+            playTime: 120000,
+            coinsEarned: 50
+        });
+        console.log('Test data added');
     }
 
     setupScrolling() {
-        // Mouse wheel scrolling
+        // Mouse wheel scrolling - reduced speed for better control
         this.input.on('wheel', (pointer, gameObjects, deltaX, deltaY) => {
-            this.scroll(deltaY > 0 ? 50 : -50);
+            this.scroll(deltaY > 0 ? 25 : -25); // Reduced from 50 to 25
         });
         
-        // Touch scrolling (basic implementation)
+        // Touch scrolling (basic implementation) - reduced speed
         let startY = 0;
         let isDragging = false;
         
@@ -455,7 +488,7 @@ export default class StatsScene extends Phaser.Scene {
         this.input.on('pointermove', (pointer) => {
             if (isDragging) {
                 const deltaY = startY - pointer.y;
-                this.scroll(deltaY * 2);
+                this.scroll(deltaY * 1); // Reduced from 2 to 1
                 startY = pointer.y;
             }
         });
